@@ -2,7 +2,7 @@
 const CONFIG = {
     SPREADSHEET_ID: '1zc5lh-8XWEhGYJajqooWGK3Vo89kqob1iAaIdaIiXc0',
     API_KEY: 'AIzaSyAG16CaL_CwY6Hktj6nNrxCoPjYXcJZHcE',
-    PROXY_URL: 'https://script.google.com/macros/s/AKfycbycPw8Y_lGHHGkgmsSgbkFBPClllxY9TltkVOvg0rD0lZwNSZoc8pKz_CBaFoVWiXMl4w/exec'
+    PROXY_URL: 'https://script.google.com/macros/s/AKfycbxj7o3ltynlV1h3SX3CCwWE-7PYVwVFrWEQBptdr6QxOwXQA6kpJ-v3bT07fGpRFPB7ow/exec'
 };
 
 // ==================== VARIABEL GLOBAL ====================
