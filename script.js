@@ -276,20 +276,20 @@ function renderSoal(idx) {
         window.currentMatchingSoal = s; window.currentMatchingJawaban = jawabanObj;
         const opsiTeracak = shuffleArray(s.pilihan.filter(p => p && p.trim()));
         const hurufMapping = {}; opsiTeracak.forEach((opt, i) => { hurufMapping[String.fromCharCode(65 + i)] = opt; }); window.hurufMapping = hurufMapping;
-        h += `<div style="margin-bottom:16px; padding:12px; background:#e8f0fe; border-radius:12px;"><p style="font-weight:600; color:#0b2b5e;"><i class="fas fa-info-circle"></i> Petunjuk: Tarik jawaban (A, B, C, D) dari kotak kiri ke istilah yang sesuai di kanan.</p></div>`;
+        h += `<div style="margin-bottom:16px; padding:12px; background:#e8f0fe; border-radius:12px;"><p style="font-weight:600; color:#0b2b5e;"><i class="fas fa-info-circle"></i> Petunjuk: Tarik jawaban (A, B, C, D) dari kotak KANAN ke istilah di kotak KIRI.</p></div>`;
         h += `<div class="matching-jodoh-container">`;
-        h += `<div class="matching-left"><div style="font-weight:600; margin-bottom:12px; color:#1e293b; text-align:center; background:#f1f5f9; padding:8px; border-radius:8px;"><i class="fas fa-arrows-alt"></i> JAWABAN (Tarik ke kanan)</div>`;
+        h += `<div class="matching-left matching-target-area"><div style="font-weight:600; margin-bottom:12px; color:#1e293b; text-align:center; background:#fef3c7; padding:10px; border-radius:8px; border:2px solid #d97706;"><i class="fas fa-bullseye"></i> ISTILAH (Drop jawaban di sini)</div>`;
+        for (let key in kunciObj) {
+            const isFilled = jawabanObj[key] !== undefined, hurufJawaban = jawabanObj[key] || '', teksJawaban = hurufMapping[hurufJawaban] || '';
+            h += `<div class="matching-target ${isFilled ? 'filled' : 'empty'}" data-key="${key}" id="target_${key.replace(/[^a-zA-Z0-9]/g,'')}"><div class="matching-target-content">${isFilled ? `<strong style="font-size:16px;">${key}</strong><br><span style="font-size:13px; color:#16a34a;"><i class="fas fa-check-circle"></i> ${hurufJawaban}. ${teksJawaban}</span>` : `<strong style="font-size:16px;">${key}</strong><br><span style="color:#94a3b8; font-size:13px;"><i class="fas fa-arrow-right"></i> Tarik jawaban ke sini</span>`}</div></div>`;
+        }
+        h += `</div>`;
+        h += `<div class="matching-right matching-drag-area"><div style="font-weight:600; margin-bottom:12px; color:#1e293b; text-align:center; background:#dbeafe; padding:10px; border-radius:8px; border:2px solid #0b2b5e;"><i class="fas fa-arrows-alt"></i> JAWABAN (Tarik ke kiri)</div>`;
         opsiTeracak.forEach((opt, i) => {
             const huruf = String.fromCharCode(65 + i), isUsed = Object.values(jawabanObj).includes(huruf);
-            if (!isUsed) h += `<div class="matching-item-left" draggable="true" data-huruf="${huruf}" data-jawaban="${opt.replace(/"/g, '&quot;')}"><strong style="color:#0b2b5e; margin-right:8px; font-size:16px;">${huruf}.</strong> ${opt}</div>`;
-            else h += `<div class="matching-item-left paired" draggable="false"><strong style="color:#0b2b5e; margin-right:8px; font-size:16px;">${huruf}.</strong> ${opt} <span style="margin-left:8px; color:#16a34a; font-size:12px;"><i class="fas fa-check-circle"></i> Sudah</span></div>`;
+            if (!isUsed) h += `<div class="matching-item-right" draggable="true" data-huruf="${huruf}" data-jawaban="${opt.replace(/"/g, '&quot;')}"><strong style="color:#0b2b5e; margin-right:8px; font-size:16px;">${huruf}.</strong> ${opt}</div>`;
+            else h += `<div class="matching-item-right paired" draggable="false"><strong style="color:#0b2b5e; margin-right:8px; font-size:16px;">${huruf}.</strong> ${opt} <span style="margin-left:8px; color:#16a34a; font-size:12px;"><i class="fas fa-check-circle"></i> Sudah</span></div>`;
         });
-        h += `</div>`;
-        h += `<div class="matching-right"><div style="font-weight:600; margin-bottom:12px; color:#1e293b; text-align:center; background:#f1f5f9; padding:8px; border-radius:8px;"><i class="fas fa-bullseye"></i> ISTILAH (Drop jawaban di sini)</div>`;
-        for (let key in kunciObj) {
-            const isFilled = jawabanObj[key] !== undefined, huruf = jawabanObj[key] || '', teks = hurufMapping[huruf] || '';
-            h += `<div class="matching-target ${isFilled ? 'filled' : 'empty'}" data-key="${key}" id="target_${key.replace(/[^a-zA-Z0-9]/g,'')}"><div class="matching-target-content">${isFilled ? `<strong style="font-size:16px;">${key}</strong><br><span style="font-size:14px; color:#16a34a;"><i class="fas fa-check-circle"></i> ${huruf}. ${teks}</span>` : `<strong style="font-size:16px;">${key}</strong><br><span style="color:#94a3b8; font-size:13px;"><i class="fas fa-arrow-left"></i> Tarik jawaban ke sini</span>`}</div></div>`;
-        }
         h += `</div></div>`;
         h += `<div style="display:flex; gap:12px; margin-top:20px;"><button class="btn-reset-matching" onclick="resetMatching()"><i class="fas fa-undo"></i> Reset</button><button class="btn-simpan" onclick="simpanJodohDrag('${s.id}')"><i class="fas fa-save"></i> Simpan Jawaban</button></div>`;
         setTimeout(() => initDragDropJodoh(), 50);
@@ -311,13 +311,13 @@ function simpanIsian(id) { if (isFrozen) return; const i = document.getElementBy
 function prevSoal() { if (isFrozen) return; if (indexSoal > 0) goToSoal(indexSoal - 1); }
 function nextSoal() { if (isFrozen) return; if (indexSoal < dataSoal.length - 1) goToSoal(indexSoal + 1); }
 
-// ==================== DRAG & DROP JODOH ====================
+// ==================== DRAG & DROP JODOH (KANAN KE KIRI) ====================
 function initDragDropJodoh() {
-    document.querySelectorAll('.matching-item-left[draggable="true"]').forEach(i => { i.removeEventListener('dragstart', handleDragStartJodoh); i.addEventListener('dragstart', handleDragStartJodoh); i.removeEventListener('dragend', handleDragEndJodoh); i.addEventListener('dragend', handleDragEndJodoh); });
+    document.querySelectorAll('.matching-item-right[draggable="true"]').forEach(i => { i.removeEventListener('dragstart', handleDragStartJodoh); i.addEventListener('dragstart', handleDragStartJodoh); i.removeEventListener('dragend', handleDragEndJodoh); i.addEventListener('dragend', handleDragEndJodoh); });
     document.querySelectorAll('.matching-target').forEach(t => { t.removeEventListener('dragover', handleDragOverJodoh); t.addEventListener('dragover', handleDragOverJodoh); t.removeEventListener('dragenter', handleDragEnterJodoh); t.addEventListener('dragenter', handleDragEnterJodoh); t.removeEventListener('dragleave', handleDragLeaveJodoh); t.addEventListener('dragleave', handleDragLeaveJodoh); t.removeEventListener('drop', handleDropJodoh); t.addEventListener('drop', handleDropJodoh); });
 }
-function handleDragStartJodoh(e) { const i = e.target.closest('.matching-item-left'); if (!i) return; i.classList.add('dragging'); e.dataTransfer.setData('text/plain', i.dataset.huruf); e.dataTransfer.effectAllowed = 'move'; }
-function handleDragEndJodoh(e) { const i = e.target.closest('.matching-item-left'); if (i) i.classList.remove('dragging'); document.querySelectorAll('.matching-target').forEach(t => t.classList.remove('drag-over')); }
+function handleDragStartJodoh(e) { const i = e.target.closest('.matching-item-right'); if (!i) return; i.classList.add('dragging'); e.dataTransfer.setData('text/plain', i.dataset.huruf); e.dataTransfer.effectAllowed = 'move'; }
+function handleDragEndJodoh(e) { const i = e.target.closest('.matching-item-right'); if (i) i.classList.remove('dragging'); document.querySelectorAll('.matching-target').forEach(t => t.classList.remove('drag-over')); }
 function handleDragOverJodoh(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
 function handleDragEnterJodoh(e) { e.preventDefault(); this.classList.add('drag-over'); }
 function handleDragLeaveJodoh(e) { this.classList.remove('drag-over'); }
@@ -327,10 +327,10 @@ function updateMatchingUIJodoh() {
     let kunciObj = {}; try { kunciObj = JSON.parse(soal.kunci); } catch(e) {}
     for (let key in kunciObj) {
         const target = document.getElementById(`target_${key.replace(/[^a-zA-Z0-9]/g,'')}`);
-        if (target) { const isFilled = jawabanObj[key] !== undefined, huruf = jawabanObj[key] || '', teks = hurufMapping[huruf] || ''; target.className = `matching-target ${isFilled ? 'filled' : 'empty'}`; target.innerHTML = `<div class="matching-target-content">${isFilled ? `<strong style="font-size:16px;">${key}</strong><br><span style="font-size:14px; color:#16a34a;"><i class="fas fa-check-circle"></i> ${huruf}. ${teks}</span>` : `<strong style="font-size:16px;">${key}</strong><br><span style="color:#94a3b8; font-size:13px;"><i class="fas fa-arrow-left"></i> Tarik jawaban ke sini</span>`}</div>`; }
+        if (target) { const isFilled = jawabanObj[key] !== undefined, huruf = jawabanObj[key] || '', teks = hurufMapping[huruf] || ''; target.className = `matching-target ${isFilled ? 'filled' : 'empty'}`; target.innerHTML = `<div class="matching-target-content">${isFilled ? `<strong style="font-size:16px;">${key}</strong><br><span style="font-size:13px; color:#16a34a;"><i class="fas fa-check-circle"></i> ${huruf}. ${teks}</span>` : `<strong style="font-size:16px;">${key}</strong><br><span style="color:#94a3b8; font-size:13px;"><i class="fas fa-arrow-right"></i> Tarik jawaban ke sini</span>`}</div>`; }
     }
-    const usedHuruf = Object.values(jawabanObj), opsiTeracak = shuffleArray(soal.pilihan.filter(p => p && p.trim())), leftContainer = document.querySelector('.matching-left');
-    if (leftContainer) { let h = `<div style="font-weight:600; margin-bottom:12px; color:#1e293b; text-align:center; background:#f1f5f9; padding:8px; border-radius:8px;"><i class="fas fa-arrows-alt"></i> JAWABAN (Tarik ke kanan)</div>`; opsiTeracak.forEach((opt, i) => { const huruf = String.fromCharCode(65 + i), isUsed = usedHuruf.includes(huruf); if (!isUsed) h += `<div class="matching-item-left" draggable="true" data-huruf="${huruf}" data-jawaban="${opt.replace(/"/g, '&quot;')}"><strong style="color:#0b2b5e; margin-right:8px; font-size:16px;">${huruf}.</strong> ${opt}</div>`; else h += `<div class="matching-item-left paired" draggable="false"><strong style="color:#0b2b5e; margin-right:8px; font-size:16px;">${huruf}.</strong> ${opt} <span style="margin-left:8px; color:#16a34a; font-size:12px;"><i class="fas fa-check-circle"></i> Sudah</span></div>`; }); leftContainer.innerHTML = h; }
+    const usedHuruf = Object.values(jawabanObj), opsiTeracak = shuffleArray(soal.pilihan.filter(p => p && p.trim())), rightContainer = document.querySelector('.matching-right');
+    if (rightContainer) { let h = `<div style="font-weight:600; margin-bottom:12px; color:#1e293b; text-align:center; background:#dbeafe; padding:10px; border-radius:8px; border:2px solid #0b2b5e;"><i class="fas fa-arrows-alt"></i> JAWABAN (Tarik ke kiri)</div>`; opsiTeracak.forEach((opt, i) => { const huruf = String.fromCharCode(65 + i), isUsed = usedHuruf.includes(huruf); if (!isUsed) h += `<div class="matching-item-right" draggable="true" data-huruf="${huruf}" data-jawaban="${opt.replace(/"/g, '&quot;')}"><strong style="color:#0b2b5e; margin-right:8px; font-size:16px;">${huruf}.</strong> ${opt}</div>`; else h += `<div class="matching-item-right paired" draggable="false"><strong style="color:#0b2b5e; margin-right:8px; font-size:16px;">${huruf}.</strong> ${opt} <span style="margin-left:8px; color:#16a34a; font-size:12px;"><i class="fas fa-check-circle"></i> Sudah</span></div>`; }); rightContainer.innerHTML = h; }
     initDragDropJodoh();
 }
 function resetMatching() { window.currentMatchingJawaban = {}; renderSoal(indexSoal); showToast('Pasangan direset', 'info'); }
