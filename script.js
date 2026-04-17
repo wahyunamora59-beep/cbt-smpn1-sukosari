@@ -157,20 +157,39 @@ function cancelConfirm() {
 }
 
 async function startExam() {
-    if (!pendingUser || !pendingUjian) { showError("Data tidak valid."); cancelConfirm(); return; }
+    console.log("=".repeat(50));
+    console.log("🚀 MEMULAI UJIAN");
+    console.log("=".repeat(50));
+    
+    if (!pendingUser) { console.log("❌ pendingUser kosong!"); showError("Data user tidak ditemukan."); cancelConfirm(); return; }
+    if (!pendingUjian) { console.log("❌ pendingUjian kosong!"); showError("Data ujian tidak ditemukan."); cancelConfirm(); return; }
+    
+    console.log("✅ Pending User:", pendingUser);
+    console.log("✅ Pending Ujian:", pendingUjian);
+    
     currentUser = pendingUser; currentUjian = pendingUjian; waktuSelesai = pendingWaktuSelesai; minimalMenit = pendingUjian.min || 0;
     waktuMulaiServer = new Date();
+    
     try {
-        const pR = await fetch(CONFIG.PROXY_URL, { method: "POST", body: JSON.stringify({ action: "mulaiUjian", username: currentUser.username, token: document.getElementById("tokenInput").value.trim(), jenjang: currentUser.jenjang, mapel: currentUjian.mapel, jenisUjian: currentUjian.jenis, ipAddress: "0.0.0.0", device: /Mobile/.test(navigator.userAgent) ? "Mobile" : "Desktop" }) });
-        const pD = await pR.json(); if (!pD.success) { showError(pD.msg); cancelConfirm(); return; } idSesi = pD.idSesi;
-    } catch (e) { showError("Gagal terhubung ke server."); cancelConfirm(); return; }
+        const requestData = { action: "mulaiUjian", username: currentUser.username, token: document.getElementById("tokenInput").value.trim(), jenjang: currentUser.jenjang, mapel: currentUjian.mapel, jenisUjian: currentUjian.jenis, ipAddress: "0.0.0.0", device: /Mobile/.test(navigator.userAgent) ? "Mobile" : "Desktop" };
+        console.log("📡 Request Proxy:", requestData);
+        
+        const pR = await fetch(CONFIG.PROXY_URL, { method: "POST", body: JSON.stringify(requestData) });
+        const pD = await pR.json();
+        console.log("📡 Proxy Response:", pD);
+        
+        if (!pD.success) { showError(pD.msg || "Gagal memulai ujian"); cancelConfirm(); return; }
+        idSesi = pD.idSesi;
+    } catch (e) { console.error("❌ Proxy Error:", e); showError("Gagal terhubung ke server."); cancelConfirm(); return; }
+    
     document.getElementById("confirmScreen").style.display = "none"; document.getElementById("examScreen").style.display = "block";
-    document.getElementById("namaDisplay").innerText = `${currentUser.nama} | ${currentUser.kelas}`;
-    document.getElementById("infoDisplay").innerText = `${currentUjian.mapel} - ${currentUjian.jenis}`;
+    document.getElementById("namaDisplay").innerText = `${currentUser.nama || 'N/A'} | ${currentUser.kelas || 'N/A'}`;
+    document.getElementById("infoDisplay").innerText = `${currentUjian.mapel || 'N/A'} - ${currentUjian.jenis || 'N/A'}`;
+    
     await ambilSoal(currentUser.jenjang, currentUjian.mapel, currentUjian.jenis);
     mulaiTimer(); renderNavigator(); showFullscreenPrompt();
     updateTombolSelesai(); setInterval(updateTombolSelesai, 1000);
-    showSuccess(`Selamat datang, ${currentUser.nama}!`);
+    showSuccess(`Selamat datang, ${currentUser.nama || 'Siswa'}!`);
 }
 
 // ==================== AMBIL SOAL ====================
