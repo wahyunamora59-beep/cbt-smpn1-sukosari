@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CBT SMPN 1 Sukosari</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- LOGIN SCREEN -->
+        <div id="loginScreen">
+            <div class="login-header">
+                <div class="logo-placeholder">
+                    <i class="fas fa-school"></i>
+                </div>
+                <div class="school-name">SMP NEGERI 1 SUKOSARI</div>
+                <div class="exam-subtitle">Computer Based Test</div>
+            </div>
+            
+            <div class="input-group">
+                <label><i class="fas fa-user"></i> Username</label>
+                <input type="text" id="usernameInput" placeholder="Contoh: budi.santoso" autocomplete="off">
+            </div>
+            
+            <div class="input-group">
+                <label><i class="fas fa-key"></i> Token Ujian</label>
+                <div class="password-wrapper">
+                    <input type="password" id="tokenInput" placeholder="Masukkan Token" autocomplete="off">
+                    <i class="fas fa-eye toggle-password" onclick="togglePassword()"></i>
+                </div>
+            </div>
+            
+            <button class="btn-login" onclick="handleLogin()">MULAI UJIAN</button>
+            <p class="warning-text"><i class="fas fa-shield-alt"></i> Jangan keluar aplikasi selama ujian</p>
+        </div>
+
+        <!-- EXAM SCREEN -->
+        <div id="examScreen" style="display: none;">
+            <div class="exam-header">
+                <div><span id="namaDisplay"></span> | <span id="infoDisplay"></span></div>
+                <div class="timer" id="timerDisplay">00:00</div>
+            </div>
+            
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            
+            <div class="exam-main">
+                <div class="soal-panel">
+                    <div id="soalContainer"></div>
+                </div>
+                
+                <div class="nav-panel" id="navPanel">
+                    <div class="nav-header">
+                        <span>Daftar Soal</span>
+                        <button onclick="toggleNav()">✕</button>
+                    </div>
+                    <div class="nav-grid" id="navGrid"></div>
+                    <div class="nav-legend">
+                        <span><span class="legend-box answered"></span> Sudah</span>
+                        <span><span class="legend-box current"></span> Sedang</span>
+                        <span><span class="legend-box unanswered"></span> Belum</span>
+                        <span><span class="legend-box ragu"></span> Ragu</span>
+                    </div>
+                </div>
+            </div>
+            
+            <button class="btn-toggle-nav" onclick="toggleNav()"><i class="fas fa-th"></i> Nomor Soal</button>
+            
+            <div class="nav-bottom">
+                <button class="nav-btn" onclick="prevSoal()"><i class="fas fa-arrow-left"></i> Sebelumnya</button>
+                <button class="nav-btn nav-ragu" onclick="toggleRagu()"><i class="fas fa-flag"></i> Ragu</button>
+                <button class="nav-btn btn-selesai" onclick="konfirmasiSelesai()"><i class="fas fa-check-circle"></i> Selesai</button>
+                <button class="nav-btn" onclick="nextSoal()">Selanjutnya <i class="fas fa-arrow-right"></i></button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="alert-overlay" id="alertOverlay"></div>
+    <audio id="alertSound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
+    
+    <script src="script.js"></script>
+</body>
+</html>
