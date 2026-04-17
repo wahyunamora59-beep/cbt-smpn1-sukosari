@@ -594,21 +594,23 @@ body {
 
 .matching-item-left {
     background: linear-gradient(145deg, #f8fafc, #e2e8f0);
-    padding: 16px 20px;
+    padding: 14px 16px;
     border-radius: 16px;
     font-weight: 500;
     color: #1e293b;
     border: 2px solid #cbd5e1;
-    text-align: center;
     cursor: grab;
     user-select: none;
     transition: all 0.2s;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    display: flex;
+    align-items: center;
 }
 
 .matching-item-left:hover {
     border-color: #0b2b5e;
-    box-shadow: 0 4px 8px rgba(11, 43, 94, 0.1);
+    box-shadow: 0 4px 8px rgba(11,43,94,0.1);
+    transform: translateY(-2px);
 }
 
 .matching-item-left:active {
@@ -625,7 +627,7 @@ body {
     background: #dcfce7;
     border-color: #22c55e;
     cursor: default;
-    opacity: 0.8;
+    opacity: 0.7;
 }
 
 .matching-target {
@@ -728,10 +730,6 @@ body {
     cursor: not-allowed !important;
 }
 
-.btn-selesai:disabled:hover {
-    background: #94a3b8 !important;
-}
-
 .nav-ragu {
     background: #fef3c7;
     color: #d97706;
@@ -796,7 +794,7 @@ body {
 }
 
 .toast.error {
-    background: #dc2626;
+    background: #2363dc;
 }
 
 .toast.warning {
@@ -1173,7 +1171,6 @@ body {
         max-width: 100%;
         padding: 20px 16px;
     }
-
     .nav-panel {
         width: 160px;
     }
@@ -1184,11 +1181,9 @@ body {
         max-width: 550px;
         padding: 16px;
     }
-
     .exam-main {
         flex-direction: column;
     }
-
     .nav-panel {
         position: fixed;
         bottom: 0;
@@ -1206,24 +1201,19 @@ body {
         padding: 20px 16px;
         box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
     }
-
     .nav-panel.show {
         transform: translateY(0);
     }
-
     .nav-header button {
         display: block;
     }
-
     .nav-grid {
         grid-template-columns: repeat(8, 1fr);
         max-height: 300px;
     }
-
     .nav-legend {
         grid-template-columns: repeat(4, 1fr);
     }
-
     .btn-toggle-nav {
         display: block;
         width: 100%;
@@ -1236,29 +1226,23 @@ body {
         cursor: pointer;
         margin: 16px 0;
     }
-
     .matching-jodoh-container {
         flex-direction: column;
     }
-
     .logo-placeholder {
         width: 90px;
         height: 90px;
     }
-
     .school-name {
         font-size: 20px;
     }
-
     .nav-bottom {
         gap: 8px;
     }
-
     .nav-btn {
         padding: 12px 8px;
         font-size: 13px;
     }
-
     .footer p {
         font-size: 11px;
     }
