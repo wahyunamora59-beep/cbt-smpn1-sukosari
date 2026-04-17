@@ -10,11 +10,12 @@
 </head>
 <body>
     <div class="app-container">
-        <!-- LOGIN SCREEN -->
+        <!-- ==================== LOGIN SCREEN ==================== -->
         <div id="loginScreen">
             <div class="login-header">
+                <!-- LOGO SEKOLAH - GANTI FILE_ID DENGAN ID GOOGLE DRIVE ANDA -->
                 <div class="logo-placeholder">
-                    <i class="fas fa-school"></i>
+                    <img src="https://drive.google.com/file/d/1-vUav8By-Xj50EIFSc3TgEopz1MWWAvL/view?usp=sharing" alt="Logo SMPN 1 Sukosari" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 fill=%22%23e8f0fe%22/%3E%3Ctext x=%2250%22 y=%2260%22 text-anchor=%22middle%22 font-size=%2240%22 fill=%22%230b2b5e%22%3E🏫%3C/text%3E%3C/svg%3E'">
                 </div>
                 <div class="school-name">SMP NEGERI 1 SUKOSARI</div>
                 <div class="exam-subtitle">Computer Based Test</div>
@@ -37,27 +38,38 @@
             <p class="warning-text"><i class="fas fa-shield-alt"></i> Jangan keluar aplikasi selama ujian</p>
         </div>
 
-        <!-- EXAM SCREEN -->
+        <!-- ==================== KONFIRMASI SCREEN ==================== -->
+        <div id="confirmScreen" style="display: none;">
+            <div class="confirm-header">
+                <div class="confirm-icon"><i class="fas fa-user-check"></i></div>
+                <div class="confirm-title">Konfirmasi Identitas</div>
+                <div class="confirm-subtitle">Pastikan data berikut adalah milik Anda</div>
+            </div>
+            <div class="confirm-card">
+                <div class="confirm-item"><span class="confirm-label"><i class="fas fa-id-card"></i> NIS</span><span class="confirm-value" id="confirmNIS">-</span></div>
+                <div class="confirm-item"><span class="confirm-label"><i class="fas fa-user"></i> Nama</span><span class="confirm-value" id="confirmNama">-</span></div>
+                <div class="confirm-item"><span class="confirm-label"><i class="fas fa-users"></i> Kelas</span><span class="confirm-value" id="confirmKelas">-</span></div>
+                <div class="confirm-item"><span class="confirm-label"><i class="fas fa-book"></i> Mapel</span><span class="confirm-value" id="confirmMapel">-</span></div>
+                <div class="confirm-item"><span class="confirm-label"><i class="fas fa-clock"></i> Waktu</span><span class="confirm-value" id="confirmWaktu">-</span></div>
+            </div>
+            <div class="confirm-warning"><i class="fas fa-exclamation-triangle"></i> Jika bukan milik Anda, klik "Bukan Saya".</div>
+            <div class="confirm-buttons">
+                <button class="confirm-btn btn-secondary" onclick="cancelConfirm()"><i class="fas fa-times"></i> Bukan Saya</button>
+                <button class="confirm-btn btn-primary" onclick="startExam()"><i class="fas fa-check"></i> Ya, Ini Saya</button>
+            </div>
+        </div>
+
+        <!-- ==================== EXAM SCREEN ==================== -->
         <div id="examScreen" style="display: none;">
             <div class="exam-header">
                 <div><span id="namaDisplay"></span> | <span id="infoDisplay"></span></div>
                 <div class="timer" id="timerDisplay">00:00</div>
             </div>
-            
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill"></div>
-            </div>
-            
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
             <div class="exam-main">
-                <div class="soal-panel">
-                    <div id="soalContainer"></div>
-                </div>
-                
+                <div class="soal-panel"><div id="soalContainer"></div></div>
                 <div class="nav-panel" id="navPanel">
-                    <div class="nav-header">
-                        <span>Daftar Soal</span>
-                        <button onclick="toggleNav()">✕</button>
-                    </div>
+                    <div class="nav-header"><span>Daftar Soal</span><button onclick="toggleNav()">✕</button></div>
                     <div class="nav-grid" id="navGrid"></div>
                     <div class="nav-legend">
                         <span><span class="legend-box answered"></span> Sudah</span>
@@ -67,9 +79,7 @@
                     </div>
                 </div>
             </div>
-            
             <button class="btn-toggle-nav" onclick="toggleNav()"><i class="fas fa-th"></i> Nomor Soal</button>
-            
             <div class="nav-bottom">
                 <button class="nav-btn" onclick="prevSoal()"><i class="fas fa-arrow-left"></i> Sebelumnya</button>
                 <button class="nav-btn nav-ragu" onclick="toggleRagu()"><i class="fas fa-flag"></i> Ragu</button>
@@ -77,37 +87,42 @@
                 <button class="nav-btn" onclick="nextSoal()">Selanjutnya <i class="fas fa-arrow-right"></i></button>
             </div>
         </div>
+
+        <<div class="footer">
+            <p>© <span id="currentYear"></span> SMP Negeri 1 Sukosari • Team IT</p>
+        </div>
     </div>
     
+    <!-- ==================== TOAST CONTAINER ==================== -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- ==================== MODAL CONTAINER ==================== -->
+    <div id="modalOverlay" class="modal-overlay" style="display: none;">
+        <div class="modal-container">
+            <div class="modal-icon" id="modalIcon">⚠️</div>
+            <div class="modal-title" id="modalTitle"></div>
+            <div class="modal-message" id="modalMessage"></div>
+            <div class="modal-checkbox" id="modalCheckboxContainer" style="display: none;">
+                <input type="checkbox" id="modalCheckbox"><label for="modalCheckbox" id="modalCheckboxLabel"></label>
+            </div>
+            <div class="modal-buttons" id="modalButtons"></div>
+        </div>
+    </div>
+
+    <!-- ==================== FREEZE OVERLAY ==================== -->
+    <div id="freezeOverlay" class="freeze-overlay" style="display: none;">
+        <div class="freeze-container">
+            <div class="freeze-icon">⏸️</div>
+            <div class="freeze-title">LAYAR DIBEKUKAN</div>
+            <div class="freeze-message">Anda terdeteksi melakukan pelanggaran.</div>
+            <div class="freeze-timer" id="freezeTimer">01:00</div>
+            <div class="freeze-warning">Tunggu hingga waktu habis untuk melanjutkan.</div>
+        </div>
+    </div>
+    
+    <!-- ==================== ALERT OVERLAY ==================== -->
     <div class="alert-overlay" id="alertOverlay"></div>
     <audio id="alertSound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
-    <!-- TOAST CONTAINER -->
-<div id="toastContainer" class="toast-container"></div>
-
-<!-- MODAL CONTAINER -->
-<div id="modalOverlay" class="modal-overlay" style="display: none;">
-    <div class="modal-container">
-        <div class="modal-icon" id="modalIcon">⚠️</div>
-        <div class="modal-title" id="modalTitle">Judul</div>
-        <div class="modal-message" id="modalMessage">Pesan</div>
-        <div class="modal-checkbox" id="modalCheckboxContainer" style="display: none;">
-            <input type="checkbox" id="modalCheckbox">
-            <label for="modalCheckbox" id="modalCheckboxLabel"></label>
-        </div>
-        <div class="modal-buttons" id="modalButtons"></div>
-    </div>
-</div>
-
-<!-- FREEZE OVERLAY -->
-<div id="freezeOverlay" class="freeze-overlay" style="display: none;">
-    <div class="freeze-container">
-        <div class="freeze-icon">⏸️</div>
-        <div class="freeze-title">LAYAR DIBEKUKAN</div>
-        <div class="freeze-message">Anda terdeteksi melakukan pelanggaran.</div>
-        <div class="freeze-timer" id="freezeTimer">01:00</div>
-        <div class="freeze-warning">Tunggu hingga waktu habis untuk melanjutkan ujian.</div>
-    </div>
-</div>
     
     <script src="script.js"></script>
 </body>
