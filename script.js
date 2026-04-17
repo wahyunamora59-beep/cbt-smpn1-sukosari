@@ -130,20 +130,19 @@ async function handleLogin() {
         
         const jR = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/JADWAL_UJIAN!A:J?key=${CONFIG.API_KEY}`), jD = await jR.json(), jRows = jD.values || [];
         let jadwal = null;
-        for (let i = 1; i < jRows.length; i++) if (jRows[i][1] === tokenInfo.jenjang && jRows[i][2] === tokenInfo.mapel && jRows[i][3] === tokenInfo.jenis && jRows[i][9] === "Aktif") { jadwal = { mulai: jRows[i][5], selesai: jRows[i][6], min: parseInt(jRows[i][7]) || 0 }; break; }
+        for (let i = 1; i < jRows.length; i++) if (jRows[i][1] == tokenInfo.jenjang && jRows[i][2] == tokenInfo.mapel && jRows[i][3] == tokenInfo.jenis && jRows[i][9] === "Aktif") { jadwal = { mulai: jRows[i][5], selesai: jRows[i][6], min: parseInt(jRows[i][7]) || 0 }; break; }
         if (!jadwal) { showError("Jadwal tidak ditemukan!"); return; }
-        if (!jadwal.mulai || !jadwal.selesai || !jadwal.mulai.includes(":")) { showError("Format waktu salah!"); return; }
+        if (!jadwal.mulai || !jadwal.selesai) { showError("Format waktu salah!"); return; }
         
         const now = new Date();
-        const [hM, mM] = jadwal.mulai.split(":").map(n => parseInt(n));
-        const [hS, mS] = jadwal.selesai.split(":").map(n => parseInt(n));
+        const [hS, mS] = jadwal.selesai.split(':').map(n => parseInt(n));
         const wS = new Date(); wS.setHours(hS, mS, 0, 0);
         if (now >= wS) { showError("Waktu ujian sudah berakhir!"); return; }
         
         pendingUser = siswa; pendingUjian = { ...tokenInfo, ...jadwal }; pendingWaktuSelesai = wS;
         document.getElementById("loginScreen").style.display = "none"; document.getElementById("confirmScreen").style.display = "block";
-        document.getElementById("confirmNIS").textContent = siswa.nis; document.getElementById("confirmNama").textContent = siswa.nama;
-        document.getElementById("confirmKelas").textContent = siswa.kelas; document.getElementById("confirmMapel").textContent = `${tokenInfo.mapel} - ${tokenInfo.jenis}`;
+        document.getElementById("confirmNIS").textContent = siswa.nis || '-'; document.getElementById("confirmNama").textContent = siswa.nama || '-';
+        document.getElementById("confirmKelas").textContent = siswa.kelas || '-'; document.getElementById("confirmMapel").textContent = `${tokenInfo.mapel} - ${tokenInfo.jenis}`;
         document.getElementById("confirmWaktu").textContent = `${jadwal.mulai} - ${jadwal.selesai}`;
     } catch (e) { console.error(e); showError("Gagal terhubung."); }
 }
@@ -178,7 +177,7 @@ async function ambilSoal(j, m, js) {
         const r = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/BANK_SOAL!A:O?key=${CONFIG.API_KEY}`), d = await r.json(), rows = d.values || [];
         dataSoal = [];
         for (let i = 1; i < rows.length; i++) {
-            if (rows[i][1] === j && rows[i][2] === m && rows[i][3] === js && rows[i][13] === "Aktif") {
+            if (rows[i][1] == j && rows[i][2] == m && rows[i][3] == js && rows[i][13] === "Aktif") {
                 dataSoal.push({ id: rows[i][0], tipe: rows[i][4], pertanyaan: rows[i][5], pilihan: [rows[i][6], rows[i][7], rows[i][8], rows[i][9], rows[i][10]].filter(p => p), kunci: rows[i][11], bobot: parseFloat(rows[i][12]) || 1, gambar: rows[i][14] || null });
             }
         }
@@ -272,10 +271,8 @@ async function selesaiUjian() {
     setTimeout(() => { document.querySelector(".modal-message").innerHTML = `<div class="score-summary"><div class="score-number">${t.toFixed(2)}</div><div class="score-label">Total Skor</div><div class="score-details"><div class="score-detail-item"><div class="score-detail-value">${b}/${dataSoal.length}</div><div class="score-detail-label">Soal Benar</div></div><div class="score-detail-item"><div class="score-detail-value">${p}%</div><div class="score-detail-label">Persentase</div></div></div>${totalPenalti > 0 ? `<p style="margin-top:16px;color:#fca5a5;">⚠️ Total pelanggaran: ${totalPenalti} kali</p>` : ""}</div><p>Jawaban Anda telah tersimpan.</p>`; }, 10);
 }
 
-// ==================== SET TAHUN FOOTER ====================
+// ==================== TAHUN FOOTER ====================
 document.addEventListener('DOMContentLoaded', function() {
     const yearSpan = document.getElementById('currentYear');
-    if (yearSpan) {
-        yearSpan.textContent = new Date().getFullYear();
-    }
+    if (yearSpan) yearSpan.textContent = new Date().getFullYear();
 });
