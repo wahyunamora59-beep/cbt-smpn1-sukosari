@@ -15,57 +15,38 @@ let isFullscreen = false;
 // ==================== TOAST & MODAL ====================
 function showToast(message, type = 'info', duration = 3000) {
     const container = document.getElementById('toastContainer');
+    if (!container) { alert(message); return; }
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'times-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'}"></i> ${message}`;
     container.appendChild(toast);
-    
-    setTimeout(() => {
-        toast.classList.add('hide');
-        setTimeout(() => toast.remove(), 300);
-    }, duration);
+    setTimeout(() => { toast.classList.add('hide'); setTimeout(() => toast.remove(), 300); }, duration);
 }
 
 function showModal(options) {
-    const { icon, iconType = 'info', title, message, showCheckbox = false, checkboxLabel = '', buttons = [], onClose } = options;
-    
     const overlay = document.getElementById('modalOverlay');
+    if (!overlay) { alert(options.message); return; }
+    const { icon, iconType = 'info', title, message, showCheckbox = false, checkboxLabel = '', buttons = [], onClose } = options;
     document.getElementById('modalIcon').textContent = icon || (iconType === 'success' ? '✅' : iconType === 'error' ? '❌' : iconType === 'warning' ? '⚠️' : 'ℹ️');
     document.getElementById('modalIcon').className = `modal-icon ${iconType}`;
     document.getElementById('modalTitle').textContent = title;
     document.getElementById('modalMessage').textContent = message;
-    
     const checkboxContainer = document.getElementById('modalCheckboxContainer');
-    if (showCheckbox) {
-        checkboxContainer.style.display = 'flex';
-        document.getElementById('modalCheckboxLabel').textContent = checkboxLabel;
-        document.getElementById('modalCheckbox').checked = false;
-    } else {
-        checkboxContainer.style.display = 'none';
-    }
-    
+    if (showCheckbox) { checkboxContainer.style.display = 'flex'; document.getElementById('modalCheckboxLabel').textContent = checkboxLabel; document.getElementById('modalCheckbox').checked = false; }
+    else { checkboxContainer.style.display = 'none'; }
     const buttonsDiv = document.getElementById('modalButtons');
     buttonsDiv.innerHTML = '';
     buttons.forEach(btn => {
         const btnEl = document.createElement('button');
         btnEl.className = `modal-btn ${btn.type || 'secondary'}`;
         btnEl.textContent = btn.text;
-        btnEl.onclick = () => {
-            const checked = showCheckbox ? document.getElementById('modalCheckbox').checked : false;
-            if (btn.onClick) btn.onClick(checked);
-            closeModal();
-        };
+        btnEl.onclick = () => { const checked = showCheckbox ? document.getElementById('modalCheckbox').checked : false; if (btn.onClick) btn.onClick(checked); closeModal(); };
         buttonsDiv.appendChild(btnEl);
     });
-    
     overlay.style.display = 'flex';
     overlay.onclick = (e) => { if (e.target === overlay) { closeModal(); if (onClose) onClose(); } };
 }
-
-function closeModal() {
-    document.getElementById('modalOverlay').style.display = 'none';
-}
-
+function closeModal() { document.getElementById('modalOverlay').style.display = 'none'; }
 function showSuccess(message) { showToast(message, 'success'); }
 function showError(message) { showToast(message, 'error'); }
 
@@ -74,13 +55,22 @@ function togglePassword() { const i = document.getElementById('tokenInput'); i.t
 function toggleNav() { document.getElementById('navPanel').classList.toggle('show'); }
 function toggleRagu() { if (!dataSoal[indexSoal]) return; raguLokal[dataSoal[indexSoal].id] = !raguLokal[dataSoal[indexSoal].id]; renderNavigator(); showToast(raguLokal[dataSoal[indexSoal].id] ? 'Ditandai ragu' : 'Tanda ragu dihapus', 'info', 1500); }
 
-// ==================== FULLSCREEN & ANTI-CURANG ====================
+// ==================== FULLSCREEN (DENGAN TOMBOL) ====================
 function enterFullscreen() {
     const elem = document.documentElement;
     if (elem.requestFullscreen) elem.requestFullscreen();
     else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
     else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
     isFullscreen = true;
+}
+
+function showFullscreenPrompt() {
+    showModal({
+        iconType: 'info', title: 'Mode Fullscreen Wajib',
+        message: 'Ujian harus dikerjakan dalam mode fullscreen. Klik tombol di bawah untuk melanjutkan.',
+        buttons: [{ text: 'Masuk Fullscreen', type: 'primary', onClick: () => { enterFullscreen(); } }],
+        onClose: () => { if (!isFullscreen) showFullscreenPrompt(); }
+    });
 }
 
 document.addEventListener('fullscreenchange', handleFullscreenChange);
@@ -91,9 +81,9 @@ function handleFullscreenChange() {
         if (currentUser && !ujianSelesai) {
             isFullscreen = false;
             catatPelanggaran('FULLSCREEN_EXIT', 'Keluar dari mode fullscreen');
-            setTimeout(() => { if (!ujianSelesai) { enterFullscreen(); showError('Mode fullscreen wajib! Penalti 1 menit!'); } }, 1000);
+            showFullscreenPrompt();
         }
-    }
+    } else { isFullscreen = true; }
 }
 
 document.addEventListener('visibilitychange', () => {
@@ -117,22 +107,14 @@ window.addEventListener('beforeunload', e => { if (currentUser && !ujianSelesai)
 
 function catatPelanggaran(jenis, detail) {
     if (!currentUser || ujianSelesai) return;
-    pelanggaranCount++;
-    totalPenalti++;
-    
-    // Kurangi waktu 1 menit
+    pelanggaranCount++; totalPenalti++;
     waktuSelesai = new Date(waktuSelesai.getTime() - 60000);
-    
     fetch(CONFIG.PROXY_URL, { method: 'POST', body: JSON.stringify({ action: 'catatPelanggaran', idSesi, username: currentUser.username, nama: currentUser.nama, kelas: currentUser.kelas, jenis, detail, ipAddress: '0.0.0.0', bukti: navigator.userAgent }) });
-    
-    showError(`⚠️ PELANGGARAN! Waktu berkurang 1 menit! (Total penalti: ${totalPenalti} menit)`);
+    showError(`⚠️ PELANGGARAN! Waktu berkurang 1 menit! (Total: ${totalPenalti} menit)`);
     document.getElementById('alertOverlay').style.display = 'block';
     document.getElementById('alertSound').play();
     setTimeout(() => document.getElementById('alertOverlay').style.display = 'none', 3000);
-    
-    if (pelanggaranCount >= 5) {
-        showModal({ iconType: 'error', title: 'TERLALU BANYAK PELANGGARAN', message: 'Anda telah melakukan 5 pelanggaran. Ujian akan otomatis berakhir.', buttons: [{ text: 'OK', type: 'primary', onClick: () => selesaiUjian('PELANGGARAN') }] });
-    }
+    if (pelanggaranCount >= 5) { showModal({ iconType: 'error', title: 'TERLALU BANYAK PELANGGARAN', message: 'Ujian akan otomatis berakhir.', buttons: [{ text: 'OK', type: 'primary', onClick: () => selesaiUjian() }] }); }
 }
 
 // ==================== LOGIN ====================
@@ -157,14 +139,26 @@ async function handleLogin() {
         const jRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/JADWAL_UJIAN!A:J?key=${CONFIG.API_KEY}`);
         const jData = await jRes.json(); const jRows = jData.values || [];
         let jadwal = null;
-        for (let i=1; i<jRows.length; i++) if (jRows[i][1] === tokenInfo.jenjang && jRows[i][2] === tokenInfo.mapel && jRows[i][3] === tokenInfo.jenis && jRows[i][9] === 'Aktif') { jadwal = { mulai: jRows[i][5], selesai: jRows[i][6], min: parseInt(jRows[i][7])||45 }; break; }
+        for (let i=1; i<jRows.length; i++) if (jRows[i][1] === tokenInfo.jenjang && jRows[i][2] === tokenInfo.mapel && jRows[i][3] === tokenInfo.jenis && jRows[i][9] === 'Aktif') { jadwal = { mulai: jRows[i][5], selesai: jRows[i][6], min: parseInt(jRows[i][7])||0 }; break; }
         if (!jadwal) { showError('Jadwal tidak ditemukan!'); return; }
+        
+        // VALIDASI FORMAT WAKTU
+        if (!jadwal.mulai || !jadwal.selesai || !jadwal.mulai.includes(':') || !jadwal.selesai.includes(':')) {
+            showError('Format waktu di sheet salah! Harus HH:MM (contoh: 07:00)'); return;
+        }
         
         const now = new Date();
         const [hM, mM] = jadwal.mulai.split(':').map(n=>parseInt(n));
         const [hS, mS] = jadwal.selesai.split(':').map(n=>parseInt(n));
+        
+        // Validasi hasil parse
+        if (isNaN(hM) || isNaN(mM) || isNaN(hS) || isNaN(mS)) {
+            showError('Format waktu tidak valid! Gunakan format HH:MM'); return;
+        }
+        
         const wM = new Date(); wM.setHours(hM, mM, 0, 0);
         const wS = new Date(); wS.setHours(hS, mS, 0, 0);
+        
         if (now < wM) { showError(`Ujian belum dimulai. Mulai ${jadwal.mulai}`); return; }
         if (now >= wS) { showError('Waktu ujian sudah berakhir!'); return; }
         
@@ -179,11 +173,11 @@ async function handleLogin() {
         document.getElementById('namaDisplay').innerText = `${siswa.nama} | ${siswa.kelas}`;
         document.getElementById('infoDisplay').innerText = `${tokenInfo.mapel} - ${tokenInfo.jenis}`;
         
-        enterFullscreen();
         await ambilSoal(siswa.jenjang, tokenInfo.mapel, tokenInfo.jenis);
         mulaiTimer();
         renderNavigator();
-        showSuccess('Login berhasil! Selamat mengerjakan.');
+        showFullscreenPrompt(); // Tampilkan prompt fullscreen
+        showSuccess('Login berhasil!');
     } catch(e) { console.error(e); showError('Gagal terhubung.'); }
 }
 
@@ -252,7 +246,7 @@ function renderSoal(idx) {
 
 function simpanPG(id) { const s = document.querySelector('input[name="jwb"]:checked'); if(!s){showError('Pilih jawaban!');return;} jawabanLokal[id]=s.value; renderNavigator(); showSuccess('Jawaban tersimpan!'); }
 function simpanPGK(id) { const arr = Array.from(document.querySelectorAll('input[name="jwb"]:checked')).map(c=>c.value); if(arr.length===0){showError('Pilih minimal satu!');return;} jawabanLokal[id]=JSON.stringify(arr); renderNavigator(); showSuccess('Jawaban tersimpan!'); }
-function simpanBS(id, n) { const arr = []; for(let i=0;i<n;i++){ const s=document.querySelector(`input[name="bs_${i}"]:checked`); if(!s){showError('Jawab semua pernyataan!');return;} arr.push(s.value); } jawabanLokal[id]=JSON.stringify(arr); renderNavigator(); showSuccess('Jawaban tersimpan!'); }
+function simpanBS(id, n) { const arr = []; for(let i=0;i<n;i++){ const s=document.querySelector(`input[name="bs_${i}"]:checked`); if(!s){showError('Jawab semua!');return;} arr.push(s.value); } jawabanLokal[id]=JSON.stringify(arr); renderNavigator(); showSuccess('Jawaban tersimpan!'); }
 function simpanJodoh(id, kunciStr) { const k = JSON.parse(kunciStr.replace(/&quot;/g,'"')); const obj = {}; for(let key in k){ const inp=document.getElementById(`jodoh_${key.replace(/\s/g,'')}`); if(inp) obj[key]=inp.value; } jawabanLokal[id]=JSON.stringify(obj); renderNavigator(); showSuccess('Jawaban tersimpan!'); }
 function simpanIsian(id) { const inp=document.getElementById('isian'); if(!inp.value.trim()){showError('Isi jawaban!');return;} jawabanLokal[id]=inp.value.trim(); renderNavigator(); showSuccess('Jawaban tersimpan!'); }
 
@@ -261,6 +255,7 @@ function nextSoal() { if(indexSoal<dataSoal.length-1) goToSoal(indexSoal+1); }
 
 // ==================== TIMER ====================
 function mulaiTimer() {
+    if (!waktuSelesai) { console.error('waktuSelesai tidak valid'); return; }
     timerInterval = setInterval(() => {
         const sisa = Math.max(waktuSelesai - new Date(), 0);
         const d = Math.floor(sisa/1000);
@@ -275,7 +270,7 @@ function konfirmasiSelesai() {
     const belum = dataSoal.filter(s => !jawabanLokal[s.id]).length;
     showModal({
         iconType: 'warning', title: 'Akhiri Ujian?',
-        message: `Anda akan mengakhiri ujian.\n\n📝 ${dataSoal.length - belum} soal sudah dijawab\n⚠️ ${belum} soal belum dijawab${totalPenalti > 0 ? `\n⏱️ Total penalti: ${totalPenalti} menit` : ''}`,
+        message: `📝 ${dataSoal.length - belum} soal sudah dijawab\n⚠️ ${belum} soal belum dijawab${totalPenalti > 0 ? `\n⏱️ Total penalti: ${totalPenalti} menit` : ''}`,
         showCheckbox: true, checkboxLabel: 'Saya yakin ingin mengakhiri ujian',
         buttons: [
             { text: 'Lanjutkan', type: 'secondary' },
