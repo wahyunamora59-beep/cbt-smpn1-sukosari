@@ -235,46 +235,37 @@ function renderSoal(idx) {
     } else if (s.tipe === "B/S") {
         const pernyataan = s.pilihan.filter(p => p && p.trim() !== '');
         if (pernyataan.length === 0) {
-            h += `<div style="background:#f8fafc; padding:16px; border-radius:12px; margin-bottom:16px; border:1px solid #e2e8f0;">`;
-            h += `<p style="font-weight:500; margin-bottom:16px;">${s.pertanyaan}</p>`;
-            h += `<div style="display:flex; gap:24px;">`;
-            h += `<label style="display:flex; align-items:center; cursor:pointer;"><input type="radio" name="bs_single" value="B" ${jaw === 'B' ? 'checked' : ''} ${isFrozen ? 'disabled' : ''} style="margin-right:10px; width:20px; height:20px; accent-color:#22c55e;"><span style="font-weight:600; color:#22c55e;">✅ BENAR</span></label>`;
-            h += `<label style="display:flex; align-items:center; cursor:pointer;"><input type="radio" name="bs_single" value="S" ${jaw === 'S' ? 'checked' : ''} ${isFrozen ? 'disabled' : ''} style="margin-right:10px; width:20px; height:20px; accent-color:#dc2626;"><span style="font-weight:600; color:#dc2626;">❌ SALAH</span></label>`;
-            h += `</div></div>`;
-            h += `<button class="btn-simpan" onclick="simpanBSSingle('${s.id}')" ${isFrozen ? 'disabled' : ''}><i class="fas fa-save"></i> Simpan Jawaban</button>`;
+            h += `<div style="background:#f8fafc; padding:16px; border-radius:12px; margin-bottom:16px;"><p style="font-weight:500; margin-bottom:16px;">${s.pertanyaan}</p><div style="display:flex; gap:24px;"><label style="display:flex; align-items:center; cursor:pointer;"><input type="radio" name="bs_single" value="B" ${jaw === 'B' ? 'checked' : ''} ${isFrozen ? 'disabled' : ''} style="margin-right:10px; width:20px; height:20px; accent-color:#22c55e;"><span style="font-weight:600; color:#22c55e;">✅ BENAR</span></label><label style="display:flex; align-items:center; cursor:pointer;"><input type="radio" name="bs_single" value="S" ${jaw === 'S' ? 'checked' : ''} ${isFrozen ? 'disabled' : ''} style="margin-right:10px; width:20px; height:20px; accent-color:#dc2626;"><span style="font-weight:600; color:#dc2626;">❌ SALAH</span></label></div></div>`;
+            h += `<button class="btn-simpan" onclick="simpanBSSingle('${s.id}')" ${isFrozen ? "disabled" : ""}><i class="fas fa-save"></i> Simpan Jawaban</button>`;
         } else {
             let jawabanArr = []; try { if (jaw) jawabanArr = JSON.parse(jaw); } catch (e) { if (jaw === "B" || jaw === "S") jawabanArr = [jaw]; }
             pernyataan.forEach((teks, i) => {
                 const jwb = jawabanArr[i] || '';
-                h += `<div style="background:#f8fafc; padding:14px; border-radius:12px; margin-bottom:12px; border:1px solid #e2e8f0;"><p style="font-weight:500; margin-bottom:12px;">${i + 1}. ${teks}</p><div style="display:flex; gap:20px;">`;
-                h += `<label style="display:flex; align-items:center; cursor:pointer;"><input type="radio" name="bs_${i}" value="B" ${jwb === 'B' ? 'checked' : ''} ${isFrozen ? 'disabled' : ''} style="margin-right:8px; width:18px; height:18px; accent-color:#22c55e;"><span style="font-weight:500;">✅ Benar</span></label>`;
-                h += `<label style="display:flex; align-items:center; cursor:pointer;"><input type="radio" name="bs_${i}" value="S" ${jwb === 'S' ? 'checked' : ''} ${isFrozen ? 'disabled' : ''} style="margin-right:8px; width:18px; height:18px; accent-color:#dc2626;"><span style="font-weight:500;">❌ Salah</span></label>`;
-                h += `</div></div>`;
+                h += `<div style="background:#f8fafc; padding:14px; border-radius:12px; margin-bottom:12px;"><p style="font-weight:500; margin-bottom:12px;">${i + 1}. ${teks}</p><div style="display:flex; gap:20px;"><label style="display:flex; align-items:center; cursor:pointer;"><input type="radio" name="bs_${i}" value="B" ${jwb === 'B' ? 'checked' : ''} ${isFrozen ? 'disabled' : ''} style="margin-right:8px; width:18px; height:18px; accent-color:#22c55e;"><span style="font-weight:500;">✅ Benar</span></label><label style="display:flex; align-items:center; cursor:pointer;"><input type="radio" name="bs_${i}" value="S" ${jwb === 'S' ? 'checked' : ''} ${isFrozen ? 'disabled' : ''} style="margin-right:8px; width:18px; height:18px; accent-color:#dc2626;"><span style="font-weight:500;">❌ Salah</span></label></div></div>`;
             });
-            h += `<button class="btn-simpan" onclick="simpanBS('${s.id}', ${pernyataan.length})" ${isFrozen ? 'disabled' : ''}><i class="fas fa-save"></i> Simpan Jawaban</button>`;
+            h += `<button class="btn-simpan" onclick="simpanBS('${s.id}', ${pernyataan.length})" ${isFrozen ? "disabled" : ""}><i class="fas fa-save"></i> Simpan Jawaban</button>`;
         }
     } else if (s.tipe === "Jodoh" || s.tipe === "JODOH") {
         let kunciObj = {}, jawabanObj = {};
         try { kunciObj = JSON.parse(s.kunci); jawabanObj = JSON.parse(jaw || "{}"); } catch(e) {}
         window.currentMatchingSoal = s; window.currentMatchingJawaban = jawabanObj;
         const opsiTeracak = shuffleArray(s.pilihan.filter(p => p && p.trim()));
+        const hurufMapping = {}; opsiTeracak.forEach((opt, i) => { hurufMapping[String.fromCharCode(65 + i)] = opt; }); window.hurufMapping = hurufMapping;
         h += `<div class="matching-jodoh-container">`;
-        h += `<div class="matching-left"><div style="font-weight:600; margin-bottom:8px; color:#1e293b;"><i class="fas fa-arrows-alt"></i> Istilah (Tarik ke kanan)</div>`;
-        for (let key in kunciObj) {
-            const isPaired = jawabanObj[key] !== undefined;
-            h += `<div class="matching-item-left ${isPaired ? 'paired' : ''}" draggable="${!isPaired}" data-key="${key}" id="drag_${key.replace(/[^a-zA-Z0-9]/g,'')}"><span style="font-weight:500;">${key}</span>${isPaired ? `<span style="margin-left:8px; color:#16a34a; font-size:12px;">(✓ ${jawabanObj[key]})</span>` : ''}</div>`;
-        }
+        h += `<div class="matching-left"><div style="font-weight:600; margin-bottom:12px; color:#1e293b; text-align:center;"><i class="fas fa-arrows-alt"></i> JAWABAN (Tarik ke kanan)</div>`;
+        opsiTeracak.forEach((opt, i) => {
+            const huruf = String.fromCharCode(65 + i); const isUsed = Object.values(jawabanObj).includes(huruf);
+            if (!isUsed) h += `<div class="matching-item-left" draggable="true" data-huruf="${huruf}" data-jawaban="${opt.replace(/"/g, '&quot;')}"><strong style="color:#0b2b5e; margin-right:8px;">${huruf}.</strong> ${opt}</div>`;
+            else h += `<div class="matching-item-left paired" draggable="false"><strong style="color:#0b2b5e; margin-right:8px;">${huruf}.</strong> ${opt} <span style="margin-left:8px; color:#16a34a; font-size:12px;">(✓ Sudah dipasangkan)</span></div>`;
+        });
         h += `</div>`;
-        h += `<div class="matching-right"><div style="font-weight:600; margin-bottom:8px; color:#1e293b;"><i class="fas fa-bullseye"></i> Target (Drop di sini)</div>`;
+        h += `<div class="matching-right"><div style="font-weight:600; margin-bottom:12px; color:#1e293b; text-align:center;"><i class="fas fa-bullseye"></i> ISTILAH (Drop jawaban di sini)</div>`;
         for (let key in kunciObj) {
-            const isFilled = jawabanObj[key] !== undefined, txt = jawabanObj[key] || '';
-            h += `<div class="matching-target ${isFilled ? 'filled' : 'empty'}" data-key="${key}" id="target_${key.replace(/[^a-zA-Z0-9]/g,'')}"><div class="matching-target-content">${isFilled ? `<strong>${key}</strong><br><span style="font-size:13px; color:#16a34a;">→ ${txt}</span>` : `<strong>${key}</strong><br><span style="color:#94a3b8; font-size:12px;">⬅️ Tarik istilah ke sini</span>`}</div></div>`;
+            const isFilled = jawabanObj[key] !== undefined, huruf = jawabanObj[key] || '', teks = hurufMapping[huruf] || '';
+            h += `<div class="matching-target ${isFilled ? 'filled' : 'empty'}" data-key="${key}" id="target_${key.replace(/[^a-zA-Z0-9]/g,'')}"><div class="matching-target-content">${isFilled ? `<strong style="font-size:16px;">${key}</strong><br><span style="font-size:14px; color:#16a34a;">✅ ${huruf}. ${teks}</span>` : `<strong style="font-size:16px;">${key}</strong><br><span style="color:#94a3b8; font-size:13px;">⬅️ Tarik jawaban ke sini</span>`}</div></div>`;
         }
         h += `</div></div>`;
-        h += `<div style="margin-top:20px; padding:16px; background:#f1f5f9; border-radius:16px;"><p style="font-weight:600; margin-bottom:12px; color:#1e293b;"><i class="fas fa-list"></i> Pilihan Jawaban:</p><div style="display:grid; grid-template-columns:repeat(2,1fr); gap:8px;">`;
-        opsiTeracak.forEach((opt, i) => { h += `<div style="padding:8px; background:white; border-radius:8px;"><strong style="color:#0b2b5e;">${String.fromCharCode(65 + i)}.</strong> ${opt}</div>`; });
-        h += `</div></div>`;
-        h += `<div style="display:flex; gap:12px; margin-top:16px;"><button class="btn-reset-matching" onclick="resetMatching()"><i class="fas fa-undo"></i> Reset</button><button class="btn-simpan" onclick="simpanJodohDrag('${s.id}')"><i class="fas fa-save"></i> Simpan Jawaban</button></div>`;
+        h += `<div style="display:flex; gap:12px; margin-top:20px;"><button class="btn-reset-matching" onclick="resetMatching()"><i class="fas fa-undo"></i> Reset</button><button class="btn-simpan" onclick="simpanJodohDrag('${s.id}')"><i class="fas fa-save"></i> Simpan Jawaban</button></div>`;
         setTimeout(() => initDragDropJodoh(), 50);
     } else if (s.tipe === "Isian") {
         h += `<input type="text" id="isian" value="${jaw || ''}" placeholder="Ketik jawaban..." style="width:100%;padding:14px;border-radius:16px;border:1px solid #e2e8f0;" ${isFrozen ? "disabled" : ""}>`;
@@ -289,7 +280,7 @@ function simpanPG(id) { if (isFrozen) return; const s = document.querySelector('
 function simpanPGK(id) { if (isFrozen) return; const a = Array.from(document.querySelectorAll('input[name="jwb"]:checked')).map(c => c.value); if (a.length === 0) { showError("Pilih minimal satu!"); return; } const jwb = JSON.stringify(a); jawabanLokal[id] = jwb; renderNavigator(); const soal = dataSoal.find(q => q.id === id); let s = 0; try { if (JSON.stringify(a.sort()) === JSON.stringify(JSON.parse(soal.kunci).sort())) s = soal.bobot; } catch (e) {} simpanKeServer(id, jwb, s); showSuccess("Jawaban tersimpan!"); }
 function simpanBSSingle(id) { if (isFrozen) return; const s = document.querySelector('input[name="bs_single"]:checked'); if (!s) { showError("Pilih Benar atau Salah!"); return; } jawabanLokal[id] = s.value; renderNavigator(); const soal = dataSoal.find(q => q.id === id); simpanKeServer(id, s.value, s.value === soal.kunci ? soal.bobot : 0); showSuccess("Jawaban tersimpan!"); }
 function simpanBS(id, n) { if (isFrozen) return; const a = []; for (let i = 0; i < n; i++) { const s = document.querySelector(`input[name="bs_${i}"]:checked`); if (!s) { showError(`Jawab pernyataan ${i + 1}!`); return; } a.push(s.value); } const jwb = JSON.stringify(a); jawabanLokal[id] = jwb; renderNavigator(); const soal = dataSoal.find(q => q.id === id); let s = 0; try { const k = JSON.parse(soal.kunci); let b = 0; for (let i = 0; i < k.length; i++) if (a[i] === k[i]) b++; s = (b / k.length) * soal.bobot; } catch (e) {} simpanKeServer(id, jwb, s); showSuccess(`${n} pernyataan tersimpan!`); }
-function simpanJodohDrag(id) { const o = window.currentMatchingJawaban || {}, soal = window.currentMatchingSoal; let k = {}; try { k = JSON.parse(soal.kunci); } catch (e) {} if (Object.keys(o).length !== Object.keys(k).length) { showError("Pasangkan semua!"); return; } const jwb = JSON.stringify(o); jawabanLokal[id] = jwb; renderNavigator(); let s = 0; try { let b = 0; for (let key in k) if (o[key] && o[key].toUpperCase() === k[key].toUpperCase()) b++; s = (b / Object.keys(k).length) * soal.bobot; } catch (e) {} simpanKeServer(id, jwb, s); showSuccess("Jawaban tersimpan!"); }
+function simpanJodohDrag(id) { const o = window.currentMatchingJawaban || {}, soal = window.currentMatchingSoal; let k = {}; try { k = JSON.parse(soal.kunci); } catch (e) {} if (Object.keys(o).length !== Object.keys(k).length) { showError("Pasangkan semua!"); return; } const jwb = JSON.stringify(o); jawabanLokal[id] = jwb; renderNavigator(); let s = 0; try { let b = 0; for (let key in k) if (o[key] === k[key]) b++; s = (b / Object.keys(k).length) * soal.bobot; } catch (e) {} simpanKeServer(id, jwb, s); showSuccess("Jawaban tersimpan!"); }
 function simpanIsian(id) { if (isFrozen) return; const i = document.getElementById("isian"); if (!i.value.trim()) { showError("Isi jawaban!"); return; } const jwb = i.value.trim(); jawabanLokal[id] = jwb; renderNavigator(); const soal = dataSoal.find(q => q.id === id); simpanKeServer(id, jwb, jwb.toLowerCase() === soal.kunci.toLowerCase() ? soal.bobot : 0); showSuccess("Jawaban tersimpan!"); }
 function prevSoal() { if (isFrozen) return; if (indexSoal > 0) goToSoal(indexSoal - 1); }
 function nextSoal() { if (isFrozen) return; if (indexSoal < dataSoal.length - 1) goToSoal(indexSoal + 1); }
@@ -299,27 +290,36 @@ function initDragDropJodoh() {
     document.querySelectorAll('.matching-item-left[draggable="true"]').forEach(i => { i.removeEventListener('dragstart', handleDragStartJodoh); i.addEventListener('dragstart', handleDragStartJodoh); i.removeEventListener('dragend', handleDragEndJodoh); i.addEventListener('dragend', handleDragEndJodoh); });
     document.querySelectorAll('.matching-target').forEach(t => { t.removeEventListener('dragover', handleDragOverJodoh); t.addEventListener('dragover', handleDragOverJodoh); t.removeEventListener('dragenter', handleDragEnterJodoh); t.addEventListener('dragenter', handleDragEnterJodoh); t.removeEventListener('dragleave', handleDragLeaveJodoh); t.addEventListener('dragleave', handleDragLeaveJodoh); t.removeEventListener('drop', handleDropJodoh); t.addEventListener('drop', handleDropJodoh); });
 }
-function handleDragStartJodoh(e) { const i = e.target.closest('.matching-item-left'); if (!i) return; i.classList.add('dragging'); e.dataTransfer.setData('text/plain', i.dataset.key); e.dataTransfer.effectAllowed = 'move'; }
+function handleDragStartJodoh(e) { const i = e.target.closest('.matching-item-left'); if (!i) return; i.classList.add('dragging'); e.dataTransfer.setData('text/plain', i.dataset.huruf); e.dataTransfer.effectAllowed = 'move'; }
 function handleDragEndJodoh(e) { const i = e.target.closest('.matching-item-left'); if (i) i.classList.remove('dragging'); document.querySelectorAll('.matching-target').forEach(t => t.classList.remove('drag-over')); }
 function handleDragOverJodoh(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
 function handleDragEnterJodoh(e) { e.preventDefault(); this.classList.add('drag-over'); }
 function handleDragLeaveJodoh(e) { this.classList.remove('drag-over'); }
-function handleDropJodoh(e) { e.preventDefault(); this.classList.remove('drag-over'); const tk = this.dataset.key, dk = e.dataTransfer.getData('text/plain'); if (!tk || !dk) return; if (window.currentMatchingJawaban[tk]) { showError('Target sudah terisi!'); return; } if (window.currentMatchingJawaban[dk]) { showError('Istilah sudah dipasangkan!'); return; } const jwb = prompt(`Masukkan huruf jawaban (A/B/C/D/E) untuk:\n\n"${dk}"`); if (!jwb) return; const h = jwb.trim().toUpperCase(); if (!/^[A-E]$/.test(h)) { showError('Masukkan A, B, C, D, atau E!'); return; } window.currentMatchingJawaban[dk] = h; window.currentMatchingJawaban[tk] = h; updateMatchingUIJodoh(); showSuccess(`"${dk}" dipasangkan dengan ${h}!`); }
-function updateMatchingUIJodoh() { const s = window.currentMatchingSoal, o = window.currentMatchingJawaban; let k = {}; try { k = JSON.parse(s.kunci); } catch (e) {} for (let key in k) { const t = document.getElementById(`target_${key.replace(/[^a-zA-Z0-9]/g,'')}`), d = document.getElementById(`drag_${key.replace(/[^a-zA-Z0-9]/g,'')}`); if (t) { const f = o[key] !== undefined, txt = o[key] || ''; t.className = `matching-target ${f ? 'filled' : 'empty'}`; t.innerHTML = `<div class="matching-target-content">${f ? `<strong>${key}</strong><br><span style="font-size:13px; color:#16a34a;">→ ${txt}</span>` : `<strong>${key}</strong><br><span style="color:#94a3b8; font-size:12px;">⬅️ Tarik istilah ke sini</span>`}</div>`; } if (d) { const p = o[key] !== undefined; d.classList.toggle('paired', p); d.setAttribute('draggable', !p); d.innerHTML = `<span style="font-weight:500;">${key}</span>${p ? `<span style="margin-left:8px; color:#16a34a; font-size:12px;">(✓ ${o[key]})</span>` : ''}`; } } initDragDropJodoh(); }
+function handleDropJodoh(e) { e.preventDefault(); this.classList.remove('drag-over'); const tk = this.dataset.key, dk = e.dataTransfer.getData('text/plain'); if (!tk || !dk) return; if (window.currentMatchingJawaban[tk]) { showError('Istilah ini sudah memiliki pasangan!'); return; } if (Object.values(window.currentMatchingJawaban).includes(dk)) { showError('Jawaban ini sudah dipasangkan!'); return; } window.currentMatchingJawaban[tk] = dk; updateMatchingUIJodoh(); showSuccess(`Dipasangkan!`); }
+function updateMatchingUIJodoh() {
+    const soal = window.currentMatchingSoal, jawabanObj = window.currentMatchingJawaban, hurufMapping = window.hurufMapping || {};
+    let kunciObj = {}; try { kunciObj = JSON.parse(soal.kunci); } catch(e) {}
+    for (let key in kunciObj) {
+        const target = document.getElementById(`target_${key.replace(/[^a-zA-Z0-9]/g,'')}`);
+        if (target) { const isFilled = jawabanObj[key] !== undefined, huruf = jawabanObj[key] || '', teks = hurufMapping[huruf] || ''; target.className = `matching-target ${isFilled ? 'filled' : 'empty'}`; target.innerHTML = `<div class="matching-target-content">${isFilled ? `<strong style="font-size:16px;">${key}</strong><br><span style="font-size:14px; color:#16a34a;">✅ ${huruf}. ${teks}</span>` : `<strong style="font-size:16px;">${key}</strong><br><span style="color:#94a3b8; font-size:13px;">⬅️ Tarik jawaban ke sini</span>`}</div>`; }
+    }
+    const usedHuruf = Object.values(jawabanObj), opsiTeracak = shuffleArray(soal.pilihan.filter(p => p && p.trim())), leftContainer = document.querySelector('.matching-left');
+    if (leftContainer) { let h = `<div style="font-weight:600; margin-bottom:12px; color:#1e293b; text-align:center;"><i class="fas fa-arrows-alt"></i> JAWABAN (Tarik ke kanan)</div>`; opsiTeracak.forEach((opt, i) => { const huruf = String.fromCharCode(65 + i), isUsed = usedHuruf.includes(huruf); if (!isUsed) h += `<div class="matching-item-left" draggable="true" data-huruf="${huruf}" data-jawaban="${opt.replace(/"/g, '&quot;')}"><strong style="color:#0b2b5e; margin-right:8px;">${huruf}.</strong> ${opt}</div>`; else h += `<div class="matching-item-left paired" draggable="false"><strong style="color:#0b2b5e; margin-right:8px;">${huruf}.</strong> ${opt} <span style="margin-left:8px; color:#16a34a; font-size:12px;">(✓ Sudah dipasangkan)</span></div>`; }); leftContainer.innerHTML = h; }
+    initDragDropJodoh();
+}
 function resetMatching() { window.currentMatchingJawaban = {}; renderSoal(indexSoal); showToast('Pasangan direset', 'info'); }
 
-// ==================== TIMER ====================
+// ==================== TIMER & SELESAI ====================
 function mulaiTimer() { if (!waktuSelesai) return; timerInterval = setInterval(() => { const s = Math.max(waktuSelesai - new Date(), 0), d = Math.floor(s / 1000), m = Math.floor(d / 60), sec = d % 60; document.getElementById("timerDisplay").innerText = `${m}:${sec < 10 ? "0" : ""}${sec}`; if (d === 0 && !ujianSelesai) { ujianSelesai = true; clearInterval(timerInterval); showModal({ iconType: "warning", title: "Waktu Habis", message: "Ujian akan otomatis berakhir.", buttons: [{ text: "OK", type: "primary", onClick: () => selesaiUjian() }] }); } }, 1000); }
 function konfirmasiSelesai() { if (isFrozen) return; if (!tombolSelesaiAktif) { const s = Math.max(minimalMenit - Math.floor((new Date() - waktuMulaiServer) / 60000), 0); showError(`Tunggu ${s} menit lagi!`); return; } const b = dataSoal.filter(s => !jawabanLokal[s.id]).length; showModal({ iconType: "warning", title: "Akhiri Ujian?", message: `📝 ${dataSoal.length - b} soal dijawab\n⚠️ ${b} soal belum${totalPenalti > 0 ? `\n⏱️ Penalti: ${totalPenalti} kali` : ""}`, showCheckbox: true, checkboxLabel: "Saya yakin ingin mengakhiri ujian", buttons: [{ text: "Lanjutkan", type: "secondary" }, { text: "Ya, Selesai", type: "warning", onClick: c => { if (!c) { showError("Centang konfirmasi!"); return false; } selesaiUjian(); } }] }); }
-
 async function selesaiUjian() {
     clearInterval(timerInterval); if (freezeInterval) clearInterval(freezeInterval); ujianSelesai = true;
     let t = 0, b = 0, tot = 0;
     dataSoal.forEach(s => { const j = jawabanLokal[s.id]; const bo = s.bobot || 1; tot += bo; if (!j) return;
         if (s.tipe === "PG") { if (j === s.kunci) { t += bo; b++; } }
         else if (s.tipe === "PGK") { try { if (JSON.stringify(JSON.parse(j).sort()) === JSON.stringify(JSON.parse(s.kunci).sort())) { t += bo; b++; } } catch (e) {} }
-        else if (s.tipe === "B/S") { try { const ja = JSON.parse(j), ka = JSON.parse(s.kunci); let x = 0; for (let i = 0; i < ka.length; i++) if (ja[i] === ka[i]) x++; t += (x / ka.length) * bo; if (x === ka.length) b++; } catch (e) {} }
-        else if (s.tipe === "Jodoh") { try { const jo = JSON.parse(j), ko = JSON.parse(s.kunci); let x = 0, tt = Object.keys(ko).length; for (let k in ko) if (jo[k] && jo[k].toUpperCase() === ko[k].toUpperCase()) x++; t += (x / tt) * bo; if (x === tt) b++; } catch (e) {} }
+        else if (s.tipe === "B/S") { try { const ja = JSON.parse(j), ka = JSON.parse(s.kunci); let x = 0; for (let i = 0; i < ka.length; i++) if (ja[i] === ka[i]) x++; t += (x / ka.length) * bo; if (x === ka.length) b++; } catch (e) { if (j === s.kunci) { t += bo; b++; } } }
+        else if (s.tipe === "Jodoh") { try { const jo = JSON.parse(j), ko = JSON.parse(s.kunci); let x = 0, tt = Object.keys(ko).length; for (let k in ko) if (jo[k] === ko[k]) x++; t += (x / tt) * bo; if (x === tt) b++; } catch (e) {} }
         else if (s.tipe === "Isian") { if (j.toLowerCase() === s.kunci.toLowerCase()) { t += bo; b++; } }
     });
     const p = tot > 0 ? (t / tot) * 100 : 0;
