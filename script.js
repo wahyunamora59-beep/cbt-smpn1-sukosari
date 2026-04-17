@@ -1,8 +1,8 @@
 // ==================== KONFIGURASI ====================
 const CONFIG = {
-    SPREADSHEET_ID: 'PASTE_SPREADSHEET_ID_ANDA',
-    API_KEY: 'PASTE_API_KEY_ANDA',
-    PROXY_URL: 'PASTE_PROXY_URL_ANDA'
+    SPREADSHEET_ID: '1zc5lh-8XWEhGYJajqooWGK3Vo89kqob1iAaIdaIiXc0 ',
+    API_KEY: 'AIzaSyAG16CaL_CwY6Hktj6nNrxCoPjYXcJZHcE',
+    PROXY_URL: ' https://script.google.com/macros/s/AKfycbycPw8Y_lGHHGkgmsSgbkFBPClllxY9TltkVOvg0rD0lZwNSZoc8pKz_CBaFoVWiXMl4w/exec'
 };
 
 let currentUser = null, currentUjian = null, dataSoal = [], indexSoal = 0;
