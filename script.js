@@ -12,8 +12,14 @@ let waktuMulaiServer = null, minimalMenit = 45, ujianSelesai = false, idSesi = n
 let pelanggaranCount = 0, totalPenalti = 0, tombolSelesaiAktif = false;
 let isFullscreen = false, isFrozen = false, freezeInterval = null;
 let pendingUser = null, pendingUjian = null, pendingWaktuSelesai = null;
-let isLocked = false;
-let debounceTimer = null;
+let isLocked = false, debounceTimer = null;
+
+// Jodoh
+window.matchingOpsiTeracak = null;
+window.matchingSoalId = null;
+window.currentMatchingSoal = null;
+window.currentMatchingJawaban = {};
+window.hurufMapping = {};
 
 // ==================== TOAST & MODAL ====================
 function showToast(m, t = "info", d = 3000) {
@@ -67,7 +73,6 @@ function freezeScreen(d = 60) {
     };
     e();
     freezeInterval = setInterval(e, 1000);
-    o.addEventListener("click", e => e.stopPropagation());
 }
 
 // ==================== HELPER ====================
@@ -80,12 +85,11 @@ function updateNavInfo() { const t = dataSoal.length, j = Object.keys(jawabanLok
 function enterFullscreen() { const e = document.documentElement; if (e.requestFullscreen) e.requestFullscreen(); else if (e.webkitRequestFullscreen) e.webkitRequestFullscreen(); isFullscreen = true; }
 function showFullscreenPrompt() { showModal({ iconType: "info", title: "Mode Fullscreen Wajib", message: "Klik tombol di bawah untuk masuk fullscreen.", buttons: [{ text: "Masuk Fullscreen", type: "primary", onClick: () => enterFullscreen() }], onClose: () => { if (!isFullscreen) showFullscreenPrompt(); } }); }
 document.addEventListener("fullscreenchange", handleFullscreenChange);
-document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
-function handleFullscreenChange() { if (!document.fullscreenElement && !document.webkitFullscreenElement) { if (currentUser && !ujianSelesai) { isFullscreen = false; catatPelanggaran("FULLSCREEN_EXIT", "Keluar fullscreen"); freezeScreen(60); showFullscreenPrompt(); } } else isFullscreen = true; }
+function handleFullscreenChange() { if (!document.fullscreenElement) { if (currentUser && !ujianSelesai) { isFullscreen = false; catatPelanggaran("FULLSCREEN_EXIT", "Keluar fullscreen"); freezeScreen(60); showFullscreenPrompt(); } } else isFullscreen = true; }
 
-// ==================== ANTI-CURANG (HP TERKUNCI TIDAK DIHITUNG) ====================
+// ==================== ANTI-CURANG ====================
 window.addEventListener('pagehide', () => { isLocked = true; });
-window.addEventListener('pageshow', () => { if (isLocked) { console.log('📱 HP terbuka dari kunci'); isLocked = false; } });
+window.addEventListener('pageshow', () => { if (isLocked) { isLocked = false; } });
 document.addEventListener("visibilitychange", () => {
     if (document.hidden && currentUser && !ujianSelesai && !isFrozen) {
         if (!isLocked) {
@@ -94,9 +98,6 @@ document.addEventListener("visibilitychange", () => {
             document.getElementById("alertOverlay").style.display = "block";
             document.getElementById("alertSound").play();
             setTimeout(() => document.getElementById("alertOverlay").style.display = "none", 3000);
-        } else {
-            console.log('📱 HP terkunci - bukan pelanggaran');
-            fetch(CONFIG.PROXY_URL, { method: "POST", body: JSON.stringify({ action: "catatPelanggaran", idSesi, username: currentUser.username, nama: currentUser.nama, kelas: currentUser.kelas, jenis: "SCREEN_LOCK", detail: "HP terkunci (bukan pelanggaran)", ipAddress: "0.0.0.0", bukti: navigator.userAgent }) });
         }
     }
 });
@@ -174,7 +175,7 @@ function cancelConfirm() {
     showToast("Silakan login dengan akun yang benar", "info");
 }
 
-// ==================== LOAD JAWABAN DARI SERVER ====================
+// ==================== LOAD JAWABAN ====================
 async function loadJawabanDariServer() {
     if (!idSesi || !currentUser) return;
     try {
@@ -219,23 +220,17 @@ function acakSoalDanPilihan(soalList) {
     return soalTeracak.map(soal => {
         if (soal.tipe === 'PG' || soal.tipe === 'PGK' || soal.tipe === 'B/S') {
             let pilihanPairs = soal.pilihan.map((teks, index) => ({ huruf: String.fromCharCode(65 + index), teks: teks }));
-            const mappingAsli = {}; pilihanPairs.forEach(p => { mappingAsli[p.huruf] = p.teks; });
             pilihanPairs = shuffleArray(pilihanPairs);
             const mappingAcak = {}; pilihanPairs.forEach((pair, newIndex) => { mappingAcak[String.fromCharCode(65 + newIndex)] = pair.huruf; });
-            let kunciBaru = soal.kunci, kunciAsli = soal.kunci;
+            let kunciBaru = soal.kunci;
             if (soal.tipe === 'PG' || soal.tipe === 'B/S') {
                 for (let h in mappingAcak) if (mappingAcak[h] === soal.kunci) { kunciBaru = h; break; }
             } else if (soal.tipe === 'PGK') {
-                try { const kunciArr = JSON.parse(soal.kunci); const kunciBaruArr = []; for (let h in mappingAcak) if (kunciArr.includes(mappingAcak[h])) kunciBaruArr.push(h); kunciBaru = JSON.stringify(kunciBaruArr.sort()); } catch(e) { kunciBaru = soal.kunci; }
+                try { const kunciArr = JSON.parse(soal.kunci); const kunciBaruArr = []; for (let h in mappingAcak) if (kunciArr.includes(mappingAcak[h])) kunciBaruArr.push(h); kunciBaru = JSON.stringify(kunciBaruArr.sort()); } catch(e) {}
             }
-            return { ...soal, pilihan: pilihanPairs.map(p => p.teks), mappingAcak, mappingAsli, kunci: kunciBaru, kunciAsli };
+            return { ...soal, pilihan: pilihanPairs.map(p => p.teks), mappingAcak, kunci: kunciBaru, kunciAsli: soal.kunci };
         } else if (soal.tipe === 'Jodoh' || soal.tipe === 'JODOH') {
-            let pilihanPairs = soal.pilihan.map((teks, index) => ({ huruf: String.fromCharCode(65 + index), teks: teks }));
-            const mappingAsli = {}; pilihanPairs.forEach(p => { mappingAsli[p.huruf] = p.teks; });
-            pilihanPairs = shuffleArray(pilihanPairs);
-            const mappingAcak = {}; pilihanPairs.forEach((pair, newIndex) => { mappingAcak[String.fromCharCode(65 + newIndex)] = pair.huruf; });
-            let kunciBaruObj = {}; try { const kunciObj = JSON.parse(soal.kunci); for (let ist in kunciObj) { for (let h in mappingAcak) if (mappingAcak[h] === kunciObj[ist]) { kunciBaruObj[ist] = h; break; } } } catch(e) { kunciBaruObj = JSON.parse(soal.kunci); }
-            return { ...soal, pilihan: pilihanPairs.map(p => p.teks), mappingAcak, mappingAsli, kunci: JSON.stringify(kunciBaruObj), kunciAsli: soal.kunci };
+            return soal;
         }
         return soal;
     });
@@ -299,8 +294,14 @@ function renderSoal(idx) {
         let kunciObj = {}, jawabanObj = {};
         try { kunciObj = JSON.parse(s.kunci); jawabanObj = JSON.parse(jaw || "{}"); } catch(e) {}
         window.currentMatchingSoal = s; window.currentMatchingJawaban = jawabanObj;
-        const opsiTeracak = shuffleArray(s.pilihan.filter(p => p && p.trim()));
+        
+        if (!window.matchingOpsiTeracak || window.matchingSoalId !== s.id) {
+            window.matchingOpsiTeracak = shuffleArray(s.pilihan.filter(p => p && p.trim()));
+            window.matchingSoalId = s.id;
+        }
+        const opsiTeracak = window.matchingOpsiTeracak;
         const hurufMapping = {}; opsiTeracak.forEach((opt, i) => { hurufMapping[String.fromCharCode(65 + i)] = opt; }); window.hurufMapping = hurufMapping;
+        
         h += `<div style="margin-bottom:12px; padding:10px; background:#e8f0fe; border-radius:12px;"><p style="font-weight:600; color:#1E3A8A;"><i class="fas fa-info-circle"></i> Tarik jawaban dari KANAN ke istilah di KIRI.</p></div>`;
         h += `<div class="matching-jodoh-container" style="display:flex; gap:16px;">`;
         h += `<div style="flex:1; background:#FEF3C7; padding:12px; border-radius:16px;"><div style="font-weight:600; margin-bottom:12px; text-align:center;">🎯 ISTILAH</div>`;
@@ -312,11 +313,11 @@ function renderSoal(idx) {
         h += `<div style="flex:1; background:#DBEAFE; padding:12px; border-radius:16px;"><div style="font-weight:600; margin-bottom:12px; text-align:center;">📦 JAWABAN (Tarik ke kiri)</div>`;
         opsiTeracak.forEach((opt, i) => {
             const huruf = String.fromCharCode(65 + i), isUsed = Object.values(jawabanObj).includes(huruf);
-            if (!isUsed) h += `<div class="matching-item-right" draggable="true" data-huruf="${huruf}" style="background:white; padding:12px; border-radius:12px; margin-bottom:8px; border:2px solid #1E3A8A; cursor:grab;"><strong>${huruf}.</strong> ${opt}</div>`;
-            else h += `<div class="matching-item-right paired" draggable="false" style="background:#DCFCE7; padding:12px; border-radius:12px; margin-bottom:8px; border:2px solid #22C55E;"><strong>${huruf}.</strong> ${opt} <span style="color:#16a34a;">✓</span></div>`;
+            if (!isUsed) h += `<div class="matching-item-right" draggable="true" data-huruf="${huruf}" id="drag_${huruf}" style="background:white; padding:12px; border-radius:12px; margin-bottom:8px; border:2px solid #1E3A8A; cursor:grab;"><strong style="color:#1E3A8A;">${huruf}.</strong> ${opt}</div>`;
+            else h += `<div class="matching-item-right paired" draggable="false" id="drag_${huruf}" style="background:#DCFCE7; padding:12px; border-radius:12px; margin-bottom:8px; border:2px solid #22C55E;"><strong style="color:#1E3A8A;">${huruf}.</strong> ${opt} <span style="color:#16a34a;">✓</span></div>`;
         });
         h += `</div></div>`;
-        h += `<div style="display:flex; gap:12px; margin-top:16px;"><button class="btn-reset-matching" onclick="resetMatching()" style="flex:1; padding:12px; background:#E2E8F0; border:none; border-radius:25px;"><i class="fas fa-undo"></i> Reset</button><button class="btn-simpan" onclick="simpanJodohDrag('${s.id}')" style="flex:1;"><i class="fas fa-save"></i> Simpan</button></div>`;
+        h += `<div style="display:flex; gap:12px; margin-top:16px;"><button class="btn-reset-matching" onclick="resetMatching()" style="flex:1;"><i class="fas fa-undo"></i> Reset</button><button class="btn-simpan" onclick="simpanJodohDrag('${s.id}')" style="flex:1;"><i class="fas fa-save"></i> Simpan</button></div>`;
         setTimeout(() => initDragDropJodoh(), 50);
     } else if (s.tipe === "Isian") {
         h += `<input type="text" id="isian" value="${jaw || ''}" placeholder="Ketik jawaban..." style="width:100%;padding:14px;border-radius:16px;border:1px solid #E2E8F0;" ${isFrozen ? "disabled" : ""} oninput="debounceAutoSaveIsian('${s.id}')">`;
@@ -346,8 +347,21 @@ function initDragDropJodoh() {
     document.querySelectorAll('.matching-item-right[draggable="true"]').forEach(i => { i.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', e.target.dataset.huruf); }); });
     document.querySelectorAll('.matching-target').forEach(t => { t.addEventListener('dragover', e => e.preventDefault()); t.addEventListener('drop', e => { e.preventDefault(); const tk = t.dataset.key, dk = e.dataTransfer.getData('text/plain'); if (!tk || !dk) return; if (window.currentMatchingJawaban[tk]) { showError('Sudah terisi!'); return; } if (Object.values(window.currentMatchingJawaban).includes(dk)) { showError('Jawaban sudah dipakai!'); return; } window.currentMatchingJawaban[tk] = dk; updateMatchingUIJodoh(); showSuccess('Dipasangkan!'); }); });
 }
-function updateMatchingUIJodoh() { renderSoal(indexSoal); }
-function resetMatching() { window.currentMatchingJawaban = {}; renderSoal(indexSoal); showToast('Direset', 'info'); }
+function updateMatchingUIJodoh() {
+    const soal = window.currentMatchingSoal, jawabanObj = window.currentMatchingJawaban, hurufMapping = window.hurufMapping || {};
+    let kunciObj = {}; try { kunciObj = JSON.parse(soal.kunci); } catch(e) {}
+    for (let key in kunciObj) {
+        const target = document.getElementById(`target_${key.replace(/[^a-zA-Z0-9]/g,'')}`);
+        if (target) { const isFilled = jawabanObj[key] !== undefined, huruf = jawabanObj[key] || '', teks = hurufMapping[huruf] || ''; target.className = `matching-target ${isFilled ? 'filled' : 'empty'}`; target.style.background = isFilled ? '#DCFCE7' : 'white'; target.style.border = isFilled ? '2px solid #22C55E' : '2px dashed #D97706'; target.innerHTML = `<div style="text-align:center;">${isFilled ? `<strong>${key}</strong><br><span style="color:#16a34a;">✅ ${huruf}. ${teks}</span>` : `<strong>${key}</strong><br><span style="color:#94a3b8;">⬅️ Tarik jawaban</span>`}</div>`; }
+    }
+    const usedHuruf = Object.values(jawabanObj), opsiTeracak = window.matchingOpsiTeracak || soal.pilihan.filter(p => p && p.trim());
+    opsiTeracak.forEach((opt, i) => {
+        const huruf = String.fromCharCode(65 + i), dragItem = document.getElementById(`drag_${huruf}`);
+        if (dragItem) { const isUsed = usedHuruf.includes(huruf); dragItem.className = `matching-item-right${isUsed ? ' paired' : ''}`; dragItem.setAttribute('draggable', !isUsed); dragItem.style.background = isUsed ? '#DCFCE7' : 'white'; dragItem.style.border = isUsed ? '2px solid #22C55E' : '2px solid #1E3A8A'; dragItem.innerHTML = `<strong style="color:#1E3A8A;">${huruf}.</strong> ${opt}${isUsed ? '<span style="color:#16a34a; margin-left:8px;">✓</span>' : ''}`; }
+    });
+    initDragDropJodoh();
+}
+function resetMatching() { window.currentMatchingJawaban = {}; window.matchingOpsiTeracak = null; window.matchingSoalId = null; renderSoal(indexSoal); showToast('Pasangan direset', 'info'); }
 
 // ==================== TIMER & SELESAI ====================
 function mulaiTimer() { if (!waktuSelesai) return; timerInterval = setInterval(() => { const s = Math.max(waktuSelesai - new Date(), 0), d = Math.floor(s / 1000), m = Math.floor(d / 60), sec = d % 60; document.getElementById("timerDisplay").innerText = `${m}:${sec < 10 ? "0" : ""}${sec}`; if (d === 0 && !ujianSelesai) { ujianSelesai = true; clearInterval(timerInterval); showModal({ iconType: "warning", title: "Waktu Habis", message: "Ujian akan otomatis berakhir.", buttons: [{ text: "OK", type: "primary", onClick: () => selesaiUjian() }] }); } }, 1000); }
