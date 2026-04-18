@@ -14,7 +14,6 @@ let isFullscreen = false, isFrozen = false, freezeInterval = null;
 let pendingUser = null, pendingUjian = null, pendingWaktuSelesai = null;
 let isLocked = false, debounceTimer = null;
 
-// Jodoh
 window.currentMatchingSoal = null;
 window.currentMatchingJawaban = {};
 window.hurufMapping = {};
@@ -210,32 +209,38 @@ async function startExam() {
     showSuccess(`Selamat datang, ${currentUser.nama || 'Siswa'}!`);
 }
 
-// ==================== ACAK URUTAN SOAL SAJA ====================
+// ==================== ACAK SOAL DENGAN GRUP ====================
 function shuffleArray(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
-function acakUrutanSoalSaja(soalList) {
-    const soalTeracak = shuffleArray([...soalList]);
-    return soalTeracak.map(soal => {
-        return {
-            ...soal,
-            pilihan: soal.pilihan,
-            kunci: soal.kunci,
-            kunciAsli: soal.kunci
-        };
+function acakSoalDenganGrup(soalList) {
+    const soalDenganGrup = {}, soalTanpaGrup = [];
+    soalList.forEach(soal => {
+        if (soal.grupSoal && soal.grupSoal.trim() !== '') {
+            const grup = soal.grupSoal.trim();
+            if (!soalDenganGrup[grup]) soalDenganGrup[grup] = [];
+            soalDenganGrup[grup].push(soal);
+        } else { soalTanpaGrup.push(soal); }
     });
+    const grupBlocks = [];
+    for (let grup in soalDenganGrup) { grupBlocks.push(soalDenganGrup[grup]); }
+    const semuaBlocks = [...grupBlocks, ...soalTanpaGrup.map(s => [s])];
+    const blocksTeracak = shuffleArray(semuaBlocks);
+    const hasil = [];
+    blocksTeracak.forEach(block => { block.forEach(soal => hasil.push(soal)); });
+    return hasil;
 }
 
 async function ambilSoal(j, m, js) {
     try {
-        const r = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/BANK_SOAL!A:O?key=${CONFIG.API_KEY}`), d = await r.json(), rows = d.values || [];
+        const r = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/BANK_SOAL!A:P?key=${CONFIG.API_KEY}`), d = await r.json(), rows = d.values || [];
         let soalMentah = [];
         for (let i = 1; i < rows.length; i++) {
             if (String(rows[i][1]).trim() === String(j).trim() && String(rows[i][2]).trim() === String(m).trim() && String(rows[i][3]).trim() === String(js).trim() && rows[i][13] === "Aktif") {
-                soalMentah.push({ id: rows[i][0], tipe: rows[i][4], pertanyaan: rows[i][5], pilihan: [rows[i][6], rows[i][7], rows[i][8], rows[i][9], rows[i][10]].filter(p => p), kunci: rows[i][11], bobot: parseFloat(rows[i][12]) || 1, gambar: rows[i][14] || null });
+                soalMentah.push({ id: rows[i][0], tipe: rows[i][4], pertanyaan: rows[i][5], pilihan: [rows[i][6], rows[i][7], rows[i][8], rows[i][9], rows[i][10]].filter(p => p), kunci: rows[i][11], bobot: parseFloat(rows[i][12]) || 1, gambar: rows[i][14] || null, grupSoal: rows[i][15] || '' });
             }
         }
         if (soalMentah.length === 0) { document.getElementById("soalContainer").innerHTML = "<p>Belum ada soal.</p>"; return; }
-        dataSoal = acakUrutanSoalSaja(soalMentah);
+        dataSoal = acakSoalDenganGrup(soalMentah);
         renderSoal(0);
     } catch (e) { console.error(e); }
 }
@@ -283,10 +288,8 @@ function renderSoal(idx) {
         let kunciObj = {}, jawabanObj = {};
         try { kunciObj = JSON.parse(s.kunci); jawabanObj = JSON.parse(jaw || "{}"); } catch(e) {}
         window.currentMatchingSoal = s; window.currentMatchingJawaban = jawabanObj;
-        
         const opsiJawaban = s.pilihan.filter(p => p && p.trim());
         const hurufMapping = {}; opsiJawaban.forEach((opt, i) => { hurufMapping[String.fromCharCode(65 + i)] = opt; }); window.hurufMapping = hurufMapping;
-        
         h += `<div style="margin-bottom:12px; padding:10px; background:#e8f0fe; border-radius:12px;"><p style="font-weight:600; color:#1E3A8A;"><i class="fas fa-info-circle"></i> Tarik jawaban dari KANAN ke istilah di KIRI.</p></div>`;
         h += `<div class="matching-jodoh-container" style="display:flex; gap:16px;">`;
         h += `<div style="flex:1; background:#FEF3C7; padding:12px; border-radius:16px;"><div style="font-weight:600; margin-bottom:12px; text-align:center;">🎯 ISTILAH</div>`;
@@ -317,13 +320,32 @@ function autoSavePG(id) { const s = document.querySelector('input[name="jwb"]:ch
 function autoSavePGK(id) { const a = Array.from(document.querySelectorAll('input[name="jwb"]:checked')).map(c => c.value); if (a.length === 0) return; const jwb = JSON.stringify(a); jawabanLokal[id] = jwb; renderNavigator(); const soal = dataSoal.find(q => q.id === id); let s = 0; try { if (JSON.stringify(a.sort()) === JSON.stringify(JSON.parse(soal.kunci).sort())) s = soal.bobot; } catch (e) {} simpanKeServer(id, jwb, s); showToast('Tersimpan', 'success', 800); }
 function autoSaveBSSingle(id) { const s = document.querySelector('input[name="bs_single"]:checked'); if (!s) return; jawabanLokal[id] = s.value; renderNavigator(); const soal = dataSoal.find(q => q.id === id); simpanKeServer(id, s.value, s.value === soal.kunci ? soal.bobot : 0); showToast('Tersimpan', 'success', 800); }
 function autoSaveBS(id, n) { let semua = true; for (let i=0; i<n; i++) if (!document.querySelector(`input[name="bs_${i}"]:checked`)) { semua = false; break; } if (!semua) return; const a = []; for (let i=0; i<n; i++) a.push(document.querySelector(`input[name="bs_${i}"]:checked`).value); const jwb = JSON.stringify(a); jawabanLokal[id] = jwb; renderNavigator(); const soal = dataSoal.find(q => q.id === id); let s = 0; try { const k = JSON.parse(soal.kunci); let b = 0; for (let i=0; i<k.length; i++) if (a[i] === k[i]) b++; s = (b/k.length)*soal.bobot; } catch(e) {} simpanKeServer(id, jwb, s); showToast('Tersimpan', 'success', 800); }
-function debounceAutoSaveIsian(id) { clearTimeout(debounceTimer); debounceTimer = setTimeout(() => { const i = document.getElementById('isian'); if (!i || !i.value.trim()) return; const jwb = i.value.trim(); jawabanLokal[id] = jwb; renderNavigator(); const soal = dataSoal.find(q => q.id === id); simpanKeServer(id, jwb, jwb.toLowerCase() === soal.kunci.toLowerCase() ? soal.bobot : 0); showToast('Tersimpan', 'success', 800); }, 1000); }
+function debounceAutoSaveIsian(id) {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+        const i = document.getElementById('isian');
+        if (!i || !i.value.trim()) return;
+        const jwb = i.value.trim();
+        jawabanLokal[id] = jwb;
+        renderNavigator();
+        const soal = dataSoal.find(q => q.id === id);
+        const jawabanNormal = jwb.toLowerCase().replace(/\s+/g, ' ').trim();
+        const kunciNormal = soal.kunci.toLowerCase().replace(/\s+/g, ' ').trim();
+        let skor = 0;
+        if (kunciNormal.includes('|')) {
+            const kunciArr = kunciNormal.split('|').map(k => k.trim());
+            if (kunciArr.includes(jawabanNormal)) skor = soal.bobot;
+        } else { if (jawabanNormal === kunciNormal) skor = soal.bobot; }
+        simpanKeServer(id, jwb, skor);
+        showToast('Tersimpan', 'success', 800);
+    }, 1000);
+}
 function simpanPG(id) { autoSavePG(id); }
 function simpanPGK(id) { autoSavePGK(id); }
 function simpanBSSingle(id) { autoSaveBSSingle(id); }
 function simpanBS(id, n) { autoSaveBS(id, n); }
 function simpanJodohDrag(id) { const o = window.currentMatchingJawaban || {}, soal = window.currentMatchingSoal; let k = {}; try { k = JSON.parse(soal.kunci); } catch (e) {} if (Object.keys(o).length !== Object.keys(k).length) { showError("Pasangkan semua!"); return; } const jwb = JSON.stringify(o); jawabanLokal[id] = jwb; renderNavigator(); let s = 0; try { let b = 0; for (let key in k) if (o[key] === k[key]) b++; s = (b / Object.keys(k).length) * soal.bobot; } catch (e) {} simpanKeServer(id, jwb, s); showSuccess("Jawaban tersimpan!"); }
-function simpanIsian(id) { debounceAutoSaveIsian(id); }
+function simpanIsian(id) { const i = document.getElementById('isian'); if (!i || !i.value.trim()) { showError("Isi jawaban!"); return; } const jwb = i.value.trim(); jawabanLokal[id] = jwb; renderNavigator(); const soal = dataSoal.find(q => q.id === id); const jawabanNormal = jwb.toLowerCase().replace(/\s+/g, ' ').trim(); const kunciNormal = soal.kunci.toLowerCase().replace(/\s+/g, ' ').trim(); let skor = 0; if (kunciNormal.includes('|')) { const kunciArr = kunciNormal.split('|').map(k => k.trim()); if (kunciArr.includes(jawabanNormal)) skor = soal.bobot; } else { if (jawabanNormal === kunciNormal) skor = soal.bobot; } simpanKeServer(id, jwb, skor); showSuccess("Jawaban tersimpan!"); }
 function prevSoal() { if (isFrozen) return; if (indexSoal > 0) goToSoal(indexSoal - 1); }
 function nextSoal() { if (isFrozen) return; if (indexSoal < dataSoal.length - 1) goToSoal(indexSoal + 1); }
 
@@ -358,9 +380,19 @@ async function selesaiUjian() {
     dataSoal.forEach(s => { const j = jawabanLokal[s.id]; const bo = s.bobot || 1; tot += bo; if (!j) return;
         if (s.tipe === "PG") { if (j === s.kunci) { t += bo; b++; } }
         else if (s.tipe === "PGK") { try { if (JSON.stringify(JSON.parse(j).sort()) === JSON.stringify(JSON.parse(s.kunci).sort())) { t += bo; b++; } } catch (e) {} }
-        else if (s.tipe === "B/S") { try { const ja = JSON.parse(j), ka = JSON.parse(s.kunci); let x = 0; for (let i = 0; i < ka.length; i++) if (ja[i] === ka[i]) x++; t += (x / ka.length) * bo; if (x === ka.length) b++; } catch (e) { if (j === s.kunci) { t += bo; b++; } } }
+        else if (s.tipe === "B/S") {
+            try {
+                if (j.startsWith('[')) { const ja = JSON.parse(j), ka = JSON.parse(s.kunci); let x = 0; for (let i = 0; i < ka.length; i++) if (ja[i] === ka[i]) x++; t += (x / ka.length) * bo; if (x === ka.length) b++; }
+                else { if (j === s.kunci) { t += bo; b++; } }
+            } catch (e) { if (j === s.kunci) { t += bo; b++; } }
+        }
         else if (s.tipe === "Jodoh") { try { const jo = JSON.parse(j), ko = JSON.parse(s.kunci); let x = 0, tt = Object.keys(ko).length; for (let k in ko) if (jo[k] === ko[k]) x++; t += (x / tt) * bo; if (x === tt) b++; } catch (e) {} }
-        else if (s.tipe === "Isian") { if (j.toLowerCase() === s.kunci.toLowerCase()) { t += bo; b++; } }
+        else if (s.tipe === "Isian") {
+            const jawabanNormal = j.toLowerCase().replace(/\s+/g, ' ').trim();
+            const kunciNormal = s.kunci.toLowerCase().replace(/\s+/g, ' ').trim();
+            if (kunciNormal.includes('|')) { const kunciArr = kunciNormal.split('|').map(k => k.trim()); if (kunciArr.includes(jawabanNormal)) { t += bo; b++; } }
+            else { if (jawabanNormal === kunciNormal) { t += bo; b++; } }
+        }
     });
     const p = tot > 0 ? (t / tot) * 100 : 0;
     if (document.exitFullscreen) document.exitFullscreen(); document.getElementById("freezeOverlay").style.display = "none";
