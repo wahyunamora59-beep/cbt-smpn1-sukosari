@@ -14,7 +14,6 @@ let isFullscreen = false, isFrozen = false, freezeInterval = null;
 let pendingUser = null, pendingUjian = null, pendingWaktuSelesai = null;
 let isLocked = false, debounceTimer = null;
 
-// Jodoh
 window.matchingOpsiTeracak = null;
 window.matchingSoalId = null;
 window.currentMatchingSoal = null;
@@ -219,18 +218,28 @@ function acakSoalDanPilihan(soalList) {
     const soalTeracak = shuffleArray([...soalList]);
     return soalTeracak.map(soal => {
         if (soal.tipe === 'PG' || soal.tipe === 'PGK' || soal.tipe === 'B/S') {
-            let pilihanPairs = soal.pilihan.map((teks, index) => ({ huruf: String.fromCharCode(65 + index), teks: teks }));
-            pilihanPairs = shuffleArray(pilihanPairs);
-            const mappingAcak = {}; pilihanPairs.forEach((pair, newIndex) => { mappingAcak[String.fromCharCode(65 + newIndex)] = pair.huruf; });
+            let pilihanPairs = soal.pilihan.map((teks, index) => ({ hurufAsli: String.fromCharCode(65 + index), teks: teks }));
+            const pilihanAcak = shuffleArray([...pilihanPairs]);
+            const mappingAcak = {}; pilihanAcak.forEach((pair, newIndex) => { mappingAcak[String.fromCharCode(65 + newIndex)] = pair.hurufAsli; });
             let kunciBaru = soal.kunci;
             if (soal.tipe === 'PG' || soal.tipe === 'B/S') {
                 for (let h in mappingAcak) if (mappingAcak[h] === soal.kunci) { kunciBaru = h; break; }
             } else if (soal.tipe === 'PGK') {
                 try { const kunciArr = JSON.parse(soal.kunci); const kunciBaruArr = []; for (let h in mappingAcak) if (kunciArr.includes(mappingAcak[h])) kunciBaruArr.push(h); kunciBaru = JSON.stringify(kunciBaruArr.sort()); } catch(e) {}
             }
-            return { ...soal, pilihan: pilihanPairs.map(p => p.teks), mappingAcak, kunci: kunciBaru, kunciAsli: soal.kunci };
+            return { ...soal, pilihan: pilihanAcak.map(p => p.teks), mappingAcak, kunci: kunciBaru, kunciAsli: soal.kunci };
         } else if (soal.tipe === 'Jodoh' || soal.tipe === 'JODOH') {
-            return soal;
+            let pilihanPairs = soal.pilihan.map((teks, index) => ({ hurufAsli: String.fromCharCode(65 + index), teks: teks }));
+            const pilihanAcak = shuffleArray([...pilihanPairs]);
+            const mappingAcak = {}; pilihanAcak.forEach((pair, newIndex) => { mappingAcak[String.fromCharCode(65 + newIndex)] = pair.hurufAsli; });
+            let kunciBaruObj = {};
+            try {
+                const kunciObj = JSON.parse(soal.kunci);
+                for (let ist in kunciObj) {
+                    for (let h in mappingAcak) if (mappingAcak[h] === kunciObj[ist]) { kunciBaruObj[ist] = h; break; }
+                }
+            } catch(e) { kunciBaruObj = JSON.parse(soal.kunci); }
+            return { ...soal, pilihan: pilihanAcak.map(p => p.teks), mappingAcak, kunci: JSON.stringify(kunciBaruObj), kunciAsli: soal.kunci };
         }
         return soal;
     });
