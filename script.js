@@ -14,8 +14,7 @@ let isFullscreen = false, isFrozen = false, freezeInterval = null;
 let pendingUser = null, pendingUjian = null, pendingWaktuSelesai = null;
 let isLocked = false, debounceTimer = null;
 
-window.matchingOpsiTeracak = null;
-window.matchingSoalId = null;
+// Jodoh
 window.currentMatchingSoal = null;
 window.currentMatchingJawaban = {};
 window.hurufMapping = {};
@@ -211,37 +210,18 @@ async function startExam() {
     showSuccess(`Selamat datang, ${currentUser.nama || 'Siswa'}!`);
 }
 
-// ==================== AMBIL SOAL & ACAK ====================
+// ==================== ACAK URUTAN SOAL SAJA ====================
 function shuffleArray(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
-function acakSoalDanPilihan(soalList) {
+function acakUrutanSoalSaja(soalList) {
     const soalTeracak = shuffleArray([...soalList]);
     return soalTeracak.map(soal => {
-        if (soal.tipe === 'PG' || soal.tipe === 'PGK' || soal.tipe === 'B/S') {
-            let pilihanPairs = soal.pilihan.map((teks, index) => ({ hurufAsli: String.fromCharCode(65 + index), teks: teks }));
-            const pilihanAcak = shuffleArray([...pilihanPairs]);
-            const mappingAcak = {}; pilihanAcak.forEach((pair, newIndex) => { mappingAcak[String.fromCharCode(65 + newIndex)] = pair.hurufAsli; });
-            let kunciBaru = soal.kunci;
-            if (soal.tipe === 'PG' || soal.tipe === 'B/S') {
-                for (let h in mappingAcak) if (mappingAcak[h] === soal.kunci) { kunciBaru = h; break; }
-            } else if (soal.tipe === 'PGK') {
-                try { const kunciArr = JSON.parse(soal.kunci); const kunciBaruArr = []; for (let h in mappingAcak) if (kunciArr.includes(mappingAcak[h])) kunciBaruArr.push(h); kunciBaru = JSON.stringify(kunciBaruArr.sort()); } catch(e) {}
-            }
-            return { ...soal, pilihan: pilihanAcak.map(p => p.teks), mappingAcak, kunci: kunciBaru, kunciAsli: soal.kunci };
-        } else if (soal.tipe === 'Jodoh' || soal.tipe === 'JODOH') {
-            let pilihanPairs = soal.pilihan.map((teks, index) => ({ hurufAsli: String.fromCharCode(65 + index), teks: teks }));
-            const pilihanAcak = shuffleArray([...pilihanPairs]);
-            const mappingAcak = {}; pilihanAcak.forEach((pair, newIndex) => { mappingAcak[String.fromCharCode(65 + newIndex)] = pair.hurufAsli; });
-            let kunciBaruObj = {};
-            try {
-                const kunciObj = JSON.parse(soal.kunci);
-                for (let ist in kunciObj) {
-                    for (let h in mappingAcak) if (mappingAcak[h] === kunciObj[ist]) { kunciBaruObj[ist] = h; break; }
-                }
-            } catch(e) { kunciBaruObj = JSON.parse(soal.kunci); }
-            return { ...soal, pilihan: pilihanAcak.map(p => p.teks), mappingAcak, kunci: JSON.stringify(kunciBaruObj), kunciAsli: soal.kunci };
-        }
-        return soal;
+        return {
+            ...soal,
+            pilihan: soal.pilihan,
+            kunci: soal.kunci,
+            kunciAsli: soal.kunci
+        };
     });
 }
 
@@ -255,7 +235,7 @@ async function ambilSoal(j, m, js) {
             }
         }
         if (soalMentah.length === 0) { document.getElementById("soalContainer").innerHTML = "<p>Belum ada soal.</p>"; return; }
-        dataSoal = acakSoalDanPilihan(soalMentah);
+        dataSoal = acakUrutanSoalSaja(soalMentah);
         renderSoal(0);
     } catch (e) { console.error(e); }
 }
@@ -304,12 +284,8 @@ function renderSoal(idx) {
         try { kunciObj = JSON.parse(s.kunci); jawabanObj = JSON.parse(jaw || "{}"); } catch(e) {}
         window.currentMatchingSoal = s; window.currentMatchingJawaban = jawabanObj;
         
-        if (!window.matchingOpsiTeracak || window.matchingSoalId !== s.id) {
-            window.matchingOpsiTeracak = shuffleArray(s.pilihan.filter(p => p && p.trim()));
-            window.matchingSoalId = s.id;
-        }
-        const opsiTeracak = window.matchingOpsiTeracak;
-        const hurufMapping = {}; opsiTeracak.forEach((opt, i) => { hurufMapping[String.fromCharCode(65 + i)] = opt; }); window.hurufMapping = hurufMapping;
+        const opsiJawaban = s.pilihan.filter(p => p && p.trim());
+        const hurufMapping = {}; opsiJawaban.forEach((opt, i) => { hurufMapping[String.fromCharCode(65 + i)] = opt; }); window.hurufMapping = hurufMapping;
         
         h += `<div style="margin-bottom:12px; padding:10px; background:#e8f0fe; border-radius:12px;"><p style="font-weight:600; color:#1E3A8A;"><i class="fas fa-info-circle"></i> Tarik jawaban dari KANAN ke istilah di KIRI.</p></div>`;
         h += `<div class="matching-jodoh-container" style="display:flex; gap:16px;">`;
@@ -320,7 +296,7 @@ function renderSoal(idx) {
         }
         h += `</div>`;
         h += `<div style="flex:1; background:#DBEAFE; padding:12px; border-radius:16px;"><div style="font-weight:600; margin-bottom:12px; text-align:center;">📦 JAWABAN (Tarik ke kiri)</div>`;
-        opsiTeracak.forEach((opt, i) => {
+        opsiJawaban.forEach((opt, i) => {
             const huruf = String.fromCharCode(65 + i), isUsed = Object.values(jawabanObj).includes(huruf);
             if (!isUsed) h += `<div class="matching-item-right" draggable="true" data-huruf="${huruf}" id="drag_${huruf}" style="background:white; padding:12px; border-radius:12px; margin-bottom:8px; border:2px solid #1E3A8A; cursor:grab;"><strong style="color:#1E3A8A;">${huruf}.</strong> ${opt}</div>`;
             else h += `<div class="matching-item-right paired" draggable="false" id="drag_${huruf}" style="background:#DCFCE7; padding:12px; border-radius:12px; margin-bottom:8px; border:2px solid #22C55E;"><strong style="color:#1E3A8A;">${huruf}.</strong> ${opt} <span style="color:#16a34a;">✓</span></div>`;
@@ -363,14 +339,14 @@ function updateMatchingUIJodoh() {
         const target = document.getElementById(`target_${key.replace(/[^a-zA-Z0-9]/g,'')}`);
         if (target) { const isFilled = jawabanObj[key] !== undefined, huruf = jawabanObj[key] || '', teks = hurufMapping[huruf] || ''; target.className = `matching-target ${isFilled ? 'filled' : 'empty'}`; target.style.background = isFilled ? '#DCFCE7' : 'white'; target.style.border = isFilled ? '2px solid #22C55E' : '2px dashed #D97706'; target.innerHTML = `<div style="text-align:center;">${isFilled ? `<strong>${key}</strong><br><span style="color:#16a34a;">✅ ${huruf}. ${teks}</span>` : `<strong>${key}</strong><br><span style="color:#94a3b8;">⬅️ Tarik jawaban</span>`}</div>`; }
     }
-    const usedHuruf = Object.values(jawabanObj), opsiTeracak = window.matchingOpsiTeracak || soal.pilihan.filter(p => p && p.trim());
-    opsiTeracak.forEach((opt, i) => {
+    const usedHuruf = Object.values(jawabanObj), opsiJawaban = soal.pilihan.filter(p => p && p.trim());
+    opsiJawaban.forEach((opt, i) => {
         const huruf = String.fromCharCode(65 + i), dragItem = document.getElementById(`drag_${huruf}`);
         if (dragItem) { const isUsed = usedHuruf.includes(huruf); dragItem.className = `matching-item-right${isUsed ? ' paired' : ''}`; dragItem.setAttribute('draggable', !isUsed); dragItem.style.background = isUsed ? '#DCFCE7' : 'white'; dragItem.style.border = isUsed ? '2px solid #22C55E' : '2px solid #1E3A8A'; dragItem.innerHTML = `<strong style="color:#1E3A8A;">${huruf}.</strong> ${opt}${isUsed ? '<span style="color:#16a34a; margin-left:8px;">✓</span>' : ''}`; }
     });
     initDragDropJodoh();
 }
-function resetMatching() { window.currentMatchingJawaban = {}; window.matchingOpsiTeracak = null; window.matchingSoalId = null; renderSoal(indexSoal); showToast('Pasangan direset', 'info'); }
+function resetMatching() { window.currentMatchingJawaban = {}; renderSoal(indexSoal); showToast('Pasangan direset', 'info'); }
 
 // ==================== TIMER & SELESAI ====================
 function mulaiTimer() { if (!waktuSelesai) return; timerInterval = setInterval(() => { const s = Math.max(waktuSelesai - new Date(), 0), d = Math.floor(s / 1000), m = Math.floor(d / 60), sec = d % 60; document.getElementById("timerDisplay").innerText = `${m}:${sec < 10 ? "0" : ""}${sec}`; if (d === 0 && !ujianSelesai) { ujianSelesai = true; clearInterval(timerInterval); showModal({ iconType: "warning", title: "Waktu Habis", message: "Ujian akan otomatis berakhir.", buttons: [{ text: "OK", type: "primary", onClick: () => selesaiUjian() }] }); } }, 1000); }
