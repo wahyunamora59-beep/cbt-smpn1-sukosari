@@ -25,7 +25,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:linear-gradient(145de
 .resume-header-modern{text-align:center;margin-bottom:28px}.resume-icon-modern{width:80px;height:80px;background:linear-gradient(145deg,#FEF3C7,#FDE68A);border-radius:24px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
 .resume-icon-modern i{font-size:40px;color:#D97706}.resume-title-modern{font-size:22px;font-weight:700;color:#1E3A8A;margin-bottom:6px}.resume-subtitle-modern{color:#64748B;font-size:14px}
 .resume-card-modern{background:#F8FAFC;border-radius:20px;padding:20px;margin-bottom:20px;border:1px solid #E2E8F0}
-.resume-item-modern{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #E2E8F0}.resume-item-modern:last-child{border-bottom:none}
+.resume-item-modern{display:flex;justify-content:space-between;align-items:0;padding:12px 0;border-bottom:1px solid #E2E8F0}.resume-item-modern:last-child{border-bottom:none}
 .resume-label-modern{font-weight:600;color:#475569;font-size:14px;display:flex;align-items:center;gap:10px}.resume-label-modern i{width:20px;color:#D97706}.resume-value-modern{font-weight:700;color:#1E293B;font-size:15px}
 .resume-warning-modern{background:#FEF3C7;border-radius:14px;padding:14px;color:#D97706;font-size:13px;display:flex;align-items:center;gap:10px;margin-bottom:24px}
 .resume-buttons-modern{display:flex;gap:12px}.resume-btn-modern{flex:1;padding:14px;border-radius:30px;font-weight:700;font-size:15px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
@@ -38,8 +38,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:linear-gradient(145de
 .confirm-label-modern{font-weight:600;color:#475569;font-size:14px;display:flex;align-items:center;gap:10px}.confirm-label-modern i{width:20px;color:#F59E0B}.confirm-value-modern{font-weight:700;color:#1E293B;font-size:15px}
 .confirm-warning-modern{background:#FEF3C7;border-radius:14px;padding:14px;color:#D97706;font-size:13px;display:flex;align-items:center;gap:10px;margin-bottom:24px}
 .confirm-buttons-modern{display:flex;gap:12px}.confirm-btn-modern{flex:1;padding:14px;border-radius:30px;font-weight:700;font-size:15px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
-.btn-primary-modern{background:#1E3A8A;color:#fff}.btn-primary-modern:hover{background:#1E4A8B}
-.btn-secondary-modern{background:#F1F5F9;color:#64748B}.btn-secondary-modern:hover{background:#E2E8F0}
+.btn-primary-modern{background:#1E3A8A;color:#fff}.btn-primary-modern:hover{background:#1E4A8B}.btn-secondary-modern{background:#F1F5F9;color:#64748B}.btn-secondary-modern:hover{background:#E2E8F0}
 
 /* EXAM */
 #examScreen{display:flex;flex-direction:column;min-height:100%}
