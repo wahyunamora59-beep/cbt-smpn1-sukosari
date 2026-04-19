@@ -1,8 +1,8 @@
 // ==================== KONFIGURASI SPREADSHEET ====================
 const CONFIG = {
     SPREADSHEET_ID: '1zc5lh-8XWEhGYJajqooWGK3Vo89kqob1iAaIdaIiXc0',
-    API_KEY: 'AIzaSyAG16CaL_CwY6Hktj6nNrxCoPjYXcJZHcE'
-    // PROXY_URL tidak diperlukan lagi!
+    API_KEY: 'AIzaSyAG16CaL_CwY6Hktj6nNrxCoPjYXcJZHcE',
+    PROXY_URL: 'https://script.google.com/macros/s/AKfycbx0Y7Jo-40pR8LrgT3NK6pJ5Lt4U7A8HEocE7vri8UkOfJQtRRovGrln9ewA1h9N7QD/exec'  // ← GANTI YANG INI
 };
 
 // ==================== KONFIGURASI GOOGLE FORM JAWABAN ====================
@@ -129,41 +129,39 @@ function renderSoal(idx){
 }
 
 // ==================== SIMPAN JAWABAN KE GOOGLE FORM ====================
-function simpanKeFormJawaban(idSoal, jawaban, skor) {
+async function simpanJawabanKeSheet(idSoal, jawaban, skor) {
     if (!idSesi || !currentUser) return;
     
-    // ⭐ Buat form HTML tersembunyi dan submit
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = 'https://docs.google.com/forms/d/e/1FAIpQLSfJiBK009l9oAObn536NcmE3FG6JJQXToJNxtJB2ZARWOEPxw/formResponse';
-    form.target = '_blank'; // Buka di tab baru (untuk debugging)
-    form.style.display = 'none';
-    
-    const addField = (name, value) => {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = name;
-        input.value = value;
-        form.appendChild(input);
-    };
-    
-    addField('entry.1825352965', idSesi);
-    addField('entry.1036314991', currentUser.username);
-    addField('entry.354531830', idSoal);
-    addField('entry.2071298402', jawaban);
-    addField('entry.1378685057', String(skor));
-    addField('fvv', '1');
-    addField('pageHistory', '0');
-    addField('fbzx', '-6544178365047481858');
-    
-    document.body.appendChild(form);
-    form.submit();
-    
-    console.log(`✅ Jawaban ${idSoal} terkirim`);
-} catch(e) {
-        console.error('❌ Gagal:', e);
+    try {
+        const res = await fetch(CONFIG.PROXY_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'simpanJawaban',
+                idSesi: idSesi,
+                username: currentUser.username,
+                nis: currentUser.nis,
+                nama: currentUser.nama,
+                jenjang: currentUser.jenjang,
+                kelas: currentUser.kelas,
+                mapel: currentUjian.mapel,
+                jenisUjian: currentUjian.jenis,
+                idSoal: idSoal,
+                jawaban: jawaban,
+                skor: skor
+            })
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+            console.log(`✅ Jawaban ${idSoal} tersimpan ke Sheet`);
+        } else {
+            console.error('❌ Gagal simpan:', data.msg);
+        }
+    } catch(e) {
+        console.error('❌ Gagal koneksi ke Apps Script:', e);
     }
 }
+
 function simpanKeLocalStorage(){if(idSesi)localStorage.setItem(`jawaban_${idSesi}`,JSON.stringify(jawabanLokal))}
 function autoSavePG(id){const s=document.querySelector('input[name="jwb"]:checked');if(!s)return;jawabanLokal[id]=s.value;renderNavigator();simpanKeLocalStorage();const soal=dataSoal.find(q=>q.id===id);simpanKeFormJawaban(id,s.value,s.value===soal.kunci?soal.bobot:0);showToast('Tersimpan','success',800)}
 function autoSavePGK(id){const a=Array.from(document.querySelectorAll('input[name="jwb"]:checked')).map(c=>c.value);if(a.length===0)return;jawabanLokal[id]=JSON.stringify(a);renderNavigator();simpanKeLocalStorage();const soal=dataSoal.find(q=>q.id===id);let s=0;try{if(JSON.stringify(a.sort())===JSON.stringify(JSON.parse(soal.kunci).sort()))s=soal.bobot}catch(e){}simpanKeFormJawaban(id,JSON.stringify(a),s);showToast('Tersimpan','success',800)}
