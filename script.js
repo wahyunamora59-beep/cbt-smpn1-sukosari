@@ -131,16 +131,32 @@ function renderSoal(idx){
 // ==================== SIMPAN JAWABAN KE GOOGLE FORM ====================
 async function simpanKeFormJawaban(idSoal, jawaban, skor) {
     if (!idSesi || !currentUser) return;
+    
     try {
+        // ⭐ GUNAKAN URL YANG PERSIS DENGAN YANG ADA DI BROWSER SAAT PREVIEW
+        const formUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSfJiBK009l9oAObn536NcmE3FG6JJQXToJNxtJB2ZARWOEPxw/formResponse';
+        
+        // ⭐ BUAT FORMDATA (BUKAN URLSearchParams)
         const formData = new FormData();
-        formData.append(FORM_JAWABAN_CONFIG.ENTRY_IDS.idSesi, idSesi);
-        formData.append(FORM_JAWABAN_CONFIG.ENTRY_IDS.username, currentUser.username);
-        formData.append(FORM_JAWABAN_CONFIG.ENTRY_IDS.idSoal, idSoal);
-        formData.append(FORM_JAWABAN_CONFIG.ENTRY_IDS.jawaban, jawaban);
-        formData.append(FORM_JAWABAN_CONFIG.ENTRY_IDS.skor, skor);
-        await fetch(FORM_JAWABAN_CONFIG.FORM_URL, { method: 'POST', body: formData, mode: 'no-cors' });
+        formData.append('entry.573372308', idSesi);
+        formData.append('entry.1668234915', currentUser.username);
+        formData.append('entry.2021217112', idSoal);
+        formData.append('entry.1938948166', jawaban);
+        formData.append('entry.1230085090', String(skor));
+        
+        console.log('📤 Mengirim jawaban ke Form...');
+        
+        // ⭐ KIRIM DENGAN MODE no-cors
+        await fetch(formUrl, {
+            method: 'POST',
+            body: formData,
+            mode: 'no-cors'
+        });
+        
         console.log(`✅ Jawaban ${idSoal} terkirim ke Form`);
-    } catch(e) { console.error('❌ Gagal kirim jawaban:', e); }
+    } catch(e) {
+        console.error('❌ Gagal kirim:', e);
+    }
 }
 
 function simpanKeLocalStorage(){if(idSesi)localStorage.setItem(`jawaban_${idSesi}`,JSON.stringify(jawabanLokal))}
