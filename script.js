@@ -133,27 +133,42 @@ async function simpanKeFormJawaban(idSoal, jawaban, skor) {
     if (!idSesi || !currentUser) return;
     
     try {
-        // ⭐ GUNAKAN URL YANG PERSIS DENGAN YANG ADA DI BROWSER SAAT PREVIEW
-        const formUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSfJiBK009l9oAObn536NcmE3FG6JJQXToJNxtJB2ZARWOEPxw/formResponse';
+        // ⭐ GUNAKAN IFRAME HIDDEN (CARA PALING AKURAT)
+        const iframe = document.createElement('iframe');
+        iframe.name = 'hidden_iframe';
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
         
-        // ⭐ BUAT FORMDATA (BUKAN URLSearchParams)
-        const formData = new FormData();
-        formData.append('entry.573372308', idSesi);
-        formData.append('entry.1668234915', currentUser.username);
-        formData.append('entry.2021217112', idSoal);
-        formData.append('entry.1938948166', jawaban);
-        formData.append('entry.1230085090', String(skor));
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = 'https://docs.google.com/forms/d/e/1FAIpQLSfJiBK009l9oAObn536NcmE3FG6JJQXToJNxtJB2ZARWOEPxw/formResponse';
+        form.target = 'hidden_iframe';
         
-        console.log('📤 Mengirim jawaban ke Form...');
+        const addField = (name, value) => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = name;
+            input.value = value;
+            form.appendChild(input);
+        };
         
-        // ⭐ KIRIM DENGAN MODE no-cors
-        await fetch(formUrl, {
-            method: 'POST',
-            body: formData,
-            mode: 'no-cors'
-        });
+        addField('entry.573372308', idSesi);
+        addField('entry.1668234915', currentUser.username);
+        addField('entry.2021217112', idSoal);
+        addField('entry.1938948166', jawaban);
+        addField('entry.1230085090', String(skor));
+        
+        document.body.appendChild(form);
+        form.submit();
         
         console.log(`✅ Jawaban ${idSoal} terkirim ke Form`);
+        
+        // Bersihkan
+        setTimeout(() => {
+            document.body.removeChild(form);
+            document.body.removeChild(iframe);
+        }, 1000);
+        
     } catch(e) {
         console.error('❌ Gagal kirim:', e);
     }
