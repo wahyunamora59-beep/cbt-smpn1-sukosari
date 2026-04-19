@@ -8,7 +8,7 @@ const CONFIG = {
 // ==================== KONFIGURASI GOOGLE FORM JAWABAN ====================
 const FORM_JAWABAN_CONFIG = {
     FORM_ID: '16KE31UPEFVGq1GN0yTs6zDtzDTwomQm4e-uFS3-i4QY',
-    FORM_URL: 'https://docs.google.com/forms/d/e/16KE31UPEFVGq1GN0yTs6zDtzDTwomQm4e-uFS3-i4QY/formResponse',
+    FORM_URL: 'https://docs.google.com/forms/d/16KE31UPEFVGq1GN0yTs6zDtzDTwomQm4e-uFS3-i4QY/edit',
     ENTRY_IDS: {
         idSesi: 'entry.573372308',
         username: 'entry.1668234915',
@@ -20,8 +20,8 @@ const FORM_JAWABAN_CONFIG = {
 
 // ==================== KONFIGURASI GOOGLE FORM NILAI AKHIR ====================
 const FORM_NILAI_CONFIG = {
-    FORM_ID: '1rhwpHbsJJ42JNNUjDdcD982rromXGJDCS7f0dgAPa-M',
-    FORM_URL: 'https://docs.google.com/forms/d/e/1rhwpHbsJJ42JNNUjDdcD982rromXGJDCS7f0dgAPa-M/formResponse',
+    FORM_ID: '1FAIpQLSc0y02L0-T1ac6Xr5ZaQUa-A0YBPx1W2-4xVJwXQSNhcDVPoQ',
+    FORM_URL: 'https://docs.google.com/forms/d/e/1FAIpQLSc0y02L0-T1ac6Xr5ZaQUa-A0YBPx1W2-4xVJwXQSNhcDVPoQ/formResponse',
     ENTRY_IDS: {
         idSesi: 'entry.1016023962',
         username: 'entry.1400099277',
