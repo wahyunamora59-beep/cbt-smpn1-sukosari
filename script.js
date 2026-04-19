@@ -7,8 +7,8 @@ const CONFIG = {
 
 // ==================== KONFIGURASI GOOGLE FORM JAWABAN ====================
 const FORM_JAWABAN_CONFIG = {
-    FORM_ID: '16KE31UPEFVGq1GN0yTs6zDtzDTwomQm4e-uFS3-i4QY',
-    FORM_URL: 'https://docs.google.com/forms/d/16KE31UPEFVGq1GN0yTs6zDtzDTwomQm4e-uFS3-i4QY/edit',
+    FORM_ID: '1FAIpQLSfJiBK009l9oAObn536NcmE3FG6JJQXToJNxtJB2ZARWOEPxw',  // ⭐ PUBLIC ID
+    FORM_URL: 'https://docs.google.com/forms/d/e/1FAIpQLSfJiBK009l9oAObn536NcmE3FG6JJQXToJNxtJB2ZARWOEPxw/formResponse',
     ENTRY_IDS: {
         idSesi: 'entry.573372308',
         username: 'entry.1668234915',
