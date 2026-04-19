@@ -135,25 +135,32 @@ async function simpanKeFormJawaban(idSoal, jawaban, skor) {
     try {
         const formUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSfJiBK009l9oAObn536NcmE3FG6JJQXToJNxtJB2ZARWOEPxw/formResponse';
         
-        const formData = new FormData();
+        // ⭐ Gunakan URLSearchParams (bukan FormData)
+        const params = new URLSearchParams();
         
-        // ⭐ GUNAKAN ENTRY IDs DARI PAYLOAD (BUKAN YANG DARI APPS SCRIPT!)
-        formData.append('entry.1825352965', idSesi);      // idSesi
-        formData.append('entry.1036314991', currentUser.username); // username
-        formData.append('entry.354531830', idSoal);       // idSoal
-        formData.append('entry.2071298402', jawaban);     // jawaban
-        formData.append('entry.1378685057', String(skor)); // skor
+        // Entry IDs dari payload
+        params.append('entry.1825352965', idSesi);
+        params.append('entry.1036314991', currentUser.username);
+        params.append('entry.354531830', idSoal);
+        params.append('entry.2071298402', jawaban);
+        params.append('entry.1378685057', String(skor));
         
-        // ⭐ TAMBAHKAN FIELD WAJIB
-        formData.append('fvv', '1');
-        formData.append('partialResponse', '[null,null,"-6544178365047481858"]');
-        formData.append('pageHistory', '0');
-        formData.append('fbzx', '-6544178365047481858');  // ⭐ CSRF Token (statis?)
-        formData.append('submissionTimestamp', Date.now());
+        // Field wajib dari payload
+        params.append('fvv', '1');
+        params.append('partialResponse', '[null,null,"-6544178365047481858"]');
+        params.append('pageHistory', '0');
+        params.append('fbzx', '-6544178365047481858');
+        params.append('dlut', Date.now().toString());
+        params.append('submissionTimestamp', Date.now().toString());
         
-        await fetch(formUrl, {
+        console.log('📤 Mengirim:', params.toString());
+        
+        const res = await fetch(formUrl, {
             method: 'POST',
-            body: formData,
+            body: params,
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
             mode: 'no-cors'
         });
         
@@ -162,7 +169,6 @@ async function simpanKeFormJawaban(idSoal, jawaban, skor) {
         console.error('❌ Gagal:', e);
     }
 }
-
 function simpanKeLocalStorage(){if(idSesi)localStorage.setItem(`jawaban_${idSesi}`,JSON.stringify(jawabanLokal))}
 function autoSavePG(id){const s=document.querySelector('input[name="jwb"]:checked');if(!s)return;jawabanLokal[id]=s.value;renderNavigator();simpanKeLocalStorage();const soal=dataSoal.find(q=>q.id===id);simpanKeFormJawaban(id,s.value,s.value===soal.kunci?soal.bobot:0);showToast('Tersimpan','success',800)}
 function autoSavePGK(id){const a=Array.from(document.querySelectorAll('input[name="jwb"]:checked')).map(c=>c.value);if(a.length===0)return;jawabanLokal[id]=JSON.stringify(a);renderNavigator();simpanKeLocalStorage();const soal=dataSoal.find(q=>q.id===id);let s=0;try{if(JSON.stringify(a.sort())===JSON.stringify(JSON.parse(soal.kunci).sort()))s=soal.bobot}catch(e){}simpanKeFormJawaban(id,JSON.stringify(a),s);showToast('Tersimpan','success',800)}
