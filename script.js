@@ -5,39 +5,6 @@ const CONFIG = {
     PROXY_URL: 'https://script.google.com/macros/s/AKfycbx0Y7Jo-40pR8LrgT3NK6pJ5Lt4U7A8HEocE7vri8UkOfJQtRRovGrln9ewA1h9N7QD/exec'
 };
 
-// ==================== KONFIGURASI GOOGLE FORM JAWABAN ====================
-const FORM_JAWABAN_CONFIG = {
-    FORM_ID: '1FAIpQLSfJiBK009l9oAObn536NcmE3FG6JJQXToJNxtJB2ZARWOEPxw',
-    FORM_URL: 'https://docs.google.com/forms/d/e/1FAIpQLSfJiBK009l9oAObn536NcmE3FG6JJQXToJNxtJB2ZARWOEPxw/formResponse',
-    ENTRY_IDS: {
-        idSesi: 'entry.1825352965',
-        username: 'entry.1036314991',
-        idSoal: 'entry.354531830',
-        jawaban: 'entry.2071298402',
-        skor: 'entry.1378685057'
-    }
-};
-
-// ==================== KONFIGURASI GOOGLE FORM NILAI AKHIR ====================
-const FORM_NILAI_CONFIG = {
-    FORM_ID: '1FAIpQLSc0y02L0-T1ac6Xr5ZaQUa-A0YBPx1W2-4xVJwXQSNhcDVPoQ',
-    FORM_URL: 'https://docs.google.com/forms/d/e/1FAIpQLSc0y02L0-T1ac6Xr5ZaQUa-A0YBPx1W2-4xVJwXQSNhcDVPoQ/formResponse',
-    ENTRY_IDS: {
-        idSesi: 'entry.1002210213',
-        username: 'entry.1319755103',
-        nis: 'entry.1562069763',
-        nama: 'entry.1735932030',
-        jenjang: 'entry.1452635466',
-        kelas: 'entry.735715488',
-        mapel: 'entry.739996730',
-        jenisUjian: 'entry.681144176',
-        totalSkor: 'entry.750359140',
-        jumlahBenar: 'entry.1970879211',
-        jumlahSoal: 'entry.633802298',
-        persentase: 'entry.30886340'
-    }
-};
-
 // ==================== VARIABEL GLOBAL ====================
 let currentUser=null,currentUjian=null,dataSoal=[],indexSoal=0,jawabanLokal={},raguLokal={},timerInterval=null,waktuSelesai=null,waktuMulaiServer=null,minimalMenit=45,ujianSelesai=!1,idSesi=null,pelanggaranCount=0,totalPenalti=0,tombolSelesaiAktif=!1,isFullscreen=!1,isFrozen=!1,freezeInterval=null,pendingUser=null,pendingUjian=null,pendingWaktuSelesai=null,pendingSesiAktif=null,isLocked=!1,debounceTimer=null,freezeDuration=30,maxPelanggaran=5;
 window.currentMatchingSoal=null;window.currentMatchingJawaban={};window.hurufMapping={};
@@ -70,7 +37,6 @@ document.addEventListener("visibilitychange",()=>{if(document.hidden&&currentUse
 document.addEventListener("contextmenu",e=>{e.preventDefault();if(currentUser&&!ujianSelesai&&!isFrozen){catatPelanggaran("RIGHT_CLICK","Klik kanan");freezeScreen()}});
 document.addEventListener("keydown",e=>{if(!currentUser||ujianSelesai||isFrozen)return;if(e.key==="F11"||e.key==="Escape")e.preventDefault();if(e.ctrlKey&&(e.key==="w"||e.key==="t"||e.key==="n")){e.preventDefault();catatPelanggaran("KEYBOARD",`Ctrl+${e.key.toUpperCase()}`);freezeScreen()}});
 window.addEventListener("beforeunload",e=>{if(currentUser&&!ujianSelesai){e.preventDefault();e.returnValue=""}});
-
 function catatPelanggaran(j,d){if(!currentUser||ujianSelesai)return;pelanggaranCount++;totalPenalti++}
 
 // ==================== UPDATE TOMBOL SELESAI ====================
@@ -101,9 +67,7 @@ async function handleLogin(){
         document.getElementById("confirmWaktu").textContent=`${jadwal.mulai} - ${jadwal.selesai}`;
     }catch(e){console.error(e);showError("Gagal terhubung.")}
 }
-
 function cancelConfirm(){document.getElementById("confirmScreen").style.display="none";document.getElementById("loginScreen").style.display="block";document.getElementById("usernameInput").value="";document.getElementById("tokenInput").value="";pendingUser=null;pendingUjian=null;pendingWaktuSelesai=null;showToast("Silakan login dengan akun yang benar","info")}
-
 async function startExam(){if(!pendingUser||!pendingUjian){showError("Data tidak valid.");cancelConfirm();return}currentUser=pendingUser;currentUjian=pendingUjian;waktuSelesai=pendingWaktuSelesai;minimalMenit=pendingUjian.min||0;waktuMulaiServer=new Date();idSesi='SES-' + Date.now() + '-' + Math.random().toString(36).substr(2,9);document.getElementById("confirmScreen").style.display="none";document.getElementById("examScreen").style.display="block";document.getElementById("namaDisplay").innerText=`${currentUser.nama||'N/A'} | ${currentUser.kelas||'N/A'}`;document.getElementById("infoDisplay").innerText=`${currentUjian.mapel||'N/A'} - ${currentUjian.jenis||'N/A'}`;await ambilSoal(currentUser.jenjang,currentUjian.mapel,currentUjian.jenis);mulaiTimer();renderNavigator();showFullscreenPrompt();updateTombolSelesai();setInterval(updateTombolSelesai,1000);showSuccess(`Selamat datang, ${currentUser.nama||'Siswa'}!`)}
 
 // ==================== ACAK SOAL ====================
@@ -186,32 +150,10 @@ async function selesaiUjian(){
     });
     const p=tot>0?(t/tot)*100:0;
     if(document.exitFullscreen)document.exitFullscreen();document.getElementById("freezeOverlay").style.display="none";
-    
-    // Kirim nilai akhir ke Apps Script
     try {
-        await fetch(CONFIG.PROXY_URL, {
-            method: 'POST',
-            body: JSON.stringify({
-                action: 'selesaiUjian',
-                idSesi: idSesi,
-                username: currentUser.username,
-                nis: currentUser.nis,
-                nama: currentUser.nama,
-                jenjang: currentUser.jenjang,
-                kelas: currentUser.kelas,
-                mapel: currentUjian.mapel,
-                jenisUjian: currentUjian.jenis,
-                totalSkor: t,
-                jumlahBenar: b,
-                jumlahSoal: dataSoal.length,
-                ipAddress: '0.0.0.0'
-            })
-        });
+        await fetch(CONFIG.PROXY_URL, {method:'POST',body:JSON.stringify({action:'selesaiUjian',idSesi,username:currentUser.username,nis:currentUser.nis,nama:currentUser.nama,jenjang:currentUser.jenjang,kelas:currentUser.kelas,mapel:currentUjian.mapel,jenisUjian:currentUjian.jenis,totalSkor:t,jumlahBenar:b,jumlahSoal:dataSoal.length,ipAddress:'0.0.0.0'})});
         console.log('✅ Nilai akhir tersimpan ke Sheet');
-    } catch(e) {
-        console.error('❌ Gagal simpan nilai akhir:', e);
-    }
-    
+    } catch(e) { console.error('❌ Gagal simpan nilai akhir:', e); }
     localStorage.removeItem(`jawaban_${idSesi}`);
     showModal({iconType:"success",title:"🎉 Ujian Selesai!",message:"",buttons:[{text:"Tutup",type:"success",onClick:()=>location.reload()}]});
     setTimeout(()=>{document.querySelector(".modal-message").innerHTML=`<div style="text-align:center;"><div style="font-size:48px;font-weight:800;color:#1E3A8A;">${t.toFixed(2)}</div><div>Total Skor</div><div style="display:flex;justify-content:center;gap:20px;margin-top:16px;"><div>${b}/${dataSoal.length} Benar</div><div>${p.toFixed(1)}%</div></div></div>`},10)
