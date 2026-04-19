@@ -129,43 +129,38 @@ function renderSoal(idx){
 }
 
 // ==================== SIMPAN JAWABAN KE GOOGLE FORM ====================
-async function simpanKeFormJawaban(idSoal, jawaban, skor) {
+function simpanKeFormJawaban(idSoal, jawaban, skor) {
     if (!idSesi || !currentUser) return;
     
-    try {
-        const formUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSfJiBK009l9oAObn536NcmE3FG6JJQXToJNxtJB2ZARWOEPxw/formResponse';
-        
-        // ⭐ Gunakan URLSearchParams (bukan FormData)
-        const params = new URLSearchParams();
-        
-        // Entry IDs dari payload
-        params.append('entry.1825352965', idSesi);
-        params.append('entry.1036314991', currentUser.username);
-        params.append('entry.354531830', idSoal);
-        params.append('entry.2071298402', jawaban);
-        params.append('entry.1378685057', String(skor));
-        
-        // Field wajib dari payload
-        params.append('fvv', '1');
-        params.append('partialResponse', '[null,null,"-6544178365047481858"]');
-        params.append('pageHistory', '0');
-        params.append('fbzx', '-6544178365047481858');
-        params.append('dlut', Date.now().toString());
-        params.append('submissionTimestamp', Date.now().toString());
-        
-        console.log('📤 Mengirim:', params.toString());
-        
-        const res = await fetch(formUrl, {
-            method: 'POST',
-            body: params,
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            mode: 'no-cors'
-        });
-        
-        console.log(`✅ Jawaban ${idSoal} terkirim`);
-    } catch(e) {
+    // ⭐ Buat form HTML tersembunyi dan submit
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = 'https://docs.google.com/forms/d/e/1FAIpQLSfJiBK009l9oAObn536NcmE3FG6JJQXToJNxtJB2ZARWOEPxw/formResponse';
+    form.target = '_blank'; // Buka di tab baru (untuk debugging)
+    form.style.display = 'none';
+    
+    const addField = (name, value) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value;
+        form.appendChild(input);
+    };
+    
+    addField('entry.1825352965', idSesi);
+    addField('entry.1036314991', currentUser.username);
+    addField('entry.354531830', idSoal);
+    addField('entry.2071298402', jawaban);
+    addField('entry.1378685057', String(skor));
+    addField('fvv', '1');
+    addField('pageHistory', '0');
+    addField('fbzx', '-6544178365047481858');
+    
+    document.body.appendChild(form);
+    form.submit();
+    
+    console.log(`✅ Jawaban ${idSoal} terkirim`);
+} catch(e) {
         console.error('❌ Gagal:', e);
     }
 }
