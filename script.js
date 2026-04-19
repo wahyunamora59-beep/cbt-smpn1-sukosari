@@ -7,14 +7,14 @@ const CONFIG = {
 
 // ==================== KONFIGURASI GOOGLE FORM JAWABAN ====================
 const FORM_JAWABAN_CONFIG = {
-    FORM_ID: '1FAIpQLSfJiBK009l9oAObn536NcmE3FG6JJQXToJNxtJB2ZARWOEPxw',  // ⭐ PUBLIC ID
+    FORM_ID: '1FAIpQLSfJiBK009l9oAObn536NcmE3FG6JJQXToJNxtJB2ZARWOEPxw',
     FORM_URL: 'https://docs.google.com/forms/d/e/1FAIpQLSfJiBK009l9oAObn536NcmE3FG6JJQXToJNxtJB2ZARWOEPxw/formResponse',
     ENTRY_IDS: {
-        idSesi: 'entry.573372308',
-        username: 'entry.1668234915',
-        idSoal: 'entry.2021217112',
-        jawaban: 'entry.1938948166',
-        skor: 'entry.1230085090'
+        idSesi: 'entry.1825352965',      // ⭐ DARI PAYLOAD
+        username: 'entry.1036314991',    // ⭐ DARI PAYLOAD
+        idSoal: 'entry.354531830',       // ⭐ DARI PAYLOAD
+        jawaban: 'entry.2071298402',     // ⭐ DARI PAYLOAD
+        skor: 'entry.1378685057'         // ⭐ DARI PAYLOAD
     }
 };
 
@@ -133,44 +133,33 @@ async function simpanKeFormJawaban(idSoal, jawaban, skor) {
     if (!idSesi || !currentUser) return;
     
     try {
-        // ⭐ GUNAKAN IFRAME HIDDEN (CARA PALING AKURAT)
-        const iframe = document.createElement('iframe');
-        iframe.name = 'hidden_iframe';
-        iframe.style.display = 'none';
-        document.body.appendChild(iframe);
+        const formUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSfJiBK009l9oAObn536NcmE3FG6JJQXToJNxtJB2ZARWOEPxw/formResponse';
         
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = 'https://docs.google.com/forms/d/e/1FAIpQLSfJiBK009l9oAObn536NcmE3FG6JJQXToJNxtJB2ZARWOEPxw/formResponse';
-        form.target = 'hidden_iframe';
+        const formData = new FormData();
         
-        const addField = (name, value) => {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = name;
-            input.value = value;
-            form.appendChild(input);
-        };
+        // ⭐ GUNAKAN ENTRY IDs DARI PAYLOAD (BUKAN YANG DARI APPS SCRIPT!)
+        formData.append('entry.1825352965', idSesi);      // idSesi
+        formData.append('entry.1036314991', currentUser.username); // username
+        formData.append('entry.354531830', idSoal);       // idSoal
+        formData.append('entry.2071298402', jawaban);     // jawaban
+        formData.append('entry.1378685057', String(skor)); // skor
         
-        addField('entry.573372308', idSesi);
-        addField('entry.1668234915', currentUser.username);
-        addField('entry.2021217112', idSoal);
-        addField('entry.1938948166', jawaban);
-        addField('entry.1230085090', String(skor));
+        // ⭐ TAMBAHKAN FIELD WAJIB
+        formData.append('fvv', '1');
+        formData.append('partialResponse', '[null,null,"-6544178365047481858"]');
+        formData.append('pageHistory', '0');
+        formData.append('fbzx', '-6544178365047481858');  // ⭐ CSRF Token (statis?)
+        formData.append('submissionTimestamp', Date.now());
         
-        document.body.appendChild(form);
-        form.submit();
+        await fetch(formUrl, {
+            method: 'POST',
+            body: formData,
+            mode: 'no-cors'
+        });
         
-        console.log(`✅ Jawaban ${idSoal} terkirim ke Form`);
-        
-        // Bersihkan
-        setTimeout(() => {
-            document.body.removeChild(form);
-            document.body.removeChild(iframe);
-        }, 1000);
-        
+        console.log(`✅ Jawaban ${idSoal} terkirim`);
     } catch(e) {
-        console.error('❌ Gagal kirim:', e);
+        console.error('❌ Gagal:', e);
     }
 }
 
