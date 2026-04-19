@@ -23,18 +23,18 @@ const FORM_NILAI_CONFIG = {
     FORM_ID: '1FAIpQLSc0y02L0-T1ac6Xr5ZaQUa-A0YBPx1W2-4xVJwXQSNhcDVPoQ',
     FORM_URL: 'https://docs.google.com/forms/d/e/1FAIpQLSc0y02L0-T1ac6Xr5ZaQUa-A0YBPx1W2-4xVJwXQSNhcDVPoQ/formResponse',
     ENTRY_IDS: {
-        idSesi: 'entry.1016023962',
-        username: 'entry.1400099277',
-        nis: 'entry.2028389282',
-        nama: 'entry.735000562',
-        jenjang: 'entry.1656736665',
-        kelas: 'entry.1159460942',
-        mapel: 'entry.1122205447',
-        jenisUjian: 'entry.205630993',
-        totalSkor: 'entry.1434879950',
-        jumlahBenar: 'entry.603131586',
-        jumlahSoal: 'entry.954020031',
-        persentase: 'entry.1248333394'
+        idSesi: 'entry.1002210213',
+        username: 'entry.1319755103',
+        nis: 'entry.1562069763',
+        nama: 'entry.1735932030',
+        jenjang: 'entry.1452635466',
+        kelas: 'entry.735715488',
+        mapel: 'entry.739996730',
+        jenisUjian: 'entry.681144176',
+        totalSkor: 'entry.750359140',
+        jumlahBenar: 'entry.1970879211',
+        jumlahSoal: 'entry.633802298',
+        persentase: 'entry.30886340'
     }
 };
 
