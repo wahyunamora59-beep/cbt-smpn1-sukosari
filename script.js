@@ -1,19 +1,40 @@
-// ==================== KONFIGURASI ====================
+// ==================== KONFIGURASI SPREADSHEET ====================
 const CONFIG = {
     SPREADSHEET_ID: '1zc5lh-8XWEhGYJajqooWGK3Vo89kqob1iAaIdaIiXc0',
-    API_KEY: 'AIzaSyAG16CaL_CwY6Hktj6nNrxCoPjYXcJZHcE',
-    PROXY_URL: 'https://script.google.com/macros/s/AKfycbzCGEEaroaDG5juhDVl_8hSEMan_dN0CSGzTJEJ154peJjaZh3eUv5_BFiBNzmXJilu/exec'
+    API_KEY: 'AIzaSyAG16CaL_CwY6Hktj6nNrxCoPjYXcJZHcE'
+    // PROXY_URL tidak diperlukan lagi!
 };
 
-// ==================== KONFIGURASI GOOGLE FORM ====================
-const FORM_CONFIG = {
+// ==================== KONFIGURASI GOOGLE FORM JAWABAN ====================
+const FORM_JAWABAN_CONFIG = {
     FORM_ID: '16KE31UPEFVGq1GN0yTs6zDtzDTwomQm4e-uFS3-i4QY',
+    FORM_URL: 'https://docs.google.com/forms/d/e/16KE31UPEFVGq1GN0yTs6zDtzDTwomQm4e-uFS3-i4QY/formResponse',
     ENTRY_IDS: {
         idSesi: 'entry.573372308',
         username: 'entry.1668234915',
         idSoal: 'entry.2021217112',
         jawaban: 'entry.1938948166',
         skor: 'entry.1230085090'
+    }
+};
+
+// ==================== KONFIGURASI GOOGLE FORM NILAI AKHIR ====================
+const FORM_NILAI_CONFIG = {
+    FORM_ID: '1rhwpHbsJJ42JNNUjDdcD982rromXGJDCS7f0dgAPa-M',
+    FORM_URL: 'https://docs.google.com/forms/d/e/1rhwpHbsJJ42JNNUjDdcD982rromXGJDCS7f0dgAPa-M/formResponse',
+    ENTRY_IDS: {
+        idSesi: 'entry.1016023962',
+        username: 'entry.1400099277',
+        nis: 'entry.2028389282',
+        nama: 'entry.735000562',
+        jenjang: 'entry.1656736665',
+        kelas: 'entry.1159460942',
+        mapel: 'entry.1122205447',
+        jenisUjian: 'entry.205630993',
+        totalSkor: 'entry.1434879950',
+        jumlahBenar: 'entry.603131586',
+        jumlahSoal: 'entry.954020031',
+        persentase: 'entry.1248333394'
     }
 };
 
@@ -108,34 +129,33 @@ function renderSoal(idx){
 }
 
 // ==================== SIMPAN JAWABAN KE GOOGLE FORM ====================
-async function simpanKeGoogleForm(idSoal, jawaban, skor) {
+async function simpanKeFormJawaban(idSoal, jawaban, skor) {
     if (!idSesi || !currentUser) return;
     try {
-        const formUrl = `https://docs.google.com/forms/d/e/${FORM_CONFIG.FORM_ID}/formResponse`;
         const formData = new FormData();
-        formData.append(FORM_CONFIG.ENTRY_IDS.idSesi, idSesi);
-        formData.append(FORM_CONFIG.ENTRY_IDS.username, currentUser.username);
-        formData.append(FORM_CONFIG.ENTRY_IDS.idSoal, idSoal);
-        formData.append(FORM_CONFIG.ENTRY_IDS.jawaban, jawaban);
-        formData.append(FORM_CONFIG.ENTRY_IDS.skor, skor);
-        await fetch(formUrl, { method: 'POST', body: formData, mode: 'no-cors' });
-        console.log(`✅ Jawaban ${idSoal} terkirim ke Google Form`);
-    } catch(e) { console.error('❌ Gagal kirim ke Form:', e); }
+        formData.append(FORM_JAWABAN_CONFIG.ENTRY_IDS.idSesi, idSesi);
+        formData.append(FORM_JAWABAN_CONFIG.ENTRY_IDS.username, currentUser.username);
+        formData.append(FORM_JAWABAN_CONFIG.ENTRY_IDS.idSoal, idSoal);
+        formData.append(FORM_JAWABAN_CONFIG.ENTRY_IDS.jawaban, jawaban);
+        formData.append(FORM_JAWABAN_CONFIG.ENTRY_IDS.skor, skor);
+        await fetch(FORM_JAWABAN_CONFIG.FORM_URL, { method: 'POST', body: formData, mode: 'no-cors' });
+        console.log(`✅ Jawaban ${idSoal} terkirim ke Form`);
+    } catch(e) { console.error('❌ Gagal kirim jawaban:', e); }
 }
 
 function simpanKeLocalStorage(){if(idSesi)localStorage.setItem(`jawaban_${idSesi}`,JSON.stringify(jawabanLokal))}
-function autoSavePG(id){const s=document.querySelector('input[name="jwb"]:checked');if(!s)return;jawabanLokal[id]=s.value;renderNavigator();simpanKeLocalStorage();simpanKeGoogleForm(id,s.value,s.value===dataSoal.find(q=>q.id===id).kunci?dataSoal.find(q=>q.id===id).bobot:0);showToast('Tersimpan','success',800)}
-function autoSavePGK(id){const a=Array.from(document.querySelectorAll('input[name="jwb"]:checked')).map(c=>c.value);if(a.length===0)return;jawabanLokal[id]=JSON.stringify(a);renderNavigator();simpanKeLocalStorage();let s=0;try{if(JSON.stringify(a.sort())===JSON.stringify(JSON.parse(dataSoal.find(q=>q.id===id).kunci).sort()))s=dataSoal.find(q=>q.id===id).bobot}catch(e){}simpanKeGoogleForm(id,JSON.stringify(a),s);showToast('Tersimpan','success',800)}
-function autoSaveBSSingle(id){const s=document.querySelector('input[name="bs_single"]:checked');if(!s)return;jawabanLokal[id]=s.value;renderNavigator();simpanKeLocalStorage();simpanKeGoogleForm(id,s.value,s.value===dataSoal.find(q=>q.id===id).kunci?dataSoal.find(q=>q.id===id).bobot:0);showToast('Tersimpan','success',800)}
-function autoSaveBS(id,n){let semua=!0;for(let i=0;i<n;i++)if(!document.querySelector(`input[name="bs_${i}"]:checked`)){semua=!1;break}if(!semua)return;const a=[];for(let i=0;i<n;i++)a.push(document.querySelector(`input[name="bs_${i}"]:checked`).value);jawabanLokal[id]=JSON.stringify(a);renderNavigator();simpanKeLocalStorage();let s=0;try{const k=JSON.parse(dataSoal.find(q=>q.id===id).kunci);let b=0;for(let i=0;i<k.length;i++)if(a[i]===k[i])b++;s=(b/k.length)*dataSoal.find(q=>q.id===id).bobot}catch(e){}simpanKeGoogleForm(id,JSON.stringify(a),s);showToast('Tersimpan','success',800)}
-function debounceAutoSaveIsian(id){clearTimeout(debounceTimer);debounceTimer=setTimeout(()=>{const i=document.getElementById('isian');if(!i||!i.value.trim())return;jawabanLokal[id]=i.value.trim();renderNavigator();simpanKeLocalStorage();const soal=dataSoal.find(q=>q.id===id);let s=0;if(soal.kunci.toLowerCase().replace(/\s+/g,' ').trim()===i.value.trim().toLowerCase().replace(/\s+/g,' ').trim())s=soal.bobot;simpanKeGoogleForm(id,i.value.trim(),s);showToast('Tersimpan','success',800)},1000)}
+function autoSavePG(id){const s=document.querySelector('input[name="jwb"]:checked');if(!s)return;jawabanLokal[id]=s.value;renderNavigator();simpanKeLocalStorage();const soal=dataSoal.find(q=>q.id===id);simpanKeFormJawaban(id,s.value,s.value===soal.kunci?soal.bobot:0);showToast('Tersimpan','success',800)}
+function autoSavePGK(id){const a=Array.from(document.querySelectorAll('input[name="jwb"]:checked')).map(c=>c.value);if(a.length===0)return;jawabanLokal[id]=JSON.stringify(a);renderNavigator();simpanKeLocalStorage();const soal=dataSoal.find(q=>q.id===id);let s=0;try{if(JSON.stringify(a.sort())===JSON.stringify(JSON.parse(soal.kunci).sort()))s=soal.bobot}catch(e){}simpanKeFormJawaban(id,JSON.stringify(a),s);showToast('Tersimpan','success',800)}
+function autoSaveBSSingle(id){const s=document.querySelector('input[name="bs_single"]:checked');if(!s)return;jawabanLokal[id]=s.value;renderNavigator();simpanKeLocalStorage();const soal=dataSoal.find(q=>q.id===id);simpanKeFormJawaban(id,s.value,s.value===soal.kunci?soal.bobot:0);showToast('Tersimpan','success',800)}
+function autoSaveBS(id,n){let semua=!0;for(let i=0;i<n;i++)if(!document.querySelector(`input[name="bs_${i}"]:checked`)){semua=!1;break}if(!semua)return;const a=[];for(let i=0;i<n;i++)a.push(document.querySelector(`input[name="bs_${i}"]:checked`).value);jawabanLokal[id]=JSON.stringify(a);renderNavigator();simpanKeLocalStorage();const soal=dataSoal.find(q=>q.id===id);let s=0;try{const k=JSON.parse(soal.kunci);let b=0;for(let i=0;i<k.length;i++)if(a[i]===k[i])b++;s=(b/k.length)*soal.bobot}catch(e){}simpanKeFormJawaban(id,JSON.stringify(a),s);showToast('Tersimpan','success',800)}
+function debounceAutoSaveIsian(id){clearTimeout(debounceTimer);debounceTimer=setTimeout(()=>{const i=document.getElementById('isian');if(!i||!i.value.trim())return;jawabanLokal[id]=i.value.trim();renderNavigator();simpanKeLocalStorage();const soal=dataSoal.find(q=>q.id===id);let s=0;if(soal.kunci.toLowerCase().replace(/\s+/g,' ').trim()===i.value.trim().toLowerCase().replace(/\s+/g,' ').trim())s=soal.bobot;simpanKeFormJawaban(id,i.value.trim(),s);showToast('Tersimpan','success',800)},1000)}
 function simpanPG(id){autoSavePG(id)}function simpanPGK(id){autoSavePGK(id)}function simpanBSSingle(id){autoSaveBSSingle(id)}function simpanBS(id,n){autoSaveBS(id,n)}
-function simpanJodohDrag(id){const o=window.currentMatchingJawaban||{},soal=window.currentMatchingSoal;if(!soal){showError('Data soal tidak valid!');return}let k={};try{k=JSON.parse(soal.kunci)}catch(e){showError('Format kunci salah!');return}const totalKey=Object.keys(k).length,filledKey=Object.keys(o).length;if(filledKey<totalKey){showError(`Baru ${filledKey} dari ${totalKey} yang dipasangkan!`);return}let benar=0;for(let key in k)if(o[key]===k[key])benar++;jawabanLokal[id]=JSON.stringify(o);renderNavigator();simpanKeLocalStorage();const s=(benar/totalKey)*soal.bobot;simpanKeGoogleForm(id,JSON.stringify(o),s);showSuccess(`Jawaban tersimpan! (${benar}/${totalKey} benar)`)}
-function simpanIsian(id){const i=document.getElementById('isian');if(!i||!i.value.trim()){showError("Isi jawaban!");return}jawabanLokal[id]=i.value.trim();renderNavigator();simpanKeLocalStorage();const soal=dataSoal.find(q=>q.id===id);let s=0;if(soal.kunci.toLowerCase().replace(/\s+/g,' ').trim()===i.value.trim().toLowerCase().replace(/\s+/g,' ').trim())s=soal.bobot;simpanKeGoogleForm(id,i.value.trim(),s);showSuccess("Jawaban tersimpan!")}
+function simpanJodohDrag(id){const o=window.currentMatchingJawaban||{},soal=window.currentMatchingSoal;if(!soal){showError('Data soal tidak valid!');return}let k={};try{k=JSON.parse(soal.kunci)}catch(e){showError('Format kunci salah!');return}const totalKey=Object.keys(k).length,filledKey=Object.keys(o).length;if(filledKey<totalKey){showError(`Baru ${filledKey} dari ${totalKey} yang dipasangkan!`);return}let benar=0;for(let key in k)if(o[key]===k[key])benar++;jawabanLokal[id]=JSON.stringify(o);renderNavigator();simpanKeLocalStorage();const s=(benar/totalKey)*soal.bobot;simpanKeFormJawaban(id,JSON.stringify(o),s);showSuccess(`Jawaban tersimpan! (${benar}/${totalKey} benar)`)}
+function simpanIsian(id){const i=document.getElementById('isian');if(!i||!i.value.trim()){showError("Isi jawaban!");return}jawabanLokal[id]=i.value.trim();renderNavigator();simpanKeLocalStorage();const soal=dataSoal.find(q=>q.id===id);let s=0;if(soal.kunci.toLowerCase().replace(/\s+/g,' ').trim()===i.value.trim().toLowerCase().replace(/\s+/g,' ').trim())s=soal.bobot;simpanKeFormJawaban(id,i.value.trim(),s);showSuccess("Jawaban tersimpan!")}
 function prevSoal(){if(isFrozen)return;if(indexSoal>0)goToSoal(indexSoal-1)}function nextSoal(){if(isFrozen)return;if(indexSoal<dataSoal.length-1)goToSoal(indexSoal+1)}
 
 // ==================== DRAG & DROP ====================
-function initDragDropJodoh(){document.querySelectorAll('.matching-item-right[draggable="true"]').forEach(i=>{i.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/plain',e.target.dataset.huruf)})});document.querySelectorAll('.matching-target').forEach(t=>{t.addEventListener('dragover',e=>e.preventDefault());t.addEventListener('drop',e=>{e.preventDefault();const tk=t.dataset.key,dk=e.dataTransfer.getData('text/plain');if(!tk||!dk)return;if(!window.currentMatchingJawaban)window.currentMatchingJawaban={};if(window.currentMatchingJawaban[tk]){showError('Sudah terisi!');return}if(Object.values(window.currentMatchingJawaban).includes(dk)){showError('Jawaban sudah dipakai!');return}window.currentMatchingJawaban[tk]=dk;updateMatchingUIJodoh();const soal=window.currentMatchingSoal;if(soal){let k={};try{k=JSON.parse(soal.kunci)}catch(e){}const totalKey=Object.keys(k).length,filledKey=Object.keys(window.currentMatchingJawaban).length;if(filledKey===totalKey){jawabanLokal[soal.id]=JSON.stringify(window.currentMatchingJawaban);renderNavigator();simpanKeLocalStorage();const s=(filledKey/totalKey)*soal.bobot;simpanKeGoogleForm(soal.id,JSON.stringify(window.currentMatchingJawaban),s);showSuccess(`✅ Semua terpasangkan! (${filledKey}/${totalKey})`)}else{showSuccess(`Dipasangkan! (${filledKey}/${totalKey})`)}}})})}
+function initDragDropJodoh(){document.querySelectorAll('.matching-item-right[draggable="true"]').forEach(i=>{i.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/plain',e.target.dataset.huruf)})});document.querySelectorAll('.matching-target').forEach(t=>{t.addEventListener('dragover',e=>e.preventDefault());t.addEventListener('drop',e=>{e.preventDefault();const tk=t.dataset.key,dk=e.dataTransfer.getData('text/plain');if(!tk||!dk)return;if(!window.currentMatchingJawaban)window.currentMatchingJawaban={};if(window.currentMatchingJawaban[tk]){showError('Sudah terisi!');return}if(Object.values(window.currentMatchingJawaban).includes(dk)){showError('Jawaban sudah dipakai!');return}window.currentMatchingJawaban[tk]=dk;updateMatchingUIJodoh();const soal=window.currentMatchingSoal;if(soal){let k={};try{k=JSON.parse(soal.kunci)}catch(e){}const totalKey=Object.keys(k).length,filledKey=Object.keys(window.currentMatchingJawaban).length;if(filledKey===totalKey){jawabanLokal[soal.id]=JSON.stringify(window.currentMatchingJawaban);renderNavigator();simpanKeLocalStorage();const s=(filledKey/totalKey)*soal.bobot;simpanKeFormJawaban(soal.id,JSON.stringify(window.currentMatchingJawaban),s);showSuccess(`✅ Semua terpasangkan! (${filledKey}/${totalKey})`)}else{showSuccess(`Dipasangkan! (${filledKey}/${totalKey})`)}}})})}
 function updateMatchingUIJodoh(){const s=window.currentMatchingSoal,o=window.currentMatchingJawaban||{},map=window.hurufMapping||{};let k={};try{k=JSON.parse(s.kunci)}catch(e){}const istilahMap=parseIstilahDariPertanyaan(s.pertanyaan);const keys=Object.keys(k);for(let key of keys){const t=document.getElementById(`target_${key}`);if(t){const f=o[key]!==undefined,h=o[key]||'',teks=map[h]||'',istilah=istilahMap[key]||key;t.className=`matching-target ${f?'filled':'empty'}`;t.style.background=f?'#DCFCE7':'white';t.style.border=f?'2px solid #22C55E':'2px dashed #D97706';t.innerHTML=`<div style="text-align:left;">`;if(f){t.innerHTML+=`<div style="display:flex;align-items:center;gap:8px;"><span style="background:#22C55E;color:white;padding:4px 10px;border-radius:20px;font-size:12px;">${key}</span><span style="color:#16a34a;font-size:13px;"><i class="fas fa-check-circle"></i> ${h}. ${teks}</span></div><p style="margin-top:8px;font-size:14px;color:#1E293B;">${istilah}</p>`}else{t.innerHTML+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><span style="background:#D97706;color:white;padding:4px 10px;border-radius:20px;font-size:12px;">${key}</span><span style="color:#94a3b8;font-size:12px;"><i class="fas fa-arrow-right"></i> Tarik jawaban</span></div><p style="font-size:14px;color:#1E293B;">${istilah}</p>`}t.innerHTML+=`</div>`}}const used=Object.values(o),opsi=s.pilihan.filter(p=>p&&p.trim());opsi.forEach((opt,i)=>{const h=String.fromCharCode(65+i),d=document.getElementById(`drag_${h}`);if(d){const u=used.includes(h);d.className=`matching-item-right${u?' paired':''}`;d.setAttribute('draggable',!u);d.style.background=u?'#DCFCE7':'white';d.style.border=u?'2px solid #22C55E':'2px solid #1E3A8A';d.innerHTML=`<strong style="color:#1E3A8A;">${h}.</strong> ${opt.replace(/^[A-E]\.\s*/,'')}${u?'<span style="color:#16a34a;margin-left:8px;"><i class="fas fa-check-circle"></i></span>':''}`}});initDragDropJodoh()}
 function resetMatching(){window.currentMatchingJawaban={};const soal=window.currentMatchingSoal;if(soal){delete jawabanLokal[soal.id];simpanKeLocalStorage();renderNavigator()}renderSoal(indexSoal);showToast('Pasangan direset','info')}
 
@@ -154,7 +174,26 @@ async function selesaiUjian(){
     });
     const p=tot>0?(t/tot)*100:0;
     if(document.exitFullscreen)document.exitFullscreen();document.getElementById("freezeOverlay").style.display="none";
-    try{await fetch(CONFIG.PROXY_URL,{method:"POST",body:JSON.stringify({action:"selesaiUjian",idSesi,username:currentUser.username,nis:currentUser.nis,nama:currentUser.nama,jenjang:currentUser.jenjang,kelas:currentUser.kelas,mapel:currentUjian.mapel,jenisUjian:currentUjian.jenis,totalSkor:t,jumlahBenar:b,jumlahSoal:dataSoal.length,ipAddress:"0.0.0.0"})})}catch(e){}
+    
+    // ⭐ KIRIM NILAI AKHIR KE GOOGLE FORM NILAI
+    try {
+        const formData = new FormData();
+        formData.append(FORM_NILAI_CONFIG.ENTRY_IDS.idSesi, idSesi);
+        formData.append(FORM_NILAI_CONFIG.ENTRY_IDS.username, currentUser.username);
+        formData.append(FORM_NILAI_CONFIG.ENTRY_IDS.nis, currentUser.nis);
+        formData.append(FORM_NILAI_CONFIG.ENTRY_IDS.nama, currentUser.nama);
+        formData.append(FORM_NILAI_CONFIG.ENTRY_IDS.jenjang, currentUser.jenjang);
+        formData.append(FORM_NILAI_CONFIG.ENTRY_IDS.kelas, currentUser.kelas);
+        formData.append(FORM_NILAI_CONFIG.ENTRY_IDS.mapel, currentUjian.mapel);
+        formData.append(FORM_NILAI_CONFIG.ENTRY_IDS.jenisUjian, currentUjian.jenis);
+        formData.append(FORM_NILAI_CONFIG.ENTRY_IDS.totalSkor, t.toFixed(2));
+        formData.append(FORM_NILAI_CONFIG.ENTRY_IDS.jumlahBenar, b);
+        formData.append(FORM_NILAI_CONFIG.ENTRY_IDS.jumlahSoal, dataSoal.length);
+        formData.append(FORM_NILAI_CONFIG.ENTRY_IDS.persentase, p.toFixed(1) + '%');
+        await fetch(FORM_NILAI_CONFIG.FORM_URL, { method: 'POST', body: formData, mode: 'no-cors' });
+        console.log('✅ Nilai akhir terkirim ke Form Nilai');
+    } catch(e) { console.error('❌ Gagal kirim nilai akhir:', e); }
+    
     localStorage.removeItem(`jawaban_${idSesi}`);
     showModal({iconType:"success",title:"🎉 Ujian Selesai!",message:"",buttons:[{text:"Tutup",type:"success",onClick:()=>location.reload()}]});
     setTimeout(()=>{document.querySelector(".modal-message").innerHTML=`<div style="text-align:center;"><div style="font-size:48px;font-weight:800;color:#1E3A8A;">${t.toFixed(2)}</div><div>Total Skor</div><div style="display:flex;justify-content:center;gap:20px;margin-top:16px;"><div>${b}/${dataSoal.length} Benar</div><div>${p.toFixed(1)}%</div></div></div>`},10)
