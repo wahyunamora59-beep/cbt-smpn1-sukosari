@@ -202,24 +202,50 @@ async function selesaiUjian(){
     if(document.exitFullscreen)document.exitFullscreen();document.getElementById("freezeOverlay").style.display="none";
     
     // ⭐ KIRIM NILAI AKHIR KE GOOGLE FORM NILAI
-    try {
-        const formData = new FormData();
-        formData.append(FORM_NILAI_CONFIG.ENTRY_IDS.idSesi, idSesi);
-        formData.append(FORM_NILAI_CONFIG.ENTRY_IDS.username, currentUser.username);
-        formData.append(FORM_NILAI_CONFIG.ENTRY_IDS.nis, currentUser.nis);
-        formData.append(FORM_NILAI_CONFIG.ENTRY_IDS.nama, currentUser.nama);
-        formData.append(FORM_NILAI_CONFIG.ENTRY_IDS.jenjang, currentUser.jenjang);
-        formData.append(FORM_NILAI_CONFIG.ENTRY_IDS.kelas, currentUser.kelas);
-        formData.append(FORM_NILAI_CONFIG.ENTRY_IDS.mapel, currentUjian.mapel);
-        formData.append(FORM_NILAI_CONFIG.ENTRY_IDS.jenisUjian, currentUjian.jenis);
-        formData.append(FORM_NILAI_CONFIG.ENTRY_IDS.totalSkor, t.toFixed(2));
-        formData.append(FORM_NILAI_CONFIG.ENTRY_IDS.jumlahBenar, b);
-        formData.append(FORM_NILAI_CONFIG.ENTRY_IDS.jumlahSoal, dataSoal.length);
-        formData.append(FORM_NILAI_CONFIG.ENTRY_IDS.persentase, p.toFixed(1) + '%');
-        await fetch(FORM_NILAI_CONFIG.FORM_URL, { method: 'POST', body: formData, mode: 'no-cors' });
-        console.log('✅ Nilai akhir terkirim ke Form Nilai');
-    } catch(e) { console.error('❌ Gagal kirim nilai akhir:', e); }
+    // Di dalam fungsi selesaiUjian(), bagian kirim Form Nilai:
+try {
+    const formUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSc0y02L0-T1ac6Xr5ZaQUa-A0YBPx1W2-4xVJwXQSNhcDVPoQ/formResponse';
     
+    // ⭐ Gunakan URLSearchParams (bukan FormData)
+    const params = new URLSearchParams();
+    
+    // Entry IDs Publik
+    params.append('entry.1002210213', idSesi);
+    params.append('entry.1319755103', currentUser.username);
+    params.append('entry.1562069763', currentUser.nis);
+    params.append('entry.1735932030', currentUser.nama);
+    params.append('entry.1452635466', currentUser.jenjang);
+    params.append('entry.735715488', currentUser.kelas);
+    params.append('entry.739996730', currentUjian.mapel);
+    params.append('entry.681144176', currentUjian.jenis);
+    params.append('entry.750359140', t.toFixed(2));
+    params.append('entry.1970879211', String(b));
+    params.append('entry.633802298', String(dataSoal.length));
+    params.append('entry.30886340', p.toFixed(1) + '%');
+    
+    // ⭐ FIELD WAJIB DARI PAYLOAD (HARUS DIKIRIM!)
+    params.append('fvv', '1');
+    params.append('pageHistory', '0');
+    params.append('fbzx', '-7224795307195830168');  // Dari payload Anda
+    params.append('dlut', Date.now().toString());
+    params.append('submissionTimestamp', Date.now().toString());
+    params.append('partialResponse', '[null,null,"-7224795307195830168"]');
+    
+    console.log('📤 Mengirim nilai akhir...');
+    
+    await fetch(formUrl, {
+        method: 'POST',
+        body: params,
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        mode: 'no-cors'
+    });
+    
+    console.log('✅ Nilai akhir terkirim ke Form Nilai');
+} catch(e) {
+    console.error('❌ Gagal kirim nilai akhir:', e);
+}
     localStorage.removeItem(`jawaban_${idSesi}`);
     showModal({iconType:"success",title:"🎉 Ujian Selesai!",message:"",buttons:[{text:"Tutup",type:"success",onClick:()=>location.reload()}]});
     setTimeout(()=>{document.querySelector(".modal-message").innerHTML=`<div style="text-align:center;"><div style="font-size:48px;font-weight:800;color:#1E3A8A;">${t.toFixed(2)}</div><div>Total Skor</div><div style="display:flex;justify-content:center;gap:20px;margin-top:16px;"><div>${b}/${dataSoal.length} Benar</div><div>${p.toFixed(1)}%</div></div></div>`},10)
