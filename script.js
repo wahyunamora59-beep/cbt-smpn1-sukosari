@@ -1885,28 +1885,31 @@ async function selesaiUjian() {
         }]
     });
     
-    setTimeout(() => {
-        document.querySelector(".modal-message").innerHTML = `
-            <div style="text-align:center;">
-                <div style="font-size:48px;font-weight:800;color:#1E3A8A;">${totalSkorAkhir.toFixed(2)}</div>
-                <div style="font-size:14px;color:#64748B;">Total Skor (maks: ${totalBobotMaks})</div>
-                <div style="display:flex;justify-content:center;gap:20px;margin-top:16px;">
-                    <div style="text-align:center;">
-                        <div style="font-size:24px;font-weight:700;color:#22C55E;">${jumlahBenar}</div>
-                        <div style="font-size:12px;color:#64748B;">Benar</div>
-                    </div>
-                    <div style="text-align:center;">
-                        <div style="font-size:24px;font-weight:700;color:#F59E0B;">${dataSoal.length - jumlahBenar}</div>
-                        <div style="font-size:12px;color:#64748B;">Salah</div>
-                    </div>
-                    <div style="text-align:center;">
-                        <div style="font-size:24px;font-weight:700;color:#3B82F6;">${persentase.toFixed(1)}%</div>
-                        <div style="font-size:12px;color:#64748B;">Persentase</div>
-                    </div>
+    ssetTimeout(() => {
+    document.querySelector(".modal-message").innerHTML = `
+        <div style="text-align:center;">
+            <div style="font-size:48px;font-weight:800;color:#1E3A8A;">${totalSkorAkhir.toFixed(0)}/${totalBobotMaks}</div>
+            <div style="font-size:14px;color:#64748B;margin-bottom:16px;">Total Skor</div>
+            <div style="display:flex;justify-content:center;gap:20px;margin-top:8px;">
+                <div style="text-align:center;">
+                    <div style="font-size:24px;font-weight:700;color:#22C55E;">${jumlahBenar}</div>
+                    <div style="font-size:12px;color:#64748B;">Benar</div>
+                </div>
+                <div style="text-align:center;">
+                    <div style="font-size:24px;font-weight:700;color:#EF4444;">${dataSoal.length - jumlahBenar}</div>
+                    <div style="font-size:12px;color:#64748B;">Salah</div>
+                </div>
+                <div style="text-align:center;">
+                    <div style="font-size:24px;font-weight:700;color:#3B82F6;">${persentase.toFixed(1)}%</div>
+                    <div style="font-size:12px;color:#64748B;">Persentase</div>
                 </div>
             </div>
-        `;
-    }, 10);
+            <div style="margin-top:20px;padding-top:16px;border-top:1px solid #E2E8F0;font-size:12px;color:#94A3B8;">
+                ${jumlahBenar >= dataSoal.length/2 ? '🎉 Kerja bagus!' : '💪 Tetap semangat!'}
+            </div>
+        </div>
+    `;
+}, 10);
 }
 // ==================== INISIALISASI ====================
 document.addEventListener('DOMContentLoaded', () => {
