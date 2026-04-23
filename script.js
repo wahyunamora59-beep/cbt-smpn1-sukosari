@@ -30,7 +30,10 @@ let currentUser = null,
     isLocked = false,
     debounceTimer = null,
     freezeDuration = 30,
-    maxPelanggaran = 5;
+    maxPelanggaran = 5,
+    pendingSiswa = null,
+    daftarUjianAktif = [],
+    countdownInterval = null;
 
 window.currentMatchingSoal = null;
 window.currentMatchingJawaban = {};
@@ -109,7 +112,7 @@ function freezeScreen(d = null) {
 
 // ==================== HELPER ====================
 function togglePassword() {
-    const i = document.getElementById("tokenInput");
+    const i = document.getElementById("passwordInput");
     i.type = i.type === "password" ? "text" : "password";
 }
 
@@ -131,6 +134,56 @@ function updateNavInfo() {
         j = Object.keys(jawabanLokal).length,
         e = document.getElementById("navInfo");
     if (e) e.textContent = `✅ ${j}/${t} terjawab`;
+}
+
+// ==================== HELPER TANGGAL & WAKTU ====================
+function parseTanggal(tanggalStr) {
+    if (!tanggalStr) return null;
+    const clean = String(tanggalStr).trim();
+    const parts = clean.split('-');
+    if (parts.length === 3) {
+        const tahun = parseInt(parts[0]);
+        const bulan = parseInt(parts[1]);
+        const tanggal = parseInt(parts[2]);
+        return new Date(tahun, bulan - 1, tanggal);
+    }
+    const parts2 = clean.split('/');
+    if (parts2.length === 3) {
+        const tanggal = parseInt(parts2[0]);
+        const bulan = parseInt(parts2[1]);
+        const tahun = parseInt(parts2[2]);
+        return new Date(tahun, bulan - 1, tanggal);
+    }
+    return null;
+}
+
+function formatTanggal(tanggal) {
+    if (!tanggal) return '';
+    const t = new Date(tanggal);
+    const tahun = t.getFullYear();
+    const bulan = String(t.getMonth() + 1).padStart(2, '0');
+    const hari = String(t.getDate()).padStart(2, '0');
+    return `${tahun}-${bulan}-${hari}`;
+}
+
+function parseWaktu(waktuStr, tanggalRef) {
+    if (!waktuStr || waktuStr.trim() === '') return null;
+    const clean = String(waktuStr).trim();
+    const parts = clean.split(':');
+    if (parts.length >= 2) {
+        const jam = parseInt(parts[0]);
+        const menit = parseInt(parts[1]);
+        if (tanggalRef) {
+            const t = new Date(tanggalRef);
+            t.setHours(jam, menit, 0, 0);
+            return t;
+        } else {
+            const t = new Date();
+            t.setHours(jam, menit, 0, 0);
+            return t;
+        }
+    }
+    return null;
 }
 
 // ==================== FULLSCREEN ====================
@@ -162,11 +215,10 @@ document.addEventListener("fullscreenchange", () => {
     } else isFullscreen = true;
 });
 
-// ==================== ANTI-CURANG (KEYBOARD & SCREENSHOT) ====================
+// ==================== ANTI-CURANG ====================
 window.addEventListener('pagehide', () => { isLocked = true; });
 window.addEventListener('pageshow', () => { if (isLocked) { isLocked = false; } });
 
-// Disable Klik Kanan
 document.addEventListener("contextmenu", e => {
     e.preventDefault();
     if (currentUser && !ujianSelesai && !isFrozen) {
@@ -175,16 +227,13 @@ document.addEventListener("contextmenu", e => {
     }
 });
 
-// Disable Seleksi Teks
 document.addEventListener('selectstart', e => {
     if (currentUser && !ujianSelesai) e.preventDefault();
 });
 
-// Keyboard Shortcut Protection
 document.addEventListener("keydown", e => {
     if (!currentUser || ujianSelesai || isFrozen) return;
     
-    // Cegah F11, Escape, PrintScreen
     if (e.key === "F11" || e.key === "Escape" || e.key === "PrintScreen") {
         e.preventDefault();
         if (e.key === "PrintScreen") {
@@ -195,7 +244,6 @@ document.addEventListener("keydown", e => {
         return false;
     }
     
-    // Cegah Ctrl + W / T / N / P / C / V / A / X
     if (e.ctrlKey) {
         const blockedKeys = ['w', 't', 'n', 'p', 'c', 'v', 'a', 'x'];
         if (blockedKeys.includes(e.key.toLowerCase())) {
@@ -228,22 +276,17 @@ const MAX_BLUR_COUNT = 3;
 let lastBlurTime = 0;
 const BLUR_COOLDOWN = 5000;
 
-// Deteksi Window Blur (Pindah Aplikasi)
 window.addEventListener('blur', () => {
     if (!currentUser || ujianSelesai || isFrozen) return;
-    
     const now = Date.now();
     if (now - lastBlurTime < BLUR_COOLDOWN) return;
     lastBlurTime = now;
-    
     blurCount++;
     catatPelanggaran('WINDOW_BLUR', `Keluar dari jendela ujian (${blurCount}/${MAX_BLUR_COUNT})`);
-    
     freezeScreen(30);
     document.getElementById('alertOverlay').style.display = 'block';
     document.getElementById('alertSound').play();
     showToast(`⚠️ Jangan membuka aplikasi lain! (${blurCount}/${MAX_BLUR_COUNT})`, 'error', 5000);
-    
     if (blurCount >= MAX_BLUR_COUNT) {
         showModal({
             iconType: 'error',
@@ -252,74 +295,59 @@ window.addEventListener('blur', () => {
             buttons: [{ text: 'OK', type: 'primary', onClick: () => selesaiUjian() }]
         });
     }
-    
     setTimeout(() => document.getElementById('alertOverlay').style.display = 'none', 3000);
 });
 
-// Deteksi Resize Abnormal (Split Screen)
 let lastWindowSize = { width: window.innerWidth, height: window.innerHeight };
 let resizeCheckTimer = null;
 
 window.addEventListener('resize', () => {
     if (!currentUser || ujianSelesai || isFrozen) return;
-    
     clearTimeout(resizeCheckTimer);
     resizeCheckTimer = setTimeout(() => {
         const newWidth = window.innerWidth;
         const newHeight = window.innerHeight;
         const screenWidth = screen.width;
         const screenHeight = screen.height;
-        
         const widthDiff = Math.abs(newWidth - lastWindowSize.width) / lastWindowSize.width;
         const heightDiff = Math.abs(newHeight - lastWindowSize.height) / lastWindowSize.height;
-        
         const drasticChange = widthDiff > 0.4 || heightDiff > 0.4;
         const aspectRatio = newWidth / newHeight;
         const screenAspectRatio = screenWidth / screenHeight;
         const abnormalAspectRatio = Math.abs(aspectRatio - screenAspectRatio) > 0.5;
-        
         if (drasticChange && isFullscreen) {
             catatPelanggaran('RESIZE_DRASTIC', `Ukuran berubah drastis`);
             showToast('⚠️ Perubahan ukuran jendela mencurigakan!', 'warning', 4000);
         }
-        
         if (abnormalAspectRatio && newWidth < screenWidth * 0.7) {
             catatPelanggaran('SPLIT_SCREEN', 'Mode split screen terdeteksi');
             showToast('⚠️ Hindari mode split screen!', 'warning', 4000);
         }
-        
         lastWindowSize = { width: newWidth, height: newHeight };
     }, 500);
 });
 
-// Deteksi Mouse Leave
 document.addEventListener('mouseleave', (e) => {
     if (!currentUser || ujianSelesai || isFrozen) return;
-    
     if (e.clientY <= 0 || e.clientX <= 0 || e.clientX >= window.innerWidth || e.clientY >= window.innerHeight) {
         const now = Date.now();
         if (now - lastBlurTime < BLUR_COOLDOWN) return;
         lastBlurTime = now;
-        
         catatPelanggaran('MOUSE_LEAVE', 'Kursor keluar area ujian');
         showToast('👆 Kursor terdeteksi keluar dari area ujian!', 'warning', 3000);
     }
 });
 
-// Deteksi Multi-touch > 3 Jari (Mobile)
 let touchStartTime = 0;
 let touchCount = 0;
 
 document.addEventListener('touchstart', (e) => {
     if (!currentUser || ujianSelesai || isFrozen) return;
-    
     const touchPoints = e.touches.length;
-    
     if (touchPoints > 3) {
         catatPelanggaran('MULTI_TOUCH', `Multi-touch ${touchPoints} jari`);
         showToast(`⚠️ Multi-touch ${touchPoints} jari terdeteksi!`, 'warning', 3000);
     }
-    
     const now = Date.now();
     if (now - touchStartTime < 100) {
         touchCount++;
@@ -334,16 +362,13 @@ document.addEventListener('touchstart', (e) => {
     touchStartTime = now;
 });
 
-// Deteksi DevTools Terbuka
 let devtoolsOpen = false;
 const threshold = 160;
 
 function detectDevTools() {
     if (!currentUser || ujianSelesai) return;
-    
     const widthThreshold = window.outerWidth - window.innerWidth > threshold;
     const heightThreshold = window.outerHeight - window.innerHeight > threshold;
-    
     if (widthThreshold || heightThreshold) {
         if (!devtoolsOpen) {
             devtoolsOpen = true;
@@ -355,10 +380,8 @@ function detectDevTools() {
         devtoolsOpen = false;
     }
 }
-
 setInterval(detectDevTools, 1000);
 
-// Visibility Change dengan Cooldown
 let lastVisibilityChange = 0;
 const VISIBILITY_COOLDOWN = 3000;
 
@@ -367,7 +390,6 @@ document.addEventListener('visibilitychange', () => {
         const now = Date.now();
         if (now - lastVisibilityChange < VISIBILITY_COOLDOWN) return;
         lastVisibilityChange = now;
-        
         if (!isLocked) {
             catatPelanggaran('TAB_SWITCH', 'Pindah tab/aplikasi');
             freezeScreen(30);
@@ -429,32 +451,409 @@ function parseIstilahDariPertanyaan(teks) {
     return istilahMap;
 }
 
+// ==================== CEK RESET DARI SPREADSHEET ====================
+async function cekResetUjian(username, mapel, jenis) {
+    try {
+        const rR = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/RESET_UJIAN!A:E?key=${CONFIG.API_KEY}`),
+            rD = await rR.json(),
+            rRows = rD.values || [];
+        
+        for (let i = 1; i < rRows.length; i++) {
+            const row = rRows[i];
+            const rowUsername = row[0] || '';
+            const rowMapel = row[1] || '';
+            const rowJenis = row[2] || '';
+            const rowReset = row[3] || '';
+            
+            const usernameMatch = (rowUsername === username);
+            const mapelMatch = (rowMapel === mapel || rowMapel === '*' || rowMapel === 'SEMUA');
+            const jenisMatch = (rowJenis === jenis || rowJenis === '*' || rowJenis === 'SEMUA');
+            
+            if (usernameMatch && mapelMatch && jenisMatch && rowReset === 'YA') {
+                console.log('🔄 Reset ditemukan untuk:', username, '-', mapel, '-', jenis);
+                return true;
+            }
+        }
+        return false;
+    } catch (e) {
+        console.error('⚠️ Gagal cek sheet RESET_UJIAN:', e);
+        return false;
+    }
+}
+
 // ==================== LOGIN ====================
 async function handleLogin() {
-    const u = document.getElementById("usernameInput").value.trim(),
-        t = document.getElementById("tokenInput").value.trim();
-    if (!u || !t) { showError("Isi username dan token!"); return; }
+    const u = document.getElementById("usernameInput").value.trim();
+    const p = document.getElementById("passwordInput").value.trim();
+    
+    if (!u) { showError("Isi username!"); return; }
+    if (!p) { showError("Isi password!"); return; }
+    
+    try {
+        const sR = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/DATA_SISWA!A:H?key=${CONFIG.API_KEY}`),
+            sD = await sR.json(),
+            sRows = sD.values || [];
+        
+        let siswa = null;
+        for (let i = 1; i < sRows.length; i++) {
+            if (sRows[i][2] === u) {
+                const passwordTersimpan = sRows[i][3] || '';
+                
+                if (passwordTersimpan !== p) {
+                    showError("Password salah!");
+                    return;
+                }
+                
+                siswa = {
+                    nis: sRows[i][0] || '',
+                    nama: sRows[i][1] || '',
+                    username: sRows[i][2],
+                    password: sRows[i][3] || '',
+                    kelas: sRows[i][4] || '',
+                    jenjang: sRows[i][5] || ''
+                };
+                break;
+            }
+        }
+        
+        if (!siswa) { 
+            showError("Username tidak terdaftar!"); 
+            return; 
+        }
+        
+        document.getElementById("passwordInput").value = "";
+        pendingSiswa = siswa;
+        
+        document.getElementById("loginScreen").style.display = "none";
+        document.getElementById("dashboardScreen").style.display = "block";
+        
+        document.getElementById("dashboardNama").textContent = siswa.nama || '-';
+        document.getElementById("dashboardNIS").textContent = siswa.nis || '-';
+        document.getElementById("dashboardKelas").textContent = siswa.kelas || '-';
+        
+        await loadUjianAktif(siswa);
+        
+    } catch (e) { 
+        console.error(e); 
+        showError("Gagal terhubung."); 
+    }
+}
+
+// ==================== LOAD UJIAN AKTIF (DASHBOARD) ====================
+async function loadUjianAktif(siswa) {
+    const container = document.getElementById("ujianAktifList");
+    
+    try {
+        const jR = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/JADWAL_UJIAN!A:J?key=${CONFIG.API_KEY}`),
+            jD = await jR.json(),
+            jRows = jD.values || [];
+        
+        const tR = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/TOKEN_UJIAN!A:H?key=${CONFIG.API_KEY}`),
+            tD = await tR.json(),
+            tRows = tD.values || [];
+        
+        const sekarang = new Date();
+        const hariIni = formatTanggal(sekarang);
+        
+        daftarUjianAktif = [];
+        
+        for (let i = 1; i < jRows.length; i++) {
+            const row = jRows[i];
+            const jenjangJadwal = String(row[1] || '').trim();
+            const mapelJadwal = String(row[2] || '').trim();
+            const jenisJadwal = String(row[3] || '').trim();
+            const tanggalStr = row[4] || '';
+            const waktuMulai = row[5] || '';
+            const waktuSelesai = row[6] || '';
+            const minimalMenit = parseInt(row[7]) || 0;
+            const token = row[8] || '';
+            const status = row[9] || '';
+            
+            const tanggalJadwal = parseTanggal(tanggalStr);
+            if (!tanggalJadwal) continue;
+            
+            const tanggalJadwalStr = formatTanggal(tanggalJadwal);
+            if (tanggalJadwalStr !== hariIni) continue;
+            
+            // ✅ FILTER PER JENJANG
+            if (jenjangJadwal !== siswa.jenjang) continue;
+            
+            if (status === 'Aktif') {
+                let tokenInfo = null;
+                for (let j = 1; j < tRows.length; j++) {
+                    if (tRows[j][0] === token) {
+                        tokenInfo = { mapel: tRows[j][2], jenis: tRows[j][3] };
+                        break;
+                    }
+                }
+                
+                let statusWaktu = 'tersedia';
+                let waktuMulaiObj = null;
+                let waktuSelesaiObj = null;
+                
+                if (waktuMulai && waktuSelesai) {
+                    waktuMulaiObj = parseWaktu(waktuMulai, tanggalJadwal);
+                    waktuSelesaiObj = parseWaktu(waktuSelesai, tanggalJadwal);
+                    
+                    if (waktuMulaiObj && waktuSelesaiObj) {
+                        if (sekarang < waktuMulaiObj) {
+                            statusWaktu = 'belum_mulai';
+                        } else if (sekarang > waktuSelesaiObj) {
+                            statusWaktu = 'selesai';
+                        } else {
+                            statusWaktu = 'berlangsung';
+                        }
+                    }
+                }
+                
+                let sudahSelesai = false;
+                let nilaiData = null;
+                
+                if (window.db) {
+                    try {
+                        const nilaiColl = window.Firebase.collection(window.db, 'nilai_akhir');
+                        const nilaiQ = window.Firebase.query(nilaiColl,
+                            window.Firebase.where('username', '==', siswa.username),
+                            window.Firebase.where('mapel', '==', tokenInfo?.mapel || mapelJadwal),
+                            window.Firebase.where('jenisUjian', '==', tokenInfo?.jenis || jenisJadwal));
+                        const nilaiSnapshot = await window.Firebase.getDocs(nilaiQ);
+                        
+                        if (!nilaiSnapshot.empty) {
+                            sudahSelesai = true;
+                            nilaiData = nilaiSnapshot.docs[0].data();
+                        }
+                    } catch (e) {}
+                }
+                
+                daftarUjianAktif.push({
+                    token,
+                    mapel: tokenInfo?.mapel || mapelJadwal,
+                    jenis: tokenInfo?.jenis || jenisJadwal,
+                    tanggal: tanggalJadwalStr,
+                    waktuMulai,
+                    waktuSelesai,
+                    waktuMulaiObj,
+                    waktuSelesaiObj,
+                    minimalMenit,
+                    statusWaktu,
+                    sudahSelesai,
+                    nilaiData
+                });
+            }
+        }
+        
+        daftarUjianAktif.sort((a, b) => {
+            if (a.statusWaktu === 'berlangsung' && b.statusWaktu !== 'berlangsung') return -1;
+            if (a.statusWaktu !== 'berlangsung' && b.statusWaktu === 'berlangsung') return 1;
+            return 0;
+        });
+        
+        renderUjianList(daftarUjianAktif);
+        startCountdown();
+        
+    } catch (e) {
+        console.error('Gagal load ujian aktif:', e);
+        container.innerHTML = `<div class="ujian-empty"><i class="fas fa-exclamation-triangle"></i><h4>Gagal Memuat</h4><p>Terjadi kesalahan saat memuat daftar ujian.</p></div>`;
+    }
+}
+
+// ==================== RENDER UJIAN LIST ====================
+function renderUjianList(ujianList) {
+    const container = document.getElementById("ujianAktifList");
+    
+    if (ujianList.length === 0) {
+        container.innerHTML = `
+            <div class="ujian-empty">
+                <i class="fas fa-calendar-times"></i>
+                <h4>Tidak Ada Ujian Aktif</h4>
+                <p>Tidak ada ujian yang tersedia untuk hari ini.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    const sekarang = new Date();
+    
+    ujianList.forEach((ujian, index) => {
+        let statusLabel = '';
+        let statusClass = '';
+        let canStart = false;
+        let waktuInfo = '';
+        
+        if (ujian.sudahSelesai) {
+            statusLabel = `✅ Selesai | Nilai: ${ujian.nilaiData?.totalSkor?.toFixed(2) || '0'}`;
+            statusClass = 'status-selesai';
+            canStart = false;
+            waktuInfo = `<span><i class="fas fa-check-circle"></i> Sudah dikerjakan</span>`;
+        } else if (!ujian.waktuMulaiObj || !ujian.waktuSelesaiObj) {
+            statusLabel = `📋 Tersedia`;
+            statusClass = 'status-berlangsung';
+            canStart = true;
+            waktuInfo = `<span><i class="fas fa-clock"></i> ${ujian.waktuMulai || '-'} - ${ujian.waktuSelesai || '-'}</span>`;
+        } else if (sekarang < ujian.waktuMulaiObj) {
+            const diff = Math.floor((ujian.waktuMulaiObj - sekarang) / 1000);
+            const jam = Math.floor(diff / 3600);
+            const menit = Math.floor((diff % 3600) / 60);
+            const detik = diff % 60;
+            statusLabel = `⏰ Mulai dalam <span class="countdown" data-index="${index}" data-type="mulai">${jam.toString().padStart(2,'0')}:${menit.toString().padStart(2,'0')}:${detik.toString().padStart(2,'0')}</span>`;
+            statusClass = 'status-belum';
+            canStart = false;
+            waktuInfo = `<span><i class="fas fa-clock"></i> ${ujian.waktuMulai} - ${ujian.waktuSelesai}</span>`;
+        } else if (sekarang > ujian.waktuSelesaiObj) {
+            statusLabel = `❌ Sudah Berakhir`;
+            statusClass = 'status-selesai';
+            canStart = false;
+            waktuInfo = `<span><i class="fas fa-clock"></i> ${ujian.waktuMulai} - ${ujian.waktuSelesai}</span>`;
+        } else {
+            const diff = Math.floor((ujian.waktuSelesaiObj - sekarang) / 1000);
+            const jam = Math.floor(diff / 3600);
+            const menit = Math.floor((diff % 3600) / 60);
+            const detik = diff % 60;
+            statusLabel = `🟢 Berlangsung | Sisa <span class="countdown" data-index="${index}" data-type="selesai">${jam.toString().padStart(2,'0')}:${menit.toString().padStart(2,'0')}:${detik.toString().padStart(2,'0')}</span>`;
+            statusClass = 'status-berlangsung';
+            canStart = true;
+            waktuInfo = `<span><i class="fas fa-hourglass-half"></i> ${ujian.waktuMulai} - ${ujian.waktuSelesai}</span>`;
+        }
+        
+        html += `
+            <div class="ujian-card" data-index="${index}" onclick="pilihUjian('${ujian.token}')">
+                <div class="ujian-card-header">
+                    <div class="ujian-icon">
+                        <i class="fas fa-book-open"></i>
+                    </div>
+                    <div class="ujian-info">
+                        <h4>${ujian.mapel}</h4>
+                        <div class="ujian-meta">
+                            <span><i class="fas fa-tag"></i> ${ujian.jenis}</span>
+                            ${waktuInfo}
+                        </div>
+                    </div>
+                </div>
+                <div class="ujian-card-footer">
+                    <span class="ujian-status ${statusClass}">${statusLabel}</span>
+                    <button class="btn-mulai" ${canStart ? '' : 'disabled'} onclick="event.stopPropagation(); pilihUjian('${ujian.token}')">
+                        <i class="fas fa-play"></i> Mulai
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+// ==================== COUNTDOWN REAL-TIME ====================
+function startCountdown() {
+    if (countdownInterval) clearInterval(countdownInterval);
+    
+    countdownInterval = setInterval(() => {
+        const sekarang = new Date();
+        let perluRender = false;
+        
+        daftarUjianAktif.forEach((ujian, index) => {
+            if (ujian.sudahSelesai) return;
+            if (!ujian.waktuMulaiObj || !ujian.waktuSelesaiObj) return;
+            
+            const card = document.querySelector(`.ujian-card[data-index="${index}"]`);
+            if (!card) return;
+            
+            const statusSpan = card.querySelector('.ujian-status');
+            const btnMulai = card.querySelector('.btn-mulai');
+            
+            if (sekarang < ujian.waktuMulaiObj) {
+                const diff = Math.floor((ujian.waktuMulaiObj - sekarang) / 1000);
+                const jam = Math.floor(diff / 3600);
+                const menit = Math.floor((diff % 3600) / 60);
+                const detik = diff % 60;
+                
+                const countdownSpan = statusSpan?.querySelector('.countdown');
+                if (countdownSpan) {
+                    countdownSpan.textContent = `${jam.toString().padStart(2,'0')}:${menit.toString().padStart(2,'0')}:${detik.toString().padStart(2,'0')}`;
+                }
+            } else if (sekarang > ujian.waktuSelesaiObj) {
+                statusSpan.className = 'ujian-status status-selesai';
+                statusSpan.textContent = '❌ Sudah Berakhir';
+                if (btnMulai) btnMulai.disabled = true;
+                ujian.statusWaktu = 'selesai';
+            } else {
+                const diff = Math.floor((ujian.waktuSelesaiObj - sekarang) / 1000);
+                const jam = Math.floor(diff / 3600);
+                const menit = Math.floor((diff % 3600) / 60);
+                const detik = diff % 60;
+                
+                if (ujian.statusWaktu !== 'berlangsung') {
+                    ujian.statusWaktu = 'berlangsung';
+                    perluRender = true;
+                } else {
+                    const countdownSpan = statusSpan?.querySelector('.countdown');
+                    if (countdownSpan) {
+                        countdownSpan.textContent = `${jam.toString().padStart(2,'0')}:${menit.toString().padStart(2,'0')}:${detik.toString().padStart(2,'0')}`;
+                    }
+                }
+            }
+        });
+        
+        if (perluRender) {
+            renderUjianList(daftarUjianAktif);
+        }
+    }, 1000);
+}
+
+// ==================== PILIH UJIAN ====================
+async function pilihUjian(token) {
+    const ujianDipilih = daftarUjianAktif.find(u => u.token === token);
+    
+    if (!ujianDipilih) {
+        showError("Ujian tidak ditemukan!");
+        return;
+    }
+    
+    if (ujianDipilih.sudahSelesai) {
+        showError("Anda sudah menyelesaikan ujian ini!");
+        return;
+    }
+    
+    const sekarang = new Date();
+    
+    if (ujianDipilih.waktuMulaiObj && sekarang < ujianDipilih.waktuMulaiObj) {
+        const diff = Math.floor((ujianDipilih.waktuMulaiObj - sekarang) / 60000);
+        showError(`Ujian belum dimulai! Sisa ${diff} menit.`);
+        return;
+    }
+    
+    if (ujianDipilih.waktuSelesaiObj && sekarang > ujianDipilih.waktuSelesaiObj) {
+        showError(`Ujian sudah berakhir!`);
+        return;
+    }
+    
+    document.getElementById("tokenInput").value = token;
+    await prosesUjianDipilih(ujianDipilih);
+}
+
+// ==================== PROSES UJIAN DIPILIH ====================
+async function prosesUjianDipilih(ujian) {
+    const siswa = pendingSiswa;
+    const token = ujian.token;
+    
     try {
         const tR = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/TOKEN_UJIAN!A:H?key=${CONFIG.API_KEY}`),
             tD = await tR.json(),
             tRows = tD.values || [];
         let tokenInfo = null;
         for (let i = 1; i < tRows.length; i++)
-            if (tRows[i][0] === t && tRows[i][5] === "Aktif") {
+            if (tRows[i][0] === token && tRows[i][5] === "Aktif") {
                 tokenInfo = { jenjang: tRows[i][1], mapel: tRows[i][2], jenis: tRows[i][3] };
                 break;
             }
+        
         if (!tokenInfo) { showError("Token tidak valid!"); return; }
-        const sR = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/DATA_SISWA!A:H?key=${CONFIG.API_KEY}`),
-            sD = await sR.json(),
-            sRows = sD.values || [];
-        let siswa = null;
-        for (let i = 1; i < sRows.length; i++)
-            if (sRows[i][2] === u) {
-                siswa = { nis: sRows[i][0] || '', nama: sRows[i][1] || '', username: sRows[i][2], kelas: sRows[i][4] || '', jenjang: sRows[i][5] || '' };
-                break;
-            }
-        if (!siswa) { showError("Username tidak terdaftar!"); return; }
+        
+        if (tokenInfo.jenjang !== siswa.jenjang) {
+            showError(`Ujian ini untuk kelas ${tokenInfo.jenjang}!`);
+            return;
+        }
+        
         const jR = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/JADWAL_UJIAN!A:J?key=${CONFIG.API_KEY}`),
             jD = await jR.json(),
             jRows = jD.values || [];
@@ -464,68 +863,139 @@ async function handleLogin() {
                 String(jRows[i][2]).trim() === String(tokenInfo.mapel).trim() &&
                 String(jRows[i][3]).trim() === String(tokenInfo.jenis).trim() &&
                 jRows[i][9] === "Aktif") {
-                jadwal = { mulai: jRows[i][5], selesai: jRows[i][6], min: parseInt(jRows[i][7]) || 0 };
+                jadwal = { 
+                    tanggal: jRows[i][4] || '',
+                    mulai: jRows[i][5] || '',
+                    selesai: jRows[i][6] || '',
+                    min: parseInt(jRows[i][7]) || 0
+                };
                 break;
             }
+        
         if (!jadwal) { showError("Jadwal tidak ditemukan!"); return; }
-        const n = new Date(),
-            [hS, mS] = String(jadwal.selesai).split(':').map(n => parseInt(n)),
-            wS = new Date();
-        wS.setHours(hS, mS, 0, 0);
-        if (n >= wS) { showError("Waktu ujian sudah berakhir!"); return; }
-
-        // Cek sesi aktif di Firebase
-        if (window.db) {
+        
+        const sekarang = new Date();
+        const hariIni = formatTanggal(sekarang);
+        const tanggalJadwal = parseTanggal(jadwal.tanggal);
+        const tanggalJadwalStr = formatTanggal(tanggalJadwal);
+        
+        if (tanggalJadwalStr !== hariIni) {
+            showError(`Ujian ini dijadwalkan pada tanggal ${tanggalJadwalStr}`);
+            return;
+        }
+        
+        if (jadwal.mulai && jadwal.selesai) {
+            const waktuMulai = parseWaktu(jadwal.mulai, tanggalJadwal);
+            const waktuSelesai = parseWaktu(jadwal.selesai, tanggalJadwal);
+            
+            if (waktuMulai && sekarang < waktuMulai) {
+                const sisa = Math.floor((waktuMulai - sekarang) / 60000);
+                showError(`Ujian belum dimulai! Sisa ${sisa} menit.`);
+                return;
+            }
+            
+            if (waktuSelesai && sekarang > waktuSelesai) {
+                showError(`Ujian sudah berakhir!`);
+                return;
+            }
+        }
+        
+        const wS = parseWaktu(jadwal.selesai, tanggalJadwal) || new Date();
+        const isReset = await cekResetUjian(siswa.username, tokenInfo.mapel, tokenInfo.jenis);
+        
+        if (window.db && !isReset) {
             try {
-                const coll = window.Firebase.collection(window.db, 'sesi_ujian');
-                const q = window.Firebase.query(coll,
+                const sesiColl = window.Firebase.collection(window.db, 'sesi_ujian');
+                const sesiQ = window.Firebase.query(sesiColl,
                     window.Firebase.where('username', '==', siswa.username),
                     window.Firebase.where('status', '==', 'Aktif'),
                     window.Firebase.where('mapel', '==', tokenInfo.mapel));
-                const snapshot = await window.Firebase.getDocs(q);
-                if (!snapshot.empty) {
-                    const sesiAktif = snapshot.docs[0].data();
-                    sesiAktif.idSesi = snapshot.docs[0].id;
+                const sesiSnapshot = await window.Firebase.getDocs(sesiQ);
+                
+                if (!sesiSnapshot.empty) {
+                    const sesiAktif = sesiSnapshot.docs[0].data();
+                    sesiAktif.idSesi = sesiSnapshot.docs[0].id;
                     pendingUser = siswa;
                     pendingUjian = { ...tokenInfo, ...jadwal };
                     pendingWaktuSelesai = wS;
                     pendingSesiAktif = sesiAktif;
-                    const sisaDetik = Math.max(Math.floor((wS - n) / 1000), 0),
-                        sisaMenit = Math.floor(sisaDetik / 60);
-                    document.getElementById("loginScreen").style.display = "none";
+                    
+                    if (countdownInterval) clearInterval(countdownInterval);
+                    document.getElementById("dashboardScreen").style.display = "none";
                     document.getElementById("resumeScreen").style.display = "block";
                     document.getElementById("resumeMapel").textContent = tokenInfo.mapel;
                     document.getElementById("resumeJenis").textContent = tokenInfo.jenis;
+                    
+                    const sisaDetik = Math.max(Math.floor((wS - sekarang) / 1000), 0);
+                    const sisaMenit = Math.floor(sisaDetik / 60);
                     document.getElementById("resumeSisaWaktu").textContent = `${Math.floor(sisaMenit / 60)}j ${sisaMenit % 60}m`;
                     return;
                 }
-            } catch (e) { console.warn('⚠️ Gagal cek sesi Firebase:', e); }
+                
+                const nilaiColl = window.Firebase.collection(window.db, 'nilai_akhir');
+                const nilaiQ = window.Firebase.query(nilaiColl,
+                    window.Firebase.where('username', '==', siswa.username),
+                    window.Firebase.where('mapel', '==', tokenInfo.mapel),
+                    window.Firebase.where('jenisUjian', '==', tokenInfo.jenis));
+                const nilaiSnapshot = await window.Firebase.getDocs(nilaiQ);
+                
+                if (!nilaiSnapshot.empty) {
+                    const nilaiData = nilaiSnapshot.docs[0].data();
+                    showModal({
+                        iconType: 'warning',
+                        title: '⏰ Ujian Sudah Selesai',
+                        message: `Anda sudah menyelesaikan ujian ${tokenInfo.mapel} - ${tokenInfo.jenis}.\n\nNilai Anda: ${nilaiData.totalSkor?.toFixed(2) || '0'}\nBenar: ${nilaiData.jumlahBenar}/${nilaiData.jumlahSoal}\n\nHubungi admin jika ingin mengulang.`,
+                        buttons: [{ text: 'OK', type: 'primary', onClick: () => {} }]
+                    });
+                    return;
+                }
+            } catch (e) { console.warn('⚠️ Gagal cek Firebase:', e); }
         }
-
+        
+        if (countdownInterval) clearInterval(countdownInterval);
+        document.getElementById("dashboardScreen").style.display = "none";
+        document.getElementById("confirmScreen").style.display = "block";
+        
         pendingUser = siswa;
         pendingUjian = { ...tokenInfo, ...jadwal };
         pendingWaktuSelesai = wS;
-        document.getElementById("loginScreen").style.display = "none";
-        document.getElementById("confirmScreen").style.display = "block";
+        
         document.getElementById("confirmNIS").textContent = siswa.nis || '-';
         document.getElementById("confirmNama").textContent = siswa.nama || '-';
         document.getElementById("confirmKelas").textContent = siswa.kelas || '-';
         document.getElementById("confirmMapel").textContent = `${tokenInfo.mapel} - ${tokenInfo.jenis}`;
-        document.getElementById("confirmWaktu").textContent = `${jadwal.mulai} - ${jadwal.selesai}`;
-    } catch (e) { console.error(e); showError("Gagal terhubung."); }
+        document.getElementById("confirmWaktu").textContent = `${jadwal.mulai || '-'} - ${jadwal.selesai || '-'}`;
+        
+    } catch (e) {
+        console.error(e);
+        showError("Gagal memproses ujian.");
+    }
 }
 
-function cancelConfirm() {
-    document.getElementById("confirmScreen").style.display = "none";
+// ==================== LOGOUT ====================
+function logoutToLogin() {
+    if (countdownInterval) clearInterval(countdownInterval);
+    pendingSiswa = null;
+    daftarUjianAktif = [];
+    document.getElementById("dashboardScreen").style.display = "none";
     document.getElementById("loginScreen").style.display = "block";
     document.getElementById("usernameInput").value = "";
-    document.getElementById("tokenInput").value = "";
+    document.getElementById("passwordInput").value = "";
+    showToast("Anda telah logout", "info");
+}
+
+// ==================== CANCEL CONFIRM ====================
+function cancelConfirm() {
+    document.getElementById("confirmScreen").style.display = "none";
+    document.getElementById("dashboardScreen").style.display = "block";
     pendingUser = null;
     pendingUjian = null;
     pendingWaktuSelesai = null;
-    showToast("Silakan login dengan akun yang benar", "info");
+    startCountdown();
+    showToast("Silakan pilih ujian yang lain", "info");
 }
 
+// ==================== CANCEL RESUME ====================
 function cancelResume() {
     if (!confirm("Yakin ingin memulai ujian baru? Sesi sebelumnya akan dihapus.")) return;
     if (pendingSesiAktif && window.db) {
@@ -541,6 +1011,7 @@ function cancelResume() {
     document.getElementById("confirmWaktu").textContent = `${pendingUjian.mulai} - ${pendingUjian.selesai}`;
 }
 
+// ==================== CONTINUE EXAM ====================
 async function continueExam() {
     if (!pendingUser || !pendingUjian || !pendingSesiAktif) { showError("Data sesi tidak valid."); cancelResume(); return; }
     currentUser = pendingUser;
@@ -564,6 +1035,7 @@ async function continueExam() {
     showSuccess(`Selamat datang kembali, ${currentUser.nama || 'Siswa'}!`);
 }
 
+// ==================== START EXAM ====================
 async function startExam() {
     if (!pendingUser || !pendingUjian) { showError("Data tidak valid."); cancelConfirm(); return; }
     currentUser = pendingUser;
@@ -579,7 +1051,8 @@ async function startExam() {
                 idSesi, username: currentUser.username, nis: currentUser.nis, nama: currentUser.nama,
                 jenjang: currentUser.jenjang, kelas: currentUser.kelas, mapel: currentUjian.mapel,
                 jenisUjian: currentUjian.jenis, waktuMulai: new Date().toISOString(), status: 'Aktif',
-                token: document.getElementById("tokenInput").value.trim()
+                token: document.getElementById("tokenInput").value.trim(),
+                totalSkorSementara: 0
             });
         } catch (e) { console.error('Gagal simpan sesi:', e); }
     }
@@ -792,7 +1265,21 @@ async function simpanJawabanKeFirebase(idSoal, jawaban, skor) {
             jenisUjian: currentUjian.jenis, idSoal: idSoal, jawaban: jawaban, skor: skor,
             timestamp: new Date().toISOString()
         });
-        console.log(`✅ Jawaban ${idSoal} tersimpan ke Firebase`);
+
+        // ✅ OPTIMASI: Update totalSkorSementara
+        const sesiColl = window.Firebase.collection(window.db, 'sesi_ujian');
+        const sesiQ = window.Firebase.query(sesiColl, window.Firebase.where('idSesi', '==', idSesi));
+        const snapshot = await window.Firebase.getDocs(sesiQ);
+        
+        if (!snapshot.empty) {
+            const sesiDoc = snapshot.docs[0];
+            const oldScore = sesiDoc.data().totalSkorSementara || 0;
+            await window.Firebase.updateDoc(sesiDoc.ref, { 
+                totalSkorSementara: oldScore + skor 
+            });
+        }
+
+        console.log(`✅ Jawaban ${idSoal} tersimpan | Skor: ${skor}`);
     } catch (e) { console.error('❌ Firebase error:', e); }
 }
 
@@ -1060,75 +1547,52 @@ async function selesaiUjian() {
     if (freezeInterval) clearInterval(freezeInterval);
     ujianSelesai = true;
 
-    let t = 0, b = 0, tot = 0;
-    dataSoal.forEach(s => {
-        const j = jawabanLokal[s.id];
-        const bo = s.bobot || 1;
-        tot += bo;
-        if (!j) return;
+    // ✅ AMBIL TOTAL SKOR DARI SESI (HASIL AKUMULASI)
+    let totalSkorAkhir = 0;
+    if (window.db && idSesi) {
+        try {
+            const sesiColl = window.Firebase.collection(window.db, 'sesi_ujian');
+            const sesiQ = window.Firebase.query(sesiColl, window.Firebase.where('idSesi', '==', idSesi));
+            const snapshot = await window.Firebase.getDocs(sesiQ);
+            
+            if (!snapshot.empty) {
+                const sesiData = snapshot.docs[0].data();
+                totalSkorAkhir = sesiData.totalSkorSementara || 0;
+            }
+        } catch (e) { console.error(e); }
+    }
 
-        if (s.tipe === "PG") { if (j === s.kunci) { t += bo; b++; } }
-        else if (s.tipe === "PGK") {
-            try { if (JSON.stringify(JSON.parse(j).sort()) === JSON.stringify(JSON.parse(s.kunci).sort())) { t += bo; b++; } } catch (e) { }
-        }
-        else if (s.tipe === "B/S") {
-            try {
-                if (j.startsWith('[')) {
-                    const ja = JSON.parse(j), ka = JSON.parse(s.kunci);
-                    let x = 0;
-                    for (let i = 0; i < ka.length; i++) if (ja[i] === ka[i]) x++;
-                    t += (x / ka.length) * bo;
-                    if (x === ka.length) b++;
-                } else { if (j === s.kunci) { t += bo; b++; } }
-            } catch (e) { if (j === s.kunci) { t += bo; b++; } }
-        }
-        else if (s.tipe === "Jodoh") {
-            try {
-                const jo = JSON.parse(j), ko = JSON.parse(s.kunci);
-                let benar = 0;
-                const tt = Object.keys(ko).length;
-                for (let key in ko) if (jo[key] === ko[key]) benar++;
-                t += (benar / tt) * bo;
-                if (benar === tt) b++;
-            } catch (e) { }
-        }
-        else if (s.tipe === "Isian") {
-            const jn = j.toLowerCase().replace(/\s+/g, ' ').trim(),
-                kn = s.kunci.toLowerCase().replace(/\s+/g, ' ').trim();
-            if (kn.includes('|')) {
-                if (kn.split('|').map(k => k.trim()).includes(jn)) { t += bo; b++; }
-            } else if (jn === kn) { t += bo; b++; }
-        }
-    });
-
-    const p = tot > 0 ? (t / tot) * 100 : 0;
     if (document.exitFullscreen) document.exitFullscreen();
     document.getElementById("freezeOverlay").style.display = "none";
 
-    // Simpan nilai akhir ke Firebase
     if (window.db) {
         try {
             const coll = window.Firebase.collection(window.db, 'nilai_akhir');
             await window.Firebase.addDoc(coll, {
                 idSesi, username: currentUser.username, nis: currentUser.nis, nama: currentUser.nama,
                 jenjang: currentUser.jenjang, kelas: currentUser.kelas, mapel: currentUjian.mapel,
-                jenisUjian: currentUjian.jenis, totalSkor: t, jumlahBenar: b, jumlahSoal: dataSoal.length,
-                persentase: p.toFixed(1) + '%', timestamp: new Date().toISOString()
+                jenisUjian: currentUjian.jenis, totalSkor: totalSkorAkhir, jumlahSoal: dataSoal.length,
+                persentase: ((totalSkorAkhir / dataSoal.length) * 100).toFixed(1) + '%',
+                timestamp: new Date().toISOString()
             });
             console.log('✅ Nilai akhir tersimpan ke Firebase');
         } catch (e) { console.error('❌ Gagal simpan nilai:', e); }
     }
 
-    // Update status sesi di Firebase
     if (window.db && idSesi) {
         try {
-            const coll = window.Firebase.collection(window.db, 'sesi_ujian');
-            const q = window.Firebase.query(coll, window.Firebase.where('idSesi', '==', idSesi));
-            const snapshot = await window.Firebase.getDocs(q);
+            const sesiColl = window.Firebase.collection(window.db, 'sesi_ujian');
+            const sesiQ = window.Firebase.query(sesiColl, window.Firebase.where('idSesi', '==', idSesi));
+            const snapshot = await window.Firebase.getDocs(sesiQ);
+            
             snapshot.forEach(async (doc) => {
-                await window.Firebase.addDoc(coll, { ...doc.data(), status: 'Selesai', waktuSelesai: new Date().toISOString() });
+                await window.Firebase.updateDoc(doc.ref, { 
+                    status: 'Selesai', 
+                    waktuSelesai: new Date().toISOString() 
+                });
             });
-        } catch (e) { }
+            console.log('✅ Status sesi diupdate menjadi Selesai');
+        } catch (e) { console.error('❌ Gagal update status sesi:', e); }
     }
 
     localStorage.removeItem(`jawaban_${idSesi}`);
@@ -1139,7 +1603,7 @@ async function selesaiUjian() {
         buttons: [{ text: "Tutup", type: "success", onClick: () => location.reload() }]
     });
     setTimeout(() => {
-        document.querySelector(".modal-message").innerHTML = `<div style="text-align:center;"><div style="font-size:48px;font-weight:800;color:#1E3A8A;">${t.toFixed(2)}</div><div>Total Skor</div><div style="display:flex;justify-content:center;gap:20px;margin-top:16px;"><div>${b}/${dataSoal.length} Benar</div><div>${p.toFixed(1)}%</div></div></div>`;
+        document.querySelector(".modal-message").innerHTML = `<div style="text-align:center;"><div style="font-size:48px;font-weight:800;color:#1E3A8A;">${totalSkorAkhir.toFixed(2)}</div><div>Total Skor</div></div>`;
     }, 10);
 }
 
