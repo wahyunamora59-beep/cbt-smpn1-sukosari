@@ -650,24 +650,37 @@ async function loadUjianAktif(siswa) {
                     }
                 }
                 
-                let sudahSelesai = false;
-                let nilaiData = null;
-                
-                if (window.db) {
-                    try {
-                        const nilaiColl = window.Firebase.collection(window.db, 'nilai_akhir');
-                        const nilaiQ = window.Firebase.query(nilaiColl,
-                            window.Firebase.where('username', '==', siswa.username),
-                            window.Firebase.where('mapel', '==', tokenInfo?.mapel || mapelJadwal),
-                            window.Firebase.where('jenisUjian', '==', tokenInfo?.jenis || jenisJadwal));
-                        const nilaiSnapshot = await window.Firebase.getDocs(nilaiQ);
-                        
-                        if (!nilaiSnapshot.empty) {
-                            sudahSelesai = true;
-                            nilaiData = nilaiSnapshot.docs[0].data();
-                        }
-                    } catch (e) {}
-                }
+ let sudahSelesai = false;
+ let nilaiData = null;
+
+// ✅ CEK RESET DULU
+const mapelCek = tokenInfo?.mapel || mapelJadwal;
+const jenisCek = tokenInfo?.jenis || jenisJadwal;
+const isReset = await cekResetUjian(siswa.username, mapelCek, jenisCek);
+
+console.log('📊 Dashboard - Cek Reset:', siswa.username, mapelCek, jenisCek, '| Reset:', isReset);
+
+if (isReset) {
+    console.log('✅ RESET DIAKTIFKAN - Ujian tersedia!');
+    sudahSelesai = false;
+} else if (window.db) {
+    try {
+        const nilaiColl = window.Firebase.collection(window.db, 'nilai_akhir');
+        const nilaiQ = window.Firebase.query(nilaiColl,
+            window.Firebase.where('username', '==', siswa.username),
+            window.Firebase.where('mapel', '==', mapelCek),
+            window.Firebase.where('jenisUjian', '==', jenisCek));
+        const nilaiSnapshot = await window.Firebase.getDocs(nilaiQ);
+        
+        if (!nilaiSnapshot.empty) {
+            sudahSelesai = true;
+            nilaiData = nilaiSnapshot.docs[0].data();
+            console.log('📊 Nilai ditemukan, status: Selesai');
+        }
+    } catch (e) {
+        console.error('Gagal cek nilai:', e);
+    }
+}
                 
                 daftarUjianAktif.push({
                     token,
