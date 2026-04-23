@@ -111,11 +111,8 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:linear-gradient(145de
 .btn-selesai-modern{background:#22C55E;color:#fff}.btn-selesai-modern:disabled{background:#94A3B8;opacity:0.6;cursor:not-allowed}
 .nav-ragu-modern{background:#FEF3C7;color:#D97706}
 
-/* ==================== JODOH (MATCHING) ==================== */
-.matching-jodoh-container{display:flex;gap:16px}@media(max-width:600px){.matching-jodoh-container{flex-direction:column}}
-.matching-item-right{background:#fff;padding:14px 16px;border-radius:14px;margin-bottom:10px;border:2px solid #1E3A8A;cursor:grab}.matching-item-right.paired{background:#DCFCE7!important;border-color:#22C55E!important;cursor:default}
-.matching-target{background:#fff;padding:14px 16px;border-radius:14px;margin-bottom:10px;border:2px dashed #D97706;min-height:70px;display:flex;align-items:center}.matching-target.filled{background:#DCFCE7!important;border-color:#22C55E!important;border-style:solid!important}
-.btn-reset-matching{background:#E2E8F0;color:#334155;border:none;padding:12px;border-radius:25px;font-weight:600;cursor:pointer;flex:1}
+/* ==================== JODOH ==================== */
+.matching-jodoh-container{display:flex;gap:16px}.matching-jodoh-container>div{max-height:60vh;overflow-y:auto;padding-right:4px}.matching-target p,.matching-item-right strong,.matching-target div{font-size:13px;line-height:1.4}@media(max-width:600px){.matching-jodoh-container{flex-direction:column}}.matching-item-right{background:#fff;padding:14px 16px;border-radius:14px;margin-bottom:10px;border:2px solid #1E3A8A;cursor:grab}.matching-item-right.paired{background:#DCFCE7!important;border-color:#22C55E!important;cursor:default}.matching-target{background:#fff;padding:14px 16px;border-radius:14px;margin-bottom:10px;border:2px dashed #D97706;min-height:70px;display:flex;align-items:center}.matching-target.filled{background:#DCFCE7!important;border-color:#22C55E!important;border-style:solid!important}.btn-reset-matching{background:#E2E8F0;color:#334155;border:none;padding:12px;border-radius:25px;font-weight:600;cursor:pointer;flex:1}
 
 /* ==================== TOAST & MODAL ==================== */
 .toast-container{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:10000;width:90%;max-width:400px}
