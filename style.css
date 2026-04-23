@@ -136,3 +136,6 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:linear-gradient(145de
 
 /* ==================== LANDSCAPE MOBILE ==================== */
 @media(max-width:900px) and (orientation:landscape){.app-container{max-width:100%!important;margin:0;border-radius:20px;padding:16px}.exam-main{flex-direction:row!important}.soal-panel{max-height:40vh}.nav-panel{width:180px;max-height:40vh}.soal-container p{font-size:14px}.option-label{padding:10px 14px;font-size:13px}}
+
+/* ==================== ANTI SCREENSHOT MOBILE ==================== */
+@media(max-width:900px){.app-container{-webkit-user-select:none!important;-moz-user-select:none!important;-ms-user-select:none!important;user-select:none!important}}
