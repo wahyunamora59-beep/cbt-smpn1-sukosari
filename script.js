@@ -222,11 +222,64 @@ function renderSoal(idx) {
     indexSoal = idx; const s = dataSoal[idx]; document.getElementById("progressFill").style.width = ((idx+1)/dataSoal.length*100)+"%";
     let h = `<h3>Soal ${idx+1}/${dataSoal.length} [${s.tipe}]</h3>`;
     if (s.gambar) { let u = s.gambar; if (u.match(/^[a-zA-Z0-9_-]{20,}$/)) u = `https://drive.google.com/uc?export=view&id=${u}`; h += `<img src="${u}" style="max-width:100%;">`; }
-    h += `<p><strong>${s.pertanyaan}</strong></p>`; const jaw = jawabanLokal[s.id];
+    if (s.tipe === "Jodoh") { const narasi = s.pertanyaan.split('BAGIAN A')[0] || s.pertanyaan; h += `<p><strong>${narasi}</strong></p>`; } else { h += `<p><strong>${s.pertanyaan}</strong></p>`; }
     if (s.tipe === "PG") { s.pilihan.forEach((o,i) => { const hu = String.fromCharCode(65+i); h += `<label class="option-label"><input type="radio" name="jwb" value="${hu}" ${jaw===hu?"checked":""} ${isFrozen?"disabled":""} onchange="autoSavePG('${s.id}')"> ${hu}. ${o}</label>`; }); h += `<button class="btn-simpan" onclick="simpanPG('${s.id}')" ${isFrozen?"disabled":""}><i class="fas fa-save"></i> Simpan</button>`; }
     else if (s.tipe === "PGK") { let a = []; try { a = JSON.parse(jaw||"[]"); } catch(e){} s.pilihan.forEach((o,i) => { const hu = String.fromCharCode(65+i); h += `<label class="option-label"><input type="checkbox" name="jwb" value="${hu}" ${a.includes(hu)?"checked":""} ${isFrozen?"disabled":""} onchange="autoSavePGK('${s.id}')"> ${hu}. ${o}</label>`; }); h += `<button class="btn-simpan" onclick="simpanPGK('${s.id}')" ${isFrozen?"disabled":""}><i class="fas fa-save"></i> Simpan</button>`; }
     else if (s.tipe === "B/S") { const p = s.pilihan.filter(x=>x); if (!p.length) { h += `<div style="background:#f8fafc;padding:16px;border-radius:12px;"><p>${s.pertanyaan}</p><div style="display:flex;gap:24px;"><label><input type="radio" name="bs_single" value="B" ${jaw==='B'?'checked':''} onchange="autoSaveBSSingle('${s.id}')"> ✅ BENAR</label><label><input type="radio" name="bs_single" value="S" ${jaw==='S'?'checked':''} onchange="autoSaveBSSingle('${s.id}')"> ❌ SALAH</label></div></div>`; h += `<button class="btn-simpan" onclick="simpanBSSingle('${s.id}')"><i class="fas fa-save"></i> Simpan</button>`; } else { let a = []; try { a = jaw ? JSON.parse(jaw) : []; } catch(e){ a = (jaw==='B'||jaw==='S') ? [jaw] : []; } p.forEach((t,i) => { const jwb = a[i]||''; h += `<div style="background:#f8fafc;padding:14px;border-radius:12px;"><p>${i+1}. ${t}</p><div style="display:flex;gap:20px;"><label><input type="radio" name="bs_${i}" value="B" ${jwb==='B'?'checked':''} onchange="autoSaveBS('${s.id}',${p.length})"> ✅ Benar</label><label><input type="radio" name="bs_${i}" value="S" ${jwb==='S'?'checked':''} onchange="autoSaveBS('${s.id}',${p.length})"> ❌ Salah</label></div></div>`; }); h += `<button class="btn-simpan" onclick="simpanBS('${s.id}',${p.length})"><i class="fas fa-save"></i> Simpan</button>`; } }
     else if (s.tipe === "Jodoh") {
+    let k = {}, o = {}; try { k = JSON.parse(s.kunci); o = jaw ? JSON.parse(jaw) : {}; } catch(e){ o = {}; }
+    const istilahMap = parseIstilahDariPertanyaan(s.pertanyaan);
+    const kunciKeys = Object.keys(k);
+    const istilahList = Object.keys(istilahMap).length > 0 ? Object.keys(istilahMap) : kunciKeys;
+    const opsi = s.pilihan.filter(p => p && p.trim());
+    
+    // ✅ HEADER INFORMASI
+    h += `<div style="background:#E8F0FE;padding:14px;border-radius:12px;margin-bottom:20px;border-left:4px solid #1E3A8A;">
+        <p style="font-weight:600;color:#1E3A8A;margin:0;font-size:15px;"><i class="fas fa-info-circle"></i> Pilih jawaban yang tepat untuk setiap istilah di bawah ini!</p>
+    </div>`;
+    
+    // ✅ BAGIAN ISTILAH (KIRI)
+    h += `<div style="display:flex;gap:16px;flex-wrap:wrap;">`;
+    h += `<div style="flex:1;min-width:250px;background:#FFF9E6;padding:16px;border-radius:16px;border:2px solid #FDE68A;">
+        <div style="font-weight:700;margin-bottom:14px;color:#92400E;font-size:16px;border-bottom:2px solid #FDE68A;padding-bottom:8px;">📋 DAFTAR ISTILAH</div>`;
+    
+    istilahList.forEach((key, idx) => { 
+        const namaIstilah = istilahMap[key] || key; 
+        const selected = o[key] || ''; 
+        h += `<div style="background:white;padding:14px;border-radius:12px;margin-bottom:10px;border:2px solid #FDE68A;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <span style="font-weight:700;color:#1E3A8A;min-width:28px;font-size:15px;">${idx+1}.</span>
+                <span style="font-weight:600;color:#1E293B;flex:1;font-size:15px;">${namaIstilah}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+                <span style="color:#64748B;font-size:14px;">➜</span>
+                <select id="jodoh_${s.id}_${key}" onchange="autoSaveJodohDropdown('${s.id}')" style="flex:1;padding:10px 12px;border-radius:10px;border:2px solid #E2E8F0;font-size:14px;background:white;cursor:pointer;" ${isFrozen?'disabled':''}>
+                    <option value="">-- Pilih Jawaban --</option>`;
+        opsi.forEach((opt, i) => { 
+            const hu = String.fromCharCode(65 + i); 
+            const usedByOther = Object.entries(o).some(([k, v]) => k !== key && v === hu); 
+            h += `<option value="${hu}" ${selected === hu ? 'selected' : ''} ${usedByOther ? 'disabled style="color:#CBD5E1;"' : ''}>${hu}. ${opt.replace(/^[A-E]\.\s*/, '')}${usedByOther ? ' (sudah dipakai)' : ''}</option>`; 
+        }); 
+        h += `</select></div></div>`; 
+    });
+    h += `</div>`;
+    
+    // ✅ BAGIAN JAWABAN (KANAN)
+    h += `<div style="flex:1;min-width:250px;background:#E8F4FD;padding:16px;border-radius:16px;border:2px solid #BFDBFE;">
+        <div style="font-weight:700;margin-bottom:14px;color:#1E40AF;font-size:16px;border-bottom:2px solid #BFDBFE;padding-bottom:8px;">📦 DAFTAR JAWABAN</div>`;
+    opsi.forEach((opt, i) => { 
+        const hu = String.fromCharCode(65 + i); 
+        const isUsed = Object.values(o).includes(hu); 
+        h += `<div style="background:${isUsed?'#DCFCE7':'white'};padding:12px 14px;border-radius:10px;margin-bottom:8px;border:2px solid ${isUsed?'#BBF7D0':'#E2E8F0'};box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <strong style="color:#1E3A8A;font-size:15px;">${hu}.</strong> <span style="font-size:14px;">${opt.replace(/^[A-E]\.\s*/, '')}</span>
+            ${isUsed ? '<span style="color:#16A34A;margin-left:8px;font-size:12px;">✅ Dipilih</span>' : ''}
+        </div>`; 
+    }); 
+    h += `</div></div>`;
+    
+    // ✅ TOMBOL SIMPAN
+    h += `<button class="btn-simpan" onclick="simpanJodohDropdown('${s.id}')" ${isFrozen?'disabled':''} style="margin-top:16px;"><i class="fas fa-save"></i> Simpan Jawaban</button>`;
+}
     else if (s.tipe === "Isian") { h += `<input type="text" id="isian" value="${jaw||''}" placeholder="Ketik jawaban..." style="width:100%;padding:14px;border-radius:16px;border:1px solid #E2E8F0;" ${isFrozen?"disabled":""} oninput="debounceAutoSaveIsian('${s.id}')">`; h += `<button class="btn-simpan" onclick="simpanIsian('${s.id}')"><i class="fas fa-save"></i> Simpan</button>`; }
     document.getElementById("soalContainer").innerHTML = h;
 }
