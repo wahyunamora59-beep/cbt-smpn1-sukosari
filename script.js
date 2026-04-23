@@ -112,8 +112,18 @@ function freezeScreen(d = null) {
 
 // ==================== HELPER ====================
 function togglePassword() {
-    const i = document.getElementById("passwordInput");
-    i.type = i.type === "password" ? "text" : "password";
+    const i = document.getElementById("passwordInput");  // ✅ GANTI ke passwordInput
+    if (i) {
+        i.type = i.type === "password" ? "text" : "password";
+        
+        // Ubah icon mata (opsional, untuk UX lebih baik)
+        const icon = document.querySelector('.toggle-password-modern');
+        if (icon) {
+            icon.className = i.type === "password" 
+                ? "fas fa-eye toggle-password-modern" 
+                : "fas fa-eye-slash toggle-password-modern";
+        }
+    }
 }
 
 function toggleNav() {
@@ -486,18 +496,43 @@ async function handleLogin() {
     const u = document.getElementById("usernameInput").value.trim();
     const p = document.getElementById("passwordInput").value.trim();
     
-    if (!u) { showError("Isi username!"); return; }
-    if (!p) { showError("Isi password!"); return; }
+    console.log('🔐 Login attempt:', u);
+    
+    if (!u) { 
+        showError("Isi username!"); 
+        return; 
+    }
+    if (!p) { 
+        showError("Isi password!"); 
+        return; 
+    }
     
     try {
         const sR = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/DATA_SISWA!A:H?key=${CONFIG.API_KEY}`),
             sD = await sR.json(),
             sRows = sD.values || [];
         
+        console.log('📊 Data siswa loaded:', sRows.length, 'rows');
+        
         let siswa = null;
+        
+        // Loop untuk mencari username (Kolom C = index 2)
         for (let i = 1; i < sRows.length; i++) {
-            if (sRows[i][2] === u) {
-                const passwordTersimpan = sRows[i][3] || '';
+            const row = sRows[i];
+            
+            // Pastikan row memiliki cukup kolom
+            if (row.length < 6) continue;
+            
+            const usernameSheet = String(row[2] || '').trim();
+            
+            console.log(`🔍 Checking row ${i}: "${usernameSheet}" vs "${u}"`);
+            
+            if (usernameSheet === u) {
+                const passwordTersimpan = String(row[3] || '').trim();
+                
+                console.log('👤 Username ditemukan di row', i);
+                console.log('🔑 Password sheet:', passwordTersimpan);
+                console.log('🔑 Password input:', p);
                 
                 if (passwordTersimpan !== p) {
                     showError("Password salah!");
@@ -505,37 +540,46 @@ async function handleLogin() {
                 }
                 
                 siswa = {
-                    nis: sRows[i][0] || '',
-                    nama: sRows[i][1] || '',
-                    username: sRows[i][2],
-                    password: sRows[i][3] || '',
-                    kelas: sRows[i][4] || '',
-                    jenjang: sRows[i][5] || ''
+                    nis: row[0] || '',
+                    nama: row[1] || '',
+                    username: row[2] || '',
+                    password: row[3] || '',
+                    kelas: row[4] || '',
+                    jenjang: String(row[5] || '').trim()
                 };
                 break;
             }
         }
         
         if (!siswa) { 
+            console.log('❌ Username tidak ditemukan');
             showError("Username tidak terdaftar!"); 
             return; 
         }
         
+        console.log('✅ Login berhasil:', siswa.nama, '| Kelas:', siswa.kelas, '| Jenjang:', siswa.jenjang);
+        
+        // Bersihkan password input
         document.getElementById("passwordInput").value = "";
+        
+        // Simpan data siswa untuk dashboard
         pendingSiswa = siswa;
         
+        // Sembunyikan login, tampilkan dashboard
         document.getElementById("loginScreen").style.display = "none";
         document.getElementById("dashboardScreen").style.display = "block";
         
+        // Tampilkan data siswa di dashboard
         document.getElementById("dashboardNama").textContent = siswa.nama || '-';
         document.getElementById("dashboardNIS").textContent = siswa.nis || '-';
         document.getElementById("dashboardKelas").textContent = siswa.kelas || '-';
         
+        // Muat daftar ujian aktif hari ini
         await loadUjianAktif(siswa);
         
     } catch (e) { 
-        console.error(e); 
-        showError("Gagal terhubung."); 
+        console.error('❌ Login error:', e); 
+        showError("Gagal terhubung ke server."); 
     }
 }
 
