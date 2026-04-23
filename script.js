@@ -125,7 +125,7 @@ async function handleLogin() {
 async function loadUjianAktif(siswa) {
     const container = document.getElementById("ujianAktifList");
     try {
-        const jR = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/JADWAL_UJIAN!A:J?key=${CONFIG.API_KEY}`), jD = await jR.json(), jRows = jD.values || [];
+        const jR = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/JADWAL_UJIAN!A:K?key=${CONFIG.API_KEY}`), jD = await jR.json(), jRows = jD.values || [];
         const tR = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/TOKEN_UJIAN!A:H?key=${CONFIG.API_KEY}`), tD = await tR.json(), tRows = tD.values || [];
         const now = new Date(), hariIni = formatTanggal(now);
         daftarUjianAktif = [];
@@ -142,13 +142,13 @@ async function loadUjianAktif(siswa) {
             if (!(await cekResetUjian(siswa.username, mapelCek, jenisCek)) && window.db) {
                 try { const q = window.Firebase.query(window.Firebase.collection(window.db,'nilai_akhir'), window.Firebase.where('username','==',siswa.username), window.Firebase.where('mapel','==',mapelCek), window.Firebase.where('jenisUjian','==',jenisCek)); const snap = await window.Firebase.getDocs(q); if (!snap.empty) { sudahSelesai = true; nilaiData = snap.docs[0].data(); } } catch(e) {}
             }
-            daftarUjianAktif.push({ token: row[8], mapel: mapelCek, jenis: jenisCek, tanggal: hariIni, waktuMulai: row[5], waktuSelesai: row[6], waktuMulaiObj: mulaiObj, waktuSelesaiObj: selesaiObj, statusWaktu, sudahSelesai, nilaiData });
+            const passwordUjian = row[10] || ''; // ✅ Kolom K: Password
+            daftarUjianAktif.push({ token: row[8], mapel: mapelCek, jenis: jenisCek, tanggal: hariIni, waktuMulai: row[5], waktuSelesai: row[6], waktuMulaiObj: mulaiObj, waktuSelesaiObj: selesaiObj, statusWaktu, sudahSelesai, nilaiData, password: passwordUjian });
         }
         daftarUjianAktif.sort((a,b) => a.statusWaktu === 'berlangsung' ? -1 : 1);
         renderUjianList(daftarUjianAktif); startCountdown();
     } catch (e) { container.innerHTML = `<div class="ujian-empty"><i class="fas fa-exclamation-triangle"></i><h4>Gagal Memuat</h4></div>`; }
 }
-
 // ==================== RENDER UJIAN LIST ====================
 function renderUjianList(list) {
     const container = document.getElementById("ujianAktifList");
@@ -170,7 +170,7 @@ function renderUjianList(list) {
 function startCountdown() { if (countdownInterval) clearInterval(countdownInterval); countdownInterval = setInterval(() => { const now = new Date(); let render = false; daftarUjianAktif.forEach((u, i) => { if (u.sudahSelesai || !u.waktuMulaiObj) return; const card = document.querySelector(`.ujian-card[data-index="${i}"]`); if (!card) return; const span = card.querySelector('.ujian-status'), btn = card.querySelector('.btn-mulai'); if (now < u.waktuMulaiObj) { const d = Math.floor((u.waktuMulaiObj - now) / 1000); const c = span?.querySelector('.countdown'); if (c) c.textContent = `${String(Math.floor(d/3600)).padStart(2,'0')}:${String(Math.floor((d%3600)/60)).padStart(2,'0')}:${String(d%60).padStart(2,'0')}`; } else if (now > u.waktuSelesaiObj) { span.className = 'ujian-status status-selesai'; span.textContent = '❌ Berakhir'; if (btn) btn.disabled = true; u.statusWaktu = 'selesai'; } else { const d = Math.floor((u.waktuSelesaiObj - now) / 1000); if (u.statusWaktu !== 'berlangsung') { u.statusWaktu = 'berlangsung'; render = true; } else { const c = span?.querySelector('.countdown'); if (c) c.textContent = `${String(Math.floor(d/3600)).padStart(2,'0')}:${String(Math.floor((d%3600)/60)).padStart(2,'0')}:${String(d%60).padStart(2,'0')}`; } } }); if (render) renderUjianList(daftarUjianAktif); }, 1000); }
 
 // ==================== PILIH UJIAN ====================
-async function pilihUjian(token) { const u = daftarUjianAktif.find(x => x.token === token); if (!u) { showError("Ujian tidak ditemukan!"); return; } if (u.sudahSelesai) { showError("Sudah selesai!"); return; } const now = new Date(); if (u.waktuMulaiObj && now < u.waktuMulaiObj) { showError(`Belum mulai! Sisa ${Math.floor((u.waktuMulaiObj-now)/60000)} menit.`); return; } if (u.waktuSelesaiObj && now > u.waktuSelesaiObj) { showError("Sudah berakhir!"); return; } document.getElementById("tokenInput").value = token; await prosesUjianDipilih(u); }
+async function pilihUjian(token) { const u = daftarUjianAktif.find(x => x.token === token); if (!u) { showError("Ujian tidak ditemukan!"); return; } if (u.sudahSelesai) { showError("Sudah selesai!"); return; } const now = new Date(); if (u.waktuMulaiObj && now < u.waktuMulaiObj) { showError(`Belum mulai! Sisa ${Math.floor((u.waktuMulaiObj-now)/60000)} menit.`); return; } if (u.waktuSelesaiObj && now > u.waktuSelesaiObj) { showError("Sudah berakhir!"); return; } if (u.password && u.password.trim() !== '') { const pw = prompt('🔐 Ujian ini terkunci. Masukkan password:'); if (pw !== u.password) { showError('❌ Password salah!'); return; } showToast('✅ Password benar!', 'success', 1000); } document.getElementById("tokenInput").value = token; await prosesUjianDipilih(u); }
 
 // ==================== PROSES UJIAN DIPILIH ====================
 async function prosesUjianDipilih(u) {
