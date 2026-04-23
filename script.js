@@ -10,7 +10,7 @@ let currentUser = null, currentUjian = null, dataSoal = [], indexSoal = 0, jawab
     idSesi = null, pelanggaranCount = 0, totalPenalti = 0, tombolSelesaiAktif = false, isFullscreen = false,
     isFrozen = false, freezeInterval = null, pendingUser = null, pendingUjian = null, pendingWaktuSelesai = null,
     pendingSesiAktif = null, isLocked = false, debounceTimer = null, freezeDuration = 30, maxPelanggaran = 5,
-    pendingSiswa = null, daftarUjianAktif = [], countdownInterval = null;
+    pendingSiswa = null, daftarUjianAktif = [], countdownInterval = null, isDragging = false, screenshotBlocked = false, lastVisibilityChangeTime = 0;
 
 window.currentMatchingSoal = null;
 window.currentMatchingJawaban = {};
@@ -94,7 +94,11 @@ document.addEventListener('mouseleave', e => { if (!currentUser || ujianSelesai 
 document.addEventListener('touchstart', e => { if (!currentUser || ujianSelesai || isFrozen) return; if (e.touches.length > 3) { catatPelanggaran('MULTI_TOUCH', `${e.touches.length} jari`); showToast(`⚠️ Multi-touch ${e.touches.length} jari!`, 'warning', 3000); } const n = Date.now(); if (n - touchStart < 100) { touchCount++; if (touchCount > 5) { catatPelanggaran('RAPID_TOUCH', 'Sentuhan cepat'); showToast('⚠️ Terlalu cepat!', 'warning', 3000); touchCount = 0; } } else touchCount = 0; touchStart = n; });
 function detectDevTools() { if (!currentUser || ujianSelesai) return; if ((outerWidth - innerWidth > DEV_THRESHOLD || outerHeight - innerHeight > DEV_THRESHOLD) && !devtoolsOpen) { devtoolsOpen = true; catatPelanggaran('DEVTOOLS_OPEN', 'DevTools'); freezeScreen(45); showToast('🚫 Developer tools!', 'error', 5000); } else devtoolsOpen = false; }
 setInterval(detectDevTools, 1000);
-document.addEventListener('visibilitychange', () => { if (document.hidden && currentUser && !ujianSelesai && !isFrozen) { const n = Date.now(); if (n - lastVisChange < VIS_COOLDOWN) return; lastVisChange = n; if (!isLocked) { catatPelanggaran('TAB_SWITCH', 'Pindah tab'); freezeScreen(30); document.getElementById('alertOverlay').style.display = 'block'; document.getElementById('alertSound').play(); showToast('🚫 Jangan pindah tab!', 'error', 4000); setTimeout(() => document.getElementById('alertOverlay').style.display = 'none', 3000); } } });
+document.addEventListener('visibilitychange', () => { if (document.hidden && currentUser && !ujianSelesai && !isFrozen) { const n = Date.now(); if (n - lastVisChange < VIS_COOLDOWN) return; lastVisChange = n; if (n - lastVisibilityChangeTime < 500) { catatPelanggaran('SCREENSHOT_DETECT', 'Kemungkinan screenshot'); showToast('🚫 Screenshot terdeteksi!', 'error', 3000); } lastVisibilityChangeTime = n; if (!isLocked) { catatPelanggaran('TAB_SWITCH', 'Pindah tab'); freezeScreen(30); document.getElementById('alertOverlay').style.display = 'block'; document.getElementById('alertSound').play(); showToast('🚫 Jangan pindah tab!', 'error', 4000); setTimeout(() => document.getElementById('alertOverlay').style.display = 'none', 3000); } } });
+
+// ==================== ANTI SCREENSHOT MOBILE ====================
+document.addEventListener('touchstart', function(e) { if (e.touches.length >= 3 && currentUser && !ujianSelesai) { e.preventDefault(); showToast('🚫 Screenshot tidak diizinkan!', 'error', 2000); } }, { passive: false });
+document.addEventListener('touchmove', function(e) { if (e.touches.length >= 3 && currentUser && !ujianSelesai) { e.preventDefault(); } }, { passive: false });
 
 // ==================== UPDATE TOMBOL SELESAI ====================
 function updateTombolSelesai() { const b = document.querySelector(".btn-selesai-modern"); if (!b || !waktuMulaiServer) return; const m = Math.floor((new Date() - waktuMulaiServer) / 60000), r = Math.max(minimalMenit - m, 0); if (r > 0 && !ujianSelesai) { tombolSelesaiAktif = false; b.disabled = true; b.innerHTML = `<i class="fas fa-lock"></i> (${r}m)`; } else { tombolSelesaiAktif = true; b.disabled = false; b.innerHTML = `<i class="fas fa-check-circle"></i> SELESAI`; } }
