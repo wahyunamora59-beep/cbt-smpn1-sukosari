@@ -1070,7 +1070,12 @@ function cancelResume() {
 
 // ==================== CONTINUE EXAM ====================
 async function continueExam() {
-    if (!pendingUser || !pendingUjian || !pendingSesiAktif) { showError("Data sesi tidak valid."); cancelResume(); return; }
+    if (!pendingUser || !pendingUjian || !pendingSesiAktif) { 
+        showError("Data sesi tidak valid."); 
+        cancelResume(); 
+        return; 
+    }
+    
     currentUser = pendingUser;
     currentUjian = pendingUjian;
     waktuSelesai = pendingWaktuSelesai;
@@ -1078,52 +1083,106 @@ async function continueExam() {
     idSesi = pendingSesiAktif.idSesi;
     waktuMulaiServer = new Date(pendingSesiAktif.waktuMulai);
     totalPenalti = pendingSesiAktif.pelanggaran || 0;
+    
+    // ✅ Load skor dari localStorage jika ada
+    try {
+        const skorTersimpan = localStorage.getItem(`skor_${idSesi}`);
+        if (skorTersimpan) {
+            window.skorPerSoal = JSON.parse(skorTersimpan);
+            console.log('📂 Skor per soal dimuat dari localStorage:', Object.keys(window.skorPerSoal).length, 'soal');
+        } else {
+            window.skorPerSoal = {};
+            console.log('📂 Tidak ada skor tersimpan di localStorage, mulai dari awal');
+        }
+    } catch (e) {
+        window.skorPerSoal = {};
+        console.warn('⚠️ Gagal load skor dari localStorage:', e);
+    }
+    
+    // Tampilkan exam screen
     document.getElementById("resumeScreen").style.display = "none";
     document.getElementById("examScreen").style.display = "block";
     document.getElementById("namaDisplay").innerText = `${currentUser.nama || 'N/A'} | ${currentUser.kelas || 'N/A'}`;
     document.getElementById("infoDisplay").innerText = `${currentUjian.mapel || 'N/A'} - ${currentUjian.jenis || 'N/A'}`;
+    
+    // Ambil soal dan load jawaban sebelumnya
     await ambilSoal(currentUser.jenjang, currentUjian.mapel, currentUjian.jenis);
     await loadJawabanDariFirebase();
+    
     mulaiTimer();
     renderNavigator();
     showFullscreenPrompt();
     updateTombolSelesai();
     setInterval(updateTombolSelesai, 1000);
+    
     showSuccess(`Selamat datang kembali, ${currentUser.nama || 'Siswa'}!`);
+    console.log('🔄 Ujian dilanjutkan | ID Sesi:', idSesi);
 }
 
 // ==================== START EXAM ====================
 async function startExam() {
-    if (!pendingUser || !pendingUjian) { showError("Data tidak valid."); cancelConfirm(); return; }
+    if (!pendingUser || !pendingUjian) { 
+        showError("Data tidak valid."); 
+        cancelConfirm(); 
+        return; 
+    }
+    
     currentUser = pendingUser;
     currentUjian = pendingUjian;
     waktuSelesai = pendingWaktuSelesai;
     minimalMenit = pendingUjian.min || 0;
     waktuMulaiServer = new Date();
     idSesi = 'SES-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    
+    // ✅ Inisialisasi skor per soal (kosong)
+    window.skorPerSoal = {};
+    
+    // ✅ Bersihkan localStorage untuk sesi baru (jaga-jaga)
+    localStorage.removeItem(`jawaban_${idSesi}`);
+    localStorage.removeItem(`skor_${idSesi}`);
+    
+    // Simpan sesi ke Firebase
     if (window.db) {
         try {
             const coll = window.Firebase.collection(window.db, 'sesi_ujian');
             await window.Firebase.addDoc(coll, {
-                idSesi, username: currentUser.username, nis: currentUser.nis, nama: currentUser.nama,
-                jenjang: currentUser.jenjang, kelas: currentUser.kelas, mapel: currentUjian.mapel,
-                jenisUjian: currentUjian.jenis, waktuMulai: new Date().toISOString(), status: 'Aktif',
+                idSesi: idSesi,
+                username: currentUser.username,
+                nis: currentUser.nis,
+                nama: currentUser.nama,
+                jenjang: currentUser.jenjang,
+                kelas: currentUser.kelas,
+                mapel: currentUjian.mapel,
+                jenisUjian: currentUjian.jenis,
+                waktuMulai: new Date().toISOString(),
+                status: 'Aktif',
                 token: document.getElementById("tokenInput").value.trim(),
-                totalSkorSementara: 0
+                totalSkorSementara: 0,
+                pelanggaran: 0
             });
-        } catch (e) { console.error('Gagal simpan sesi:', e); }
+            console.log('✅ Sesi ujian tersimpan:', idSesi);
+        } catch (e) { 
+            console.error('❌ Gagal simpan sesi:', e); 
+        }
     }
+    
+    // Tampilkan exam screen
     document.getElementById("confirmScreen").style.display = "none";
     document.getElementById("examScreen").style.display = "block";
     document.getElementById("namaDisplay").innerText = `${currentUser.nama || 'N/A'} | ${currentUser.kelas || 'N/A'}`;
     document.getElementById("infoDisplay").innerText = `${currentUjian.mapel || 'N/A'} - ${currentUjian.jenis || 'N/A'}`;
+    
+    // Ambil soal dan mulai ujian
     await ambilSoal(currentUser.jenjang, currentUjian.mapel, currentUjian.jenis);
+    
     mulaiTimer();
     renderNavigator();
     showFullscreenPrompt();
     updateTombolSelesai();
     setInterval(updateTombolSelesai, 1000);
+    
     showSuccess(`Selamat datang, ${currentUser.nama || 'Siswa'}!`);
+    console.log('🎯 Ujian dimulai | ID Sesi:', idSesi);
 }
 
 // ==================== LOAD JAWABAN DARI FIREBASE ====================
@@ -1314,30 +1373,85 @@ function renderSoal(idx) {
 // ==================== SIMPAN JAWABAN KE FIREBASE ====================
 async function simpanJawabanKeFirebase(idSoal, jawaban, skor) {
     if (!window.db || !idSesi || !currentUser) return;
+    
+    // ✅ Ambil skor lama dari localStorage (bukan dari Firebase)
+    let skorPerSoal = {};
+    try {
+        skorPerSoal = JSON.parse(localStorage.getItem(`skor_${idSesi}`) || '{}');
+    } catch (e) {
+        skorPerSoal = {};
+    }
+    
+    const skorLama = skorPerSoal[idSoal] || 0;
+    
     try {
         const coll = window.Firebase.collection(window.db, 'jawaban_siswa');
-        await window.Firebase.addDoc(coll, {
-            idSesi: idSesi, username: currentUser.username, nis: currentUser.nis, nama: currentUser.nama,
-            jenjang: currentUser.jenjang, kelas: currentUser.kelas, mapel: currentUjian.mapel,
-            jenisUjian: currentUjian.jenis, idSoal: idSoal, jawaban: jawaban, skor: skor,
-            timestamp: new Date().toISOString()
-        });
-
-        // ✅ OPTIMASI: Update totalSkorSementara
-        const sesiColl = window.Firebase.collection(window.db, 'sesi_ujian');
-        const sesiQ = window.Firebase.query(sesiColl, window.Firebase.where('idSesi', '==', idSesi));
-        const snapshot = await window.Firebase.getDocs(sesiQ);
+        
+        // Cek apakah sudah ada jawaban untuk soal ini
+        const q = window.Firebase.query(coll,
+            window.Firebase.where('idSesi', '==', idSesi),
+            window.Firebase.where('idSoal', '==', idSoal));
+        const snapshot = await window.Firebase.getDocs(q);
         
         if (!snapshot.empty) {
-            const sesiDoc = snapshot.docs[0];
-            const oldScore = sesiDoc.data().totalSkorSementara || 0;
+            // Update jawaban yang sudah ada
+            const docLama = snapshot.docs[0];
+            await window.Firebase.updateDoc(docLama.ref, {
+                jawaban: jawaban,
+                skor: skor,
+                timestamp: new Date().toISOString()
+            });
+            console.log(`📝 Jawaban ${idSoal} diupdate | Skor lama: ${skorLama}, Skor baru: ${skor}`);
+        } else {
+            // Tambah jawaban baru
+            await window.Firebase.addDoc(coll, {
+                idSesi: idSesi,
+                username: currentUser.username,
+                nis: currentUser.nis,
+                nama: currentUser.nama,
+                jenjang: currentUser.jenjang,
+                kelas: currentUser.kelas,
+                mapel: currentUjian.mapel,
+                jenisUjian: currentUjian.jenis,
+                idSoal: idSoal,
+                jawaban: jawaban,
+                skor: skor,
+                timestamp: new Date().toISOString()
+            });
+            console.log(`✅ Jawaban ${idSoal} tersimpan | Skor: ${skor}`);
+        }
+        
+        // ✅ Update localStorage dengan skor baru
+        skorPerSoal[idSoal] = skor;
+        localStorage.setItem(`skor_${idSesi}`, JSON.stringify(skorPerSoal));
+        
+        // ✅ Update totalSkorSementara dengan SELISIH (skor baru - skor lama)
+        const sesiColl = window.Firebase.collection(window.db, 'sesi_ujian');
+        const sesiQ = window.Firebase.query(sesiColl, window.Firebase.where('idSesi', '==', idSesi));
+        const sesiSnapshot = await window.Firebase.getDocs(sesiQ);
+        
+        if (!sesiSnapshot.empty) {
+            const sesiDoc = sesiSnapshot.docs[0];
+            const oldTotal = sesiDoc.data().totalSkorSementara || 0;
+            
+            // ✅ SELISIH = skor baru - skor lama
+            const newTotal = oldTotal - skorLama + skor;
+            
             await window.Firebase.updateDoc(sesiDoc.ref, { 
-                totalSkorSementara: oldScore + skor 
+                totalSkorSementara: newTotal 
+            });
+            
+            console.log(`📊 Total skor diupdate: ${oldTotal} → ${newTotal} (selisih: ${skor - skorLama})`);
+        } else {
+            // Jika sesi belum punya totalSkorSementara, buat baru
+            await window.Firebase.updateDoc(sesiSnapshot.docs[0].ref, { 
+                totalSkorSementara: skor 
             });
         }
-
-        console.log(`✅ Jawaban ${idSoal} tersimpan | Skor: ${skor}`);
-    } catch (e) { console.error('❌ Firebase error:', e); }
+        
+    } catch (e) { 
+        console.error('❌ Firebase error:', e); 
+    }
 }
 
 function simpanKeLocalStorage() { if (idSesi) localStorage.setItem(`jawaban_${idSesi}`, JSON.stringify(jawabanLokal)); }
@@ -1599,10 +1713,13 @@ function konfirmasiSelesai() {
     });
 }
 
+// ==================== SELESAI UJIAN ====================
 async function selesaiUjian() {
     clearInterval(timerInterval);
     if (freezeInterval) clearInterval(freezeInterval);
     ujianSelesai = true;
+
+    console.log('🏁 Ujian selesai, menghitung nilai...');
 
     // ✅ AMBIL TOTAL SKOR DARI SESI (HASIL AKUMULASI)
     let totalSkorAkhir = 0;
@@ -1615,27 +1732,122 @@ async function selesaiUjian() {
             if (!snapshot.empty) {
                 const sesiData = snapshot.docs[0].data();
                 totalSkorAkhir = sesiData.totalSkorSementara || 0;
+                console.log('📊 Total skor dari sesi:', totalSkorAkhir);
             }
-        } catch (e) { console.error(e); }
+        } catch (e) { 
+            console.error('❌ Gagal ambil total skor:', e); 
+        }
     }
 
+    // ✅ HITUNG TOTAL BOBOT MAKSIMAL DAN JUMLAH BENAR
+    let totalBobotMaks = 0;
+    let jumlahBenar = 0;
+    
+    dataSoal.forEach(s => {
+        totalBobotMaks += s.bobot || 1;
+    });
+    
+    // Hitung jumlah benar berdasarkan jawabanLokal
+    for (let id in jawabanLokal) {
+        const soal = dataSoal.find(q => q.id === id);
+        if (!soal) continue;
+        
+        const jawaban = jawabanLokal[id];
+        const kunci = soal.kunci;
+        const tipe = soal.tipe;
+        
+        if (tipe === "PG") {
+            if (jawaban === kunci) jumlahBenar++;
+        } else if (tipe === "PGK") {
+            try {
+                const jawabanArr = JSON.parse(jawaban).sort();
+                const kunciArr = JSON.parse(kunci).sort();
+                if (JSON.stringify(jawabanArr) === JSON.stringify(kunciArr)) jumlahBenar++;
+            } catch (e) {}
+        } else if (tipe === "B/S") {
+            try {
+                if (jawaban.startsWith('[')) {
+                    const jawabanArr = JSON.parse(jawaban);
+                    const kunciArr = JSON.parse(kunci);
+                    let benar = true;
+                    for (let i = 0; i < kunciArr.length; i++) {
+                        if (jawabanArr[i] !== kunciArr[i]) {
+                            benar = false;
+                            break;
+                        }
+                    }
+                    if (benar) jumlahBenar++;
+                } else {
+                    if (jawaban === kunci) jumlahBenar++;
+                }
+            } catch (e) {
+                if (jawaban === kunci) jumlahBenar++;
+            }
+        } else if (tipe === "Jodoh") {
+            try {
+                const jawabanObj = JSON.parse(jawaban);
+                const kunciObj = JSON.parse(kunci);
+                const totalKey = Object.keys(kunciObj).length;
+                let benar = 0;
+                for (let key in kunciObj) {
+                    if (jawabanObj[key] === kunciObj[key]) benar++;
+                }
+                if (benar === totalKey) jumlahBenar++;
+            } catch (e) {}
+        } else if (tipe === "Isian") {
+            const jawabanClean = String(jawaban).toLowerCase().replace(/\s+/g, ' ').trim();
+            const kunciClean = String(kunci).toLowerCase().replace(/\s+/g, ' ').trim();
+            if (kunciClean.includes('|')) {
+                const kunciOptions = kunciClean.split('|').map(k => k.trim());
+                if (kunciOptions.includes(jawabanClean)) jumlahBenar++;
+            } else if (jawabanClean === kunciClean) {
+                jumlahBenar++;
+            }
+        }
+    }
+    
+    // ✅ BATASI totalSkorAkhir agar tidak melebihi totalBobotMaks
+    if (totalSkorAkhir > totalBobotMaks) {
+        console.warn(`⚠️ Skor ${totalSkorAkhir} melebihi maks ${totalBobotMaks}, dibatasi ke ${totalBobotMaks}`);
+        totalSkorAkhir = totalBobotMaks;
+    }
+    
+    // ✅ Hitung persentase yang benar
+    const persentase = totalBobotMaks > 0 ? (totalSkorAkhir / totalBobotMaks) * 100 : 0;
+    
+    console.log(`📊 Hasil: ${totalSkorAkhir}/${totalBobotMaks} | ${jumlahBenar}/${dataSoal.length} benar | ${persentase.toFixed(1)}%`);
+
+    // Keluar dari fullscreen
     if (document.exitFullscreen) document.exitFullscreen();
     document.getElementById("freezeOverlay").style.display = "none";
 
+    // Simpan nilai akhir ke Firebase
     if (window.db) {
         try {
             const coll = window.Firebase.collection(window.db, 'nilai_akhir');
             await window.Firebase.addDoc(coll, {
-                idSesi, username: currentUser.username, nis: currentUser.nis, nama: currentUser.nama,
-                jenjang: currentUser.jenjang, kelas: currentUser.kelas, mapel: currentUjian.mapel,
-                jenisUjian: currentUjian.jenis, totalSkor: totalSkorAkhir, jumlahSoal: dataSoal.length,
-                persentase: ((totalSkorAkhir / dataSoal.length) * 100).toFixed(1) + '%',
+                idSesi: idSesi,
+                username: currentUser.username,
+                nis: currentUser.nis,
+                nama: currentUser.nama,
+                jenjang: currentUser.jenjang,
+                kelas: currentUser.kelas,
+                mapel: currentUjian.mapel,
+                jenisUjian: currentUjian.jenis,
+                totalSkor: totalSkorAkhir,
+                jumlahBenar: jumlahBenar,
+                jumlahSoal: dataSoal.length,
+                totalBobot: totalBobotMaks,
+                persentase: persentase.toFixed(1) + '%',
                 timestamp: new Date().toISOString()
             });
             console.log('✅ Nilai akhir tersimpan ke Firebase');
-        } catch (e) { console.error('❌ Gagal simpan nilai:', e); }
+        } catch (e) { 
+            console.error('❌ Gagal simpan nilai:', e); 
+        }
     }
 
+    // Update status sesi di Firebase
     if (window.db && idSesi) {
         try {
             const sesiColl = window.Firebase.collection(window.db, 'sesi_ujian');
@@ -1649,21 +1861,53 @@ async function selesaiUjian() {
                 });
             });
             console.log('✅ Status sesi diupdate menjadi Selesai');
-        } catch (e) { console.error('❌ Gagal update status sesi:', e); }
+        } catch (e) { 
+            console.error('❌ Gagal update status sesi:', e); 
+        }
     }
 
+    // ✅ Bersihkan localStorage
     localStorage.removeItem(`jawaban_${idSesi}`);
+    localStorage.removeItem(`skor_${idSesi}`);
+    window.skorPerSoal = {};
+    
+    console.log('🧹 localStorage dibersihkan');
+
+    // Tampilkan modal hasil
     showModal({
         iconType: "success",
         title: "🎉 Ujian Selesai!",
         message: "",
-        buttons: [{ text: "Tutup", type: "success", onClick: () => location.reload() }]
+        buttons: [{ 
+            text: "Tutup", 
+            type: "success", 
+            onClick: () => location.reload() 
+        }]
     });
+    
     setTimeout(() => {
-        document.querySelector(".modal-message").innerHTML = `<div style="text-align:center;"><div style="font-size:48px;font-weight:800;color:#1E3A8A;">${totalSkorAkhir.toFixed(2)}</div><div>Total Skor</div></div>`;
+        document.querySelector(".modal-message").innerHTML = `
+            <div style="text-align:center;">
+                <div style="font-size:48px;font-weight:800;color:#1E3A8A;">${totalSkorAkhir.toFixed(2)}</div>
+                <div style="font-size:14px;color:#64748B;">Total Skor (maks: ${totalBobotMaks})</div>
+                <div style="display:flex;justify-content:center;gap:20px;margin-top:16px;">
+                    <div style="text-align:center;">
+                        <div style="font-size:24px;font-weight:700;color:#22C55E;">${jumlahBenar}</div>
+                        <div style="font-size:12px;color:#64748B;">Benar</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="font-size:24px;font-weight:700;color:#F59E0B;">${dataSoal.length - jumlahBenar}</div>
+                        <div style="font-size:12px;color:#64748B;">Salah</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="font-size:24px;font-weight:700;color:#3B82F6;">${persentase.toFixed(1)}%</div>
+                        <div style="font-size:12px;color:#64748B;">Persentase</div>
+                    </div>
+                </div>
+            </div>
+        `;
     }, 10);
 }
-
 // ==================== INISIALISASI ====================
 document.addEventListener('DOMContentLoaded', () => {
     const y = document.getElementById('currentYear');
