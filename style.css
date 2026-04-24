@@ -139,3 +139,8 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:linear-gradient(145de
 
 /* ==================== ANTI SCREENSHOT MOBILE ==================== */
 @media(max-width:900px){.app-container{-webkit-user-select:none!important;-moz-user-select:none!important;-ms-user-select:none!important;user-select:none!important}}
+
+/* ==================== BUG FIX ==================== */
+@media(max-width:900px) and (orientation:landscape){.nav-btn-num{font-size:10px!important;aspect-ratio:1;min-width:28px;min-height:28px}.nav-grid{grid-template-columns:repeat(5,1fr)!important;gap:3px}.exam-header-modern{padding:8px 0}.student-info-modern{font-size:12px}.timer-modern{padding:6px 12px;font-size:14px}.soal-panel{max-height:35vh}.option-label{padding:8px 12px;font-size:12px}.btn-simpan{padding:8px;font-size:13px}.nav-bottom-modern{padding-top:8px;margin-top:8px}.nav-btn-modern{padding:8px;font-size:12px}.soal-container h3{font-size:14px;padding:2px 8px}}
+@media(max-width:900px){.app-container{min-height:100vh;position:fixed;top:0;left:0;right:0;bottom:0;overflow-y:auto}}
+@media(max-width:500px){.nav-btn-num{font-size:9px!important;min-width:24px;min-height:24px;border-radius:6px}.nav-grid{grid-template-columns:repeat(5,1fr)!important;gap:2px}}
