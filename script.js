@@ -121,6 +121,7 @@ async function handleLogin() {
         document.getElementById("passwordInput").value = ""; pendingSiswa = siswa;
         document.getElementById("loginScreen").style.display = "none"; document.getElementById("dashboardScreen").style.display = "block";
         document.getElementById("dashboardNama").textContent = siswa.nama; document.getElementById("dashboardNIS").textContent = siswa.nis; document.getElementById("dashboardKelas").textContent = siswa.kelas;
+        await loadPengaturan();
         await loadUjianAktif(siswa);
     } catch (e) { showError("Gagal terhubung."); }
 }
@@ -341,3 +342,27 @@ async function selesaiUjian() {
 
 // ==================== INISIALISASI ====================
 document.addEventListener('DOMContentLoaded', () => { document.getElementById('currentYear').textContent = new Date().getFullYear(); });
+
+async function loadPengaturan() {
+    try {
+        const r = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/PENGATURAN!A:B?key=${CONFIG.API_KEY}`);
+        const d = await r.json();
+        const rows = d.values || [];
+        
+        for (let i = 1; i < rows.length; i++) {
+            const nama = String(rows[i][0] || '').trim().toLowerCase();
+            const nilai = parseInt(rows[i][1]) || 0;
+            
+            if (nama === 'freeze_duration' && nilai > 0) {
+                freezeDuration = nilai;
+                console.log('✅ freezeDuration:', freezeDuration);
+            }
+            if (nama === 'max_pelanggaran' && nilai > 0) {
+                maxPelanggaran = nilai;
+                console.log('✅ maxPelanggaran:', maxPelanggaran);
+            }
+        }
+    } catch (e) {
+        console.warn('⚠️ Gagal load pengaturan, pakai default:', e);
+    }
+}
