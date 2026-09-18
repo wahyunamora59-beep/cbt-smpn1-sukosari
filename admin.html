@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin CBT - Sync Data</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Segoe UI',sans-serif;background:linear-gradient(135deg,#1E3A8A,#3B82F6);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+        .container{background:white;border-radius:20px;padding:40px;max-width:600px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3)}
+        h1{color:#1E3A8A;margin-bottom:10px;font-size:24px}
+        .subtitle{color:#64748B;margin-bottom:30px;font-size:14px}
+        button{width:100%;padding:16px;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;transition:0.3s;margin-bottom:12px}
+        .btn-sync{background:#F59E0B;color:white}
+        .btn-sync:hover{background:#D97706}
+        .btn-sync:disabled{background:#94A3B8;cursor:not-allowed}
+        .status{padding:16px;border-radius:12px;margin-top:20px;font-size:14px}
+        .status.loading{background:#FEF3C7;color:#92400E}
+        .status.success{background:#DCFCE7;color:#166534}
+        .status.error{background:#FEE2E2;color:#991B1B}
+        .log{margin-top:20px;padding:16px;background:#F8FAFC;border-radius:12px;font-family:monospace;font-size:12px;max-height:400px;overflow-y:auto}
+        .log div{padding:4px 0;border-bottom:1px solid #E2E8F0}
+        .log .ok{color:#16A34A}
+        .log .err{color:#DC2626}
+        .log .info{color:#1E40AF}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Admin CBT - Sync Data</h1>
+        <p class="subtitle">Sinkronisasi data dari Spreadsheet ke Firebase (Cache)</p>
+        <button class="btn-sync" id="btnSync" onclick="syncData()">🔄 SINKRONISASI SEKARANG</button>
+        <div id="status" style="display:none"></div>
+        <div class="log" id="log" style="display:none"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, query, where, getDocs, updateDoc, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyDwCOj1XNidpPjrywlfIIpRBMkZE5492B4",
+            authDomain: "cbt-smpn1-sukosari-828be.firebaseapp.com",
+            projectId: "cbt-smpn1-sukosari-828be",
+            storageBucket: "cbt-smpn1-sukosari-828be.firebasestorage.app",
+            messagingSenderId: "796353182463",
+            appId: "1:796353182463:web:b655ddb7ea5ec4482ceaca"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        
+        window.db = db;
+        window.Firebase = { collection, addDoc, query, where, getDocs, updateDoc, doc, setDoc, deleteDoc };
+        window.SPREADSHEET_ID = '1zc5lh-8XWEhGYJajqooWGK3Vo89kqob1iAaIdaIiXc0';
+        window.API_KEY = 'AIzaSyAG16CaL_CwY6Hktj6nNrxCoPjYXcJZHcE';
+        
+        console.log('✅ Firebase siap!');
+    </script>
+    
+    <script>
+        const SPREADSHEET_ID = window.SPREADSHEET_ID;
+        const API_KEY = window.API_KEY;
+        
+        function addLog(msg, type = 'info') {
+            const log = document.getElementById('log');
+            log.style.display = 'block';
+            const div = document.createElement('div');
+            div.className = type;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            log.appendChild(div);
+            log.scrollTop = log.scrollHeight;
+        }
+        
+        function setStatus(msg, type) {
+            const s = document.getElementById('status');
+            s.style.display = 'block';
+            s.className = `status ${type}`;
+            s.textContent = msg;
+        }
+        
+        async function fetchSheet(sheetName, range) {
+            const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${sheetName}!${range}?key=${API_KEY}`;
+            const r = await fetch(url);
+            const d = await r.json();
+            return d.values || [];
+        }
+        
+        async function clearCollection(collectionName) {
+            const coll = window.Firebase.collection(window.db, collectionName);
+            const snapshot = await window.Firebase.getDocs(coll);
+            let deleted = 0;
+            for (const docSnap of snapshot.docs) {
+                await window.Firebase.deleteDoc(docSnap.ref);
+                deleted++;
+            }
+            return deleted;
+        }
+        
+        async function syncData() {
+            const btn = document.getElementById('btnSync');
+            btn.disabled = true;
+            document.getElementById('log').innerHTML = '';
+            
+            try {
+                setStatus('⏳ Memulai sinkronisasi...', 'loading');
+                addLog('🚀 Mulai sync data...', 'info');
+                
+                // 1. SYNC DATA_SISWA
+                addLog('📊 Sync DATA_SISWA...', 'info');
+                const siswaRows = await fetchSheet('DATA_SISWA', 'A:H');
+                let deletedSiswa = await clearCollection('cache_siswa');
+                addLog(`   Hapus ${deletedSiswa} data lama`, 'info');
+                let countSiswa = 0;
+                for (let i = 1; i < siswaRows.length; i++) {
+                    const row = siswaRows[i];
+                    if (!row[2]) continue;
+                    await window.Firebase.addDoc(window.Firebase.collection(window.db, 'cache_siswa'), {
+                        nis: String(row[0] || '').trim(),
+                        nama: String(row[1] || '').trim(),
+                        username: String(row[2] || '').trim(),
+                        password: String(row[3] || '').trim(),
+                        kelas: String(row[4] || '').trim(),
+                        jenjang: String(row[5] || '').trim()
+                    });
+                    countSiswa++;
+                }
+                addLog(`   ✅ ${countSiswa} siswa disimpan`, 'ok');
+                
+                // 2. SYNC JADWAL_UJIAN
+                addLog('📅 Sync JADWAL_UJIAN...', 'info');
+                const jadwalRows = await fetchSheet('JADWAL_UJIAN', 'A:K');
+                let deletedJadwal = await clearCollection('cache_jadwal');
+                addLog(`   Hapus ${deletedJadwal} data lama`, 'info');
+                let countJadwal = 0;
+                for (let i = 1; i < jadwalRows.length; i++) {
+                    const row = jadwalRows[i];
+                    if (!row[1]) continue;
+                    await window.Firebase.addDoc(window.Firebase.collection(window.db, 'cache_jadwal'), {
+                        idJadwal: String(row[0] || '').trim(),
+                        jenjang: String(row[1] || '').trim(),
+                        mapel: String(row[2] || '').trim(),
+                        jenis: String(row[3] || '').trim(),
+                        tanggal: String(row[4] || '').trim(),
+                        waktuMulai: String(row[5] || '').trim(),
+                        waktuSelesai: String(row[6] || '').trim(),
+                        minimalMenit: parseInt(row[7]) || 0,
+                        token: String(row[8] || '').trim(),
+                        status: String(row[9] || '').trim(),
+                        password: String(row[10] || '').trim()
+                    });
+                    countJadwal++;
+                }
+                addLog(`   ✅ ${countJadwal} jadwal disimpan`, 'ok');
+                
+                // 3. SYNC TOKEN_UJIAN
+                addLog('🔑 Sync TOKEN_UJIAN...', 'info');
+                const tokenRows = await fetchSheet('TOKEN_UJIAN', 'A:H');
+                let deletedToken = await clearCollection('cache_token');
+                addLog(`   Hapus ${deletedToken} data lama`, 'info');
+                let countToken = 0;
+                for (let i = 1; i < tokenRows.length; i++) {
+                    const row = tokenRows[i];
+                    if (!row[0]) continue;
+                    await window.Firebase.addDoc(window.Firebase.collection(window.db, 'cache_token'), {
+                        token: String(row[0] || '').trim(),
+                        jenjang: String(row[1] || '').trim(),
+                        mapel: String(row[2] || '').trim(),
+                        jenis: String(row[3] || '').trim(),
+                        tanggal: String(row[4] || '').trim(),
+                        status: String(row[5] || '').trim()
+                    });
+                    countToken++;
+                }
+                addLog(`   ✅ ${countToken} token disimpan`, 'ok');
+                
+                // 4. SYNC BANK_SOAL
+                addLog('📝 Sync BANK_SOAL...', 'info');
+                const soalRows = await fetchSheet('BANK_SOAL', 'A:P');
+                let deletedSoal = await clearCollection('cache_soal');
+                addLog(`   Hapus ${deletedSoal} data lama`, 'info');
+                let countSoal = 0;
+                for (let i = 1; i < soalRows.length; i++) {
+                    const row = soalRows[i];
+                    if (!row[0]) continue;
+                    await window.Firebase.addDoc(window.Firebase.collection(window.db, 'cache_soal'), {
+                        id: String(row[0] || '').trim(),
+                        jenjang: String(row[1] || '').trim(),
+                        mapel: String(row[2] || '').trim(),
+                        jenis: String(row[3] || '').trim(),
+                        tipe: String(row[4] || '').trim(),
+                        pertanyaan: String(row[5] || ''),
+                        pilihanA: String(row[6] || ''),
+                        pilihanB: String(row[7] || ''),
+                        pilihanC: String(row[8] || ''),
+                        pilihanD: String(row[9] || ''),
+                        pilihanE: String(row[10] || ''),
+                        kunci: String(row[11] || ''),
+                        bobot: parseFloat(row[12]) || 1,
+                        status: String(row[13] || '').trim(),
+                        gambar: String(row[14] || ''),
+                        grupSoal: String(row[15] || '')
+                    });
+                    countSoal++;
+                }
+                addLog(`   ✅ ${countSoal} soal disimpan`, 'ok');
+                
+                // 5. SYNC RESET_UJIAN
+                addLog('🔄 Sync RESET_UJIAN...', 'info');
+                try {
+                    const resetRows = await fetchSheet('RESET_UJIAN', 'A:E');
+                    let deletedReset = await clearCollection('cache_reset');
+                    addLog(`   Hapus ${deletedReset} data lama`, 'info');
+                    let countReset = 0;
+                    for (let i = 1; i < resetRows.length; i++) {
+                        const row = resetRows[i];
+                        if (!row[0]) continue;
+                        await window.Firebase.addDoc(window.Firebase.collection(window.db, 'cache_reset'), {
+                            username: String(row[0] || '').trim(),
+                            mapel: String(row[1] || '').trim(),
+                            jenis: String(row[2] || '').trim(),
+                            reset: String(row[3] || '').trim()
+                        });
+                        countReset++;
+                    }
+                    addLog(`   ✅ ${countReset} reset disimpan`, 'ok');
+                } catch (e) {
+                    addLog(`   ⚠️ Reset kosong/skip`, 'err');
+                }
+                
+                addLog('═════════════════════════════', 'info');
+                addLog('🎉 SINKRONISASI SELESAI!', 'ok');
+                setStatus('✅ Sinkronisasi berhasil! Siswa sekarang bisa login dengan cepat.', 'success');
+                btn.disabled = false;
+                btn.textContent = '🔄 SINKRONISASI ULANG';
+                
+            } catch (e) {
+                console.error(e);
+                addLog(`❌ ERROR: ${e.message}`, 'err');
+                setStatus('❌ Gagal: ' + e.message, 'error');
+                btn.disabled = false;
+            }
+        }
+        
+        window.syncData = syncData;
+    </script>
+</body>
+</html>
