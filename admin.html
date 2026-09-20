@@ -40,7 +40,6 @@ body{background:#F1F5F9;display:flex;min-height:100vh}
 .btn-warning{background:#F59E0B;color:white}
 .btn-secondary{background:#E2E8F0;color:#334155}
 .btn-sm{padding:6px 12px;font-size:12px}
-.btn:disabled{opacity:0.5;cursor:not-allowed}
 .toolbar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
 .toolbar input, .toolbar select{padding:10px 14px;border:1px solid #E2E8F0;border-radius:10px;font-size:14px}
 .toolbar input{flex:1;min-width:200px}
@@ -71,7 +70,13 @@ table tr:hover{background:#F8FAFC}
 .badge-yellow{background:#FEF3C7;color:#92400E}
 .badge-blue{background:#DBEAFE;color:#1E40AF}
 .info-box{background:#E0F2FE;border-left:4px solid #0284C7;padding:14px 18px;border-radius:10px;margin-bottom:16px;color:#075985;font-size:13px;line-height:1.6}
-@media(max-width:768px){.sidebar{width:60px}.sidebar h2, .sidebar a span{display:none}.sidebar a{justify-content:center;padding:16px 0}.main{margin-left:60px}}
+.pelanggaran-item{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;padding:14px;margin-bottom:10px}
+.pelanggaran-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.pelanggaran-header strong{flex:1;font-size:14px;color:#1E293B}
+.pelanggaran-header code{font-size:11px;color:#64748B;background:#E2E8F0;padding:2px 8px;border-radius:6px}
+.pelanggaran-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pelanggaran-grid input{padding:8px 10px;font-size:13px}
+@media(max-width:768px){.sidebar{width:60px}.sidebar h2, .sidebar a span{display:none}.sidebar a{justify-content:center;padding:16px 0}.main{margin-left:60px}.form-row{grid-template-columns:1fr}.pelanggaran-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -85,7 +90,7 @@ table tr:hover{background:#F8FAFC}
     <a onclick="switchTab('soal')" data-tab="soal"><i class="fas fa-book"></i> <span>Bank Soal</span></a>
     <a onclick="switchTab('reset')" data-tab="reset"><i class="fas fa-redo"></i> <span>Reset Ujian</span></a>
     <a onclick="switchTab('hasil')" data-tab="hasil"><i class="fas fa-trophy"></i> <span>Hasil Ujian</span></a>
-    <a onclick="switchTab('pengaturan')" data-tab="pengaturan"><i class="fas fa-cog"></i> <span>Pengaturan</span></a>
+    <a onclick="switchTab('pengaturan')" data-tab="pengaturan"><i class="fas fa-shield-alt"></i> <span>Pengaturan</span></a>
 </div>
 
 <div class="main">
@@ -94,7 +99,6 @@ table tr:hover{background:#F8FAFC}
         <div class="user"><i class="fas fa-user-shield"></i> Administrator</div>
     </div>
 
-    <!-- DASHBOARD -->
     <div id="tab-dashboard" class="tab-content active">
         <div class="stats">
             <div class="stat"><div class="icon blue"><i class="fas fa-users"></i></div><div class="value" id="statSiswa">0</div><div class="label">Total Siswa</div></div>
@@ -105,36 +109,27 @@ table tr:hover{background:#F8FAFC}
         <div class="card">
             <h3><i class="fas fa-info-circle"></i> Alur Kerja Admin Panel</h3>
             <div class="info-box">
-                <strong>📊 SISWA & BANK SOAL</strong> → Kelola dari <strong>Spreadsheet</strong>, lalu klik tombol <strong>🔄 SYNC</strong> di menu terkait.<br><br>
-                <strong>📅 JADWAL, TOKEN, RESET, PENGATURAN</strong> → Kelola langsung di panel ini (otomatis tersimpan ke Firebase).<br><br>
-                <strong>📈 HASIL UJIAN</strong> → Lihat & export nilai siswa secara otomatis.
+                <strong>📊 SISWA & BANK SOAL</strong> → Kelola dari <strong>Spreadsheet</strong>, lalu klik tombol <strong>🔄 SYNC</strong>.<br><br>
+                <strong>📅 JADWAL, TOKEN, RESET, PENGATURAN</strong> → Kelola langsung di panel ini (otomatis tersimpan).<br><br>
+                <strong>🛡️ PENGATURAN ANTI-CURANG</strong> → Atur ON/OFF & durasi per jenis pelanggaran.<br><br>
+                <strong>📈 HASIL UJIAN</strong> → Lihat & export nilai siswa.
             </div>
         </div>
     </div>
 
-    <!-- SISWA -->
     <div id="tab-siswa" class="tab-content">
         <div class="card">
             <h3><i class="fas fa-users"></i> Data Siswa (dari Spreadsheet)</h3>
-            <div class="info-box">
-                📌 Data siswa dikelola melalui <strong>Google Spreadsheet</strong>.<br>
-                Setelah mengisi sheet <code>DATA_SISWA</code>, klik tombol <strong>🔄 SYNC</strong> di bawah.
-            </div>
+            <div class="info-box">📌 Data siswa dikelola melalui <strong>Google Spreadsheet</strong>.<br>Setelah mengisi sheet <code>DATA_SISWA</code>, klik <strong>🔄 SYNC</strong>.</div>
             <div class="toolbar">
                 <input type="text" id="searchSiswa" placeholder="🔍 Cari nama/username/NIS..." oninput="renderSiswa()">
-                <select id="filterJenjangSiswa" onchange="renderSiswa()">
-                    <option value="">Semua Jenjang</option>
-                    <option value="7">7</option>
-                    <option value="8">8</option>
-                    <option value="9">9</option>
-                </select>
+                <select id="filterJenjangSiswa" onchange="renderSiswa()"><option value="">Semua Jenjang</option><option value="7">7</option><option value="8">8</option><option value="9">9</option></select>
                 <button class="btn btn-success" onclick="syncSiswa()"><i class="fas fa-sync"></i> SYNC dari Spreadsheet</button>
             </div>
             <div id="listSiswa" class="loading">Memuat...</div>
         </div>
     </div>
 
-    <!-- JADWAL -->
     <div id="tab-jadwal" class="tab-content">
         <div class="card">
             <h3><i class="fas fa-calendar-alt"></i> Kelola Jadwal Ujian</h3>
@@ -146,7 +141,6 @@ table tr:hover{background:#F8FAFC}
         </div>
     </div>
 
-    <!-- TOKEN -->
     <div id="tab-token" class="tab-content">
         <div class="card">
             <h3><i class="fas fa-key"></i> Kelola Token Ujian</h3>
@@ -158,31 +152,19 @@ table tr:hover{background:#F8FAFC}
         </div>
     </div>
 
-    <!-- SOAL -->
     <div id="tab-soal" class="tab-content">
         <div class="card">
             <h3><i class="fas fa-book"></i> Bank Soal (dari Spreadsheet)</h3>
-            <div class="info-box">
-                📌 Bank soal dikelola melalui <strong>Google Spreadsheet</strong>.<br>
-                Setelah mengisi sheet <code>BANK_SOAL</code>, klik tombol <strong>🔄 SYNC</strong> di bawah.
-            </div>
+            <div class="info-box">📌 Bank soal dikelola melalui <strong>Google Spreadsheet</strong>.<br>Setelah mengisi sheet <code>BANK_SOAL</code>, klik <strong>🔄 SYNC</strong>.</div>
             <div class="toolbar">
                 <input type="text" id="searchSoal" placeholder="🔍 Cari soal..." oninput="renderSoal()">
-                <select id="filterTipeSoal" onchange="renderSoal()">
-                    <option value="">Semua Tipe</option>
-                    <option value="PG">PG</option>
-                    <option value="PGK">PGK</option>
-                    <option value="B/S">B/S</option>
-                    <option value="Jodoh">Jodoh</option>
-                    <option value="Isian">Isian</option>
-                </select>
+                <select id="filterTipeSoal" onchange="renderSoal()"><option value="">Semua Tipe</option><option value="PG">PG</option><option value="PGK">PGK</option><option value="B/S">B/S</option><option value="Jodoh">Jodoh</option><option value="Isian">Isian</option></select>
                 <button class="btn btn-success" onclick="syncSoal()"><i class="fas fa-sync"></i> SYNC dari Spreadsheet</button>
             </div>
             <div id="listSoal" class="loading">Memuat...</div>
         </div>
     </div>
 
-    <!-- RESET -->
     <div id="tab-reset" class="tab-content">
         <div class="card">
             <h3><i class="fas fa-redo"></i> Reset Ujian Siswa</h3>
@@ -194,15 +176,12 @@ table tr:hover{background:#F8FAFC}
         </div>
     </div>
 
-    <!-- HASIL -->
     <div id="tab-hasil" class="tab-content">
         <div class="card">
             <h3><i class="fas fa-trophy"></i> Hasil Ujian Siswa</h3>
             <div class="toolbar">
                 <input type="text" id="searchHasil" placeholder="🔍 Cari nama/kelas..." oninput="renderHasil()">
-                <select id="filterMapel" onchange="renderHasil()">
-                    <option value="">Semua Mapel</option>
-                </select>
+                <select id="filterMapel" onchange="renderHasil()"><option value="">Semua Mapel</option></select>
                 <button class="btn btn-success" onclick="exportHasil()"><i class="fas fa-file-csv"></i> Export CSV</button>
                 <button class="btn btn-danger" onclick="deleteAllNilai()"><i class="fas fa-trash"></i> Hapus Semua Nilai</button>
             </div>
@@ -210,30 +189,24 @@ table tr:hover{background:#F8FAFC}
         </div>
     </div>
 
-    <!-- PENGATURAN -->
     <div id="tab-pengaturan" class="tab-content">
         <div class="card">
-            <h3><i class="fas fa-cog"></i> Pengaturan Sistem</h3>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Durasi Freeze (detik)</label>
-                    <input type="number" id="setFreezeDuration" value="30" min="5">
-                </div>
-                <div class="form-group">
-                    <label>Max Pelanggaran</label>
-                    <input type="number" id="setMaxPelanggaran" value="5" min="1">
-                </div>
+            <h3><i class="fas fa-shield-alt"></i> Pengaturan Anti-Curang</h3>
+            <div class="info-box">⚙️ Atur <strong>ON/OFF</strong>, <strong>durasi freeze</strong>, dan <strong>max pelanggaran</strong> untuk setiap jenis pelanggaran.<br>Jika pelanggaran <strong>OFF</strong>, sistem tidak akan mendeteksinya.</div>
+            <div class="form-row" style="margin-bottom:20px">
+                <div class="form-group"><label>⚙️ Global: Freeze Duration (detik)</label><input type="number" id="setGlobalFreeze" value="30" min="5"></div>
+                <div class="form-group"><label>⚙️ Global: Max Total Pelanggaran</label><input type="number" id="setGlobalMax" value="5" min="1"></div>
             </div>
-            <div class="form-group">
-                <label>Max WINDOW_BLUR (keluar aplikasi)</label>
-                <input type="number" id="setMaxBlur" value="3" min="1">
+            <h4 style="margin:20px 0 12px;color:#1E3A8A;font-size:15px">🚨 Daftar Pelanggaran</h4>
+            <div id="listPengaturanPelanggaran"></div>
+            <div style="margin-top:20px;display:flex;gap:10px">
+                <button class="btn btn-primary" onclick="savePengaturan()"><i class="fas fa-save"></i> Simpan Pengaturan</button>
+                <button class="btn btn-secondary" onclick="resetPengaturan()"><i class="fas fa-undo"></i> Reset Default</button>
             </div>
-            <button class="btn btn-primary" onclick="savePengaturan()"><i class="fas fa-save"></i> Simpan Pengaturan</button>
         </div>
     </div>
 </div>
 
-<!-- MODAL -->
 <div class="modal" id="modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -264,15 +237,12 @@ const db = getFirestore(app);
 
 window.db = db;
 window.Firebase = { collection, addDoc, query, where, getDocs, updateDoc, deleteDoc, doc, setDoc, writeBatch };
-window.loaded = true;
 </script>
 
 <script>
-// ==================== KONFIGURASI ====================
 const SPREADSHEET_ID = '1zc5lh-8XWEhGYJajqooWGK3Vo89kqob1iAaIdaIiXc0';
 const API_KEY = 'AIzaSyAG16CaL_CwY6Hktj6nNrxCoPjYXcJZHcE';
 
-// ==================== UTILS ====================
 function toast(msg, type='success') {
     const t = document.createElement('div');
     t.className = `toast ${type}`;
@@ -286,10 +256,8 @@ function switchTab(tab) {
     document.querySelectorAll('.sidebar a').forEach(el => el.classList.remove('active'));
     document.getElementById(`tab-${tab}`).classList.add('active');
     document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
-    
-    const titles = { dashboard: 'Dashboard', siswa: 'Kelola Siswa', jadwal: 'Jadwal Ujian', token: 'Token Ujian', soal: 'Bank Soal', reset: 'Reset Ujian', hasil: 'Hasil Ujian', pengaturan: 'Pengaturan' };
+    const titles = { dashboard: 'Dashboard', siswa: 'Kelola Siswa', jadwal: 'Jadwal Ujian', token: 'Token Ujian', soal: 'Bank Soal', reset: 'Reset Ujian', hasil: 'Hasil Ujian', pengaturan: 'Pengaturan Anti-Curang' };
     document.getElementById('pageTitle').textContent = titles[tab];
-    
     if (tab === 'dashboard') loadDashboard();
     if (tab === 'siswa') renderSiswa();
     if (tab === 'jadwal') renderJadwal();
@@ -314,67 +282,51 @@ async function fetchSheet(sheetName, range) {
     return d.values || [];
 }
 
-async function clearCollection(collectionName) {
-    const coll = window.Firebase.collection(window.db, collectionName);
-    const snapshot = await window.Firebase.getDocs(coll);
+async function clearCollection(name) {
+    const snapshot = await window.Firebase.getDocs(window.Firebase.collection(window.db, name));
     const batch = window.Firebase.writeBatch(window.db);
-    snapshot.forEach(docSnap => batch.delete(docSnap.ref));
+    snapshot.forEach(s => batch.delete(s.ref));
     await batch.commit();
     return snapshot.size;
 }
 
-// ==================== DASHBOARD ====================
 async function loadDashboard() {
     try {
-        const [siswaSnap, soalSnap, jadwalSnap, nilaiSnap] = await Promise.all([
+        const [s1, s2, s3, s4] = await Promise.all([
             window.Firebase.getDocs(window.Firebase.collection(window.db, 'cache_siswa')),
             window.Firebase.getDocs(window.Firebase.collection(window.db, 'cache_soal')),
             window.Firebase.getDocs(window.Firebase.collection(window.db, 'cache_jadwal')),
             window.Firebase.getDocs(window.Firebase.collection(window.db, 'nilai_akhir'))
         ]);
-        document.getElementById('statSiswa').textContent = siswaSnap.size;
-        document.getElementById('statSoal').textContent = soalSnap.size;
-        document.getElementById('statJadwal').textContent = jadwalSnap.size;
-        document.getElementById('statNilai').textContent = nilaiSnap.size;
-    } catch (e) { console.error(e); }
+        document.getElementById('statSiswa').textContent = s1.size;
+        document.getElementById('statSoal').textContent = s2.size;
+        document.getElementById('statJadwal').textContent = s3.size;
+        document.getElementById('statNilai').textContent = s4.size;
+    } catch(e) { console.error(e); }
 }
 
-// ==================== SISWA (SYNC SAJA) ====================
+// ==================== SISWA ====================
 let allSiswa = [];
 
 async function syncSiswa() {
-    if (!confirm('🔄 Sync data siswa dari Spreadsheet ke Firebase?\n\nData lama akan diganti dengan data baru.')) return;
-    
-    toast('⏳ Mengambil data siswa...', 'info');
+    if (!confirm('🔄 Sync data siswa dari Spreadsheet?')) return;
+    toast('⏳ Mengambil data...', 'info');
     try {
         const rows = await fetchSheet('DATA_SISWA', 'A:H');
-        console.log(`📊 Total baris: ${rows.length}`);
-        
-        if (rows.length <= 1) { toast('❌ Tidak ada data di spreadsheet', 'error'); return; }
-        
-        const deleted = await clearCollection('cache_siswa');
-        console.log(`🗑️ Hapus ${deleted} data lama`);
-        
+        if (rows.length <= 1) { toast('❌ Tidak ada data', 'error'); return; }
+        await clearCollection('cache_siswa');
         let count = 0;
         for (let i = 1; i < rows.length; i++) {
             const row = rows[i];
             if (!row[2]) continue;
             await window.Firebase.addDoc(window.Firebase.collection(window.db, 'cache_siswa'), {
-                nis: String(row[0]||'').trim(),
-                nama: String(row[1]||'').trim(),
-                username: String(row[2]||'').trim(),
-                password: String(row[3]||'').trim(),
-                kelas: String(row[4]||'').trim(),
-                jenjang: String(row[5]||'').trim()
+                nis: String(row[0]||'').trim(), nama: String(row[1]||'').trim(), username: String(row[2]||'').trim(),
+                password: String(row[3]||'').trim(), kelas: String(row[4]||'').trim(), jenjang: String(row[5]||'').trim()
             });
             count++;
         }
-        toast(`✅ ${count} siswa berhasil di-sync!`);
-        renderSiswa();
-    } catch(e) { 
-        console.error(e);
-        toast('❌ Error: ' + e.message, 'error'); 
-    }
+        toast(`✅ ${count} siswa di-sync!`); renderSiswa();
+    } catch(e) { toast('❌ ' + e.message, 'error'); }
 }
 
 async function renderSiswa() {
@@ -382,72 +334,36 @@ async function renderSiswa() {
         const snap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'cache_siswa'));
         allSiswa = [];
         snap.forEach(d => allSiswa.push({ _id: d.id, ...d.data() }));
-        
         const search = (document.getElementById('searchSiswa')?.value || '').toLowerCase();
         const jenjang = document.getElementById('filterJenjangSiswa')?.value || '';
-        
         let filtered = allSiswa;
-        if (search) filtered = filtered.filter(s => 
-            (s.nama||'').toLowerCase().includes(search) || 
-            (s.username||'').toLowerCase().includes(search) || 
-            (s.nis||'').includes(search)
-        );
+        if (search) filtered = filtered.filter(s => (s.nama||'').toLowerCase().includes(search) || (s.username||'').toLowerCase().includes(search) || (s.nis||'').includes(search));
         if (jenjang) filtered = filtered.filter(s => s.jenjang === jenjang);
-        
-        if (!filtered.length) {
-            document.getElementById('listSiswa').innerHTML = '<div class="loading">Belum ada data siswa.<br>Klik <strong>🔄 SYNC dari Spreadsheet</strong>.</div>';
-            return;
-        }
-        
-        let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">Total: <strong>${filtered.length}</strong> siswa (dari Firebase)</p>`;
-        html += '<table><thead><tr><th>NIS</th><th>Nama</th><th>Username</th><th>Password</th><th>Kelas</th><th>Jenjang</th></tr></thead><tbody>';
+        if (!filtered.length) { document.getElementById('listSiswa').innerHTML = '<div class="loading">Belum ada data.<br>Klik <strong>🔄 SYNC</strong>.</div>'; return; }
+        let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">Total: <strong>${filtered.length}</strong> siswa</p><table><thead><tr><th>NIS</th><th>Nama</th><th>Username</th><th>Password</th><th>Kelas</th><th>Jenjang</th></tr></thead><tbody>`;
         filtered.slice(0, 100).forEach(s => {
-            html += `<tr>
-                <td>${s.nis||''}</td>
-                <td>${s.nama||''}</td>
-                <td><code>${s.username||''}</code></td>
-                <td><code>${s.password||''}</code></td>
-                <td>${s.kelas||''}</td>
-                <td><span class="badge badge-blue">${s.jenjang||''}</span></td>
-            </tr>`;
+            html += `<tr><td>${s.nis||''}</td><td>${s.nama||''}</td><td><code>${s.username||''}</code></td><td><code>${s.password||''}</code></td><td>${s.kelas||''}</td><td><span class="badge badge-blue">${s.jenjang||''}</span></td></tr>`;
         });
         html += '</tbody></table>';
-        if (filtered.length > 100) html += `<p style="color:#64748B;font-size:12px;margin-top:12px">Menampilkan 100 dari ${filtered.length} siswa. Gunakan pencarian untuk memfilter.</p>`;
+        if (filtered.length > 100) html += `<p style="color:#64748B;font-size:12px;margin-top:12px">Menampilkan 100 dari ${filtered.length}</p>`;
         document.getElementById('listSiswa').innerHTML = html;
-    } catch(e) { console.error(e); document.getElementById('listSiswa').innerHTML = 'Error: '+e.message; }
+    } catch(e) { document.getElementById('listSiswa').innerHTML = 'Error: '+e.message; }
 }
 
-// ==================== JADWAL (CRUD) ====================
+// ==================== JADWAL ====================
 let allJadwal = [];
 
 async function renderJadwal() {
-    try {
-        const snap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'cache_jadwal'));
-        allJadwal = [];
-        snap.forEach(d => allJadwal.push({ _id: d.id, ...d.data() }));
-        if (!allJadwal.length) { document.getElementById('listJadwal').innerHTML = '<div class="loading">Belum ada jadwal.</div>'; return; }
-        
-        let html = '<table><thead><tr><th>Jenjang</th><th>Mapel</th><th>Jenis</th><th>Tanggal</th><th>Waktu</th><th>Min</th><th>Token</th><th>Password</th><th>Status</th><th>Aksi</th></tr></thead><tbody>';
-        allJadwal.forEach(j => {
-            html += `<tr>
-                <td><span class="badge badge-blue">${j.jenjang||''}</span></td>
-                <td>${j.mapel||''}</td>
-                <td>${j.jenis||''}</td>
-                <td>${j.tanggal||''}</td>
-                <td>${j.waktuMulai||''} - ${j.waktuSelesai||''}</td>
-                <td>${j.minimalMenit||0}m</td>
-                <td><code>${j.token||''}</code></td>
-                <td>${j.password ? '🔐' : '-'}</td>
-                <td><span class="badge ${j.status==='Aktif'?'badge-green':'badge-red'}">${j.status||''}</span></td>
-                <td>
-                    <button class="btn btn-sm btn-warning" onclick="editJadwal('${j._id}')"><i class="fas fa-edit"></i></button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteJadwal('${j._id}')"><i class="fas fa-trash"></i></button>
-                </td>
-            </tr>`;
-        });
-        html += '</tbody></table>';
-        document.getElementById('listJadwal').innerHTML = html;
-    } catch(e) { document.getElementById('listJadwal').innerHTML = 'Error: '+e.message; }
+    const snap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'cache_jadwal'));
+    allJadwal = [];
+    snap.forEach(d => allJadwal.push({ _id: d.id, ...d.data() }));
+    if (!allJadwal.length) { document.getElementById('listJadwal').innerHTML = '<div class="loading">Belum ada jadwal.</div>'; return; }
+    let html = '<table><thead><tr><th>Jenjang</th><th>Mapel</th><th>Jenis</th><th>Tanggal</th><th>Waktu</th><th>Token</th><th>Status</th><th>Aksi</th></tr></thead><tbody>';
+    allJadwal.forEach(j => {
+        html += `<tr><td><span class="badge badge-blue">${j.jenjang||''}</span></td><td>${j.mapel||''}</td><td>${j.jenis||''}</td><td>${j.tanggal||''}</td><td>${j.waktuMulai||''} - ${j.waktuSelesai||''}</td><td><code>${j.token||''}</code></td><td><span class="badge ${j.status==='Aktif'?'badge-green':'badge-red'}">${j.status||''}</span></td><td><button class="btn btn-sm btn-warning" onclick="editJadwal('${j._id}')"><i class="fas fa-edit"></i></button> <button class="btn btn-sm btn-danger" onclick="deleteJadwal('${j._id}')"><i class="fas fa-trash"></i></button></td></tr>`;
+    });
+    html += '</tbody></table>';
+    document.getElementById('listJadwal').innerHTML = html;
 }
 
 function openFormJadwal(id=null) {
@@ -455,17 +371,11 @@ function openFormJadwal(id=null) {
     const j = id ? allJadwal.find(x => x._id === id) : { jenjang:'9', mapel:'', jenis:'', tanggal:today, waktuMulai:'08:00', waktuSelesai:'10:00', minimalMenit:0, token:'', status:'Aktif', password:'' };
     openModal(id ? 'Edit Jadwal' : 'Tambah Jadwal', `
         <div class="form-row">
-            <div class="form-group"><label>Jenjang</label>
-                <select id="j_jenjang">
-                    <option value="7" ${j.jenjang==='7'?'selected':''}>7</option>
-                    <option value="8" ${j.jenjang==='8'?'selected':''}>8</option>
-                    <option value="9" ${j.jenjang==='9'?'selected':''}>9</option>
-                </select>
-            </div>
-            <div class="form-group"><label>Mapel</label><input id="j_mapel" value="${j.mapel}" placeholder="Informatika"></div>
+            <div class="form-group"><label>Jenjang</label><select id="j_jenjang"><option value="7" ${j.jenjang==='7'?'selected':''}>7</option><option value="8" ${j.jenjang==='8'?'selected':''}>8</option><option value="9" ${j.jenjang==='9'?'selected':''}>9</option></select></div>
+            <div class="form-group"><label>Mapel</label><input id="j_mapel" value="${j.mapel}"></div>
         </div>
         <div class="form-row">
-            <div class="form-group"><label>Jenis Ujian</label><input id="j_jenis" value="${j.jenis}" placeholder="KUIS / UH / UTS"></div>
+            <div class="form-group"><label>Jenis Ujian</label><input id="j_jenis" value="${j.jenis}"></div>
             <div class="form-group"><label>Tanggal</label><input type="date" id="j_tanggal" value="${j.tanggal}"></div>
         </div>
         <div class="form-row">
@@ -474,16 +384,11 @@ function openFormJadwal(id=null) {
         </div>
         <div class="form-row">
             <div class="form-group"><label>Minimal Menit</label><input type="number" id="j_min" value="${j.minimalMenit||0}"></div>
-            <div class="form-group"><label>Token</label><input id="j_token" value="${j.token}" placeholder="TOKEN9"></div>
+            <div class="form-group"><label>Token</label><input id="j_token" value="${j.token}"></div>
         </div>
         <div class="form-row">
-            <div class="form-group"><label>Status</label>
-                <select id="j_status">
-                    <option value="Aktif" ${j.status==='Aktif'?'selected':''}>Aktif</option>
-                    <option value="Nonaktif" ${j.status==='Nonaktif'?'selected':''}>Nonaktif</option>
-                </select>
-            </div>
-            <div class="form-group"><label>Password (opsional)</label><input id="j_password" value="${j.password||''}" placeholder="Kosongkan jika tidak perlu"></div>
+            <div class="form-group"><label>Status</label><select id="j_status"><option value="Aktif" ${j.status==='Aktif'?'selected':''}>Aktif</option><option value="Nonaktif" ${j.status==='Nonaktif'?'selected':''}>Nonaktif</option></select></div>
+            <div class="form-group"><label>Password (opsional)</label><input id="j_password" value="${j.password||''}"></div>
         </div>
         <button class="btn btn-primary" onclick="saveJadwal('${id||''}')"><i class="fas fa-save"></i> Simpan</button>
     `);
@@ -491,41 +396,23 @@ function openFormJadwal(id=null) {
 
 async function saveJadwal(id) {
     const data = {
-        idJadwal: 'JAD'+Date.now(),
-        jenjang: document.getElementById('j_jenjang').value,
-        mapel: document.getElementById('j_mapel').value.trim(),
-        jenis: document.getElementById('j_jenis').value.trim(),
-        tanggal: document.getElementById('j_tanggal').value,
-        waktuMulai: document.getElementById('j_mulai').value,
-        waktuSelesai: document.getElementById('j_selesai').value,
-        minimalMenit: parseInt(document.getElementById('j_min').value)||0,
-        token: document.getElementById('j_token').value.trim(),
-        status: document.getElementById('j_status').value,
+        idJadwal: 'JAD'+Date.now(), jenjang: document.getElementById('j_jenjang').value,
+        mapel: document.getElementById('j_mapel').value.trim(), jenis: document.getElementById('j_jenis').value.trim(),
+        tanggal: document.getElementById('j_tanggal').value, waktuMulai: document.getElementById('j_mulai').value,
+        waktuSelesai: document.getElementById('j_selesai').value, minimalMenit: parseInt(document.getElementById('j_min').value)||0,
+        token: document.getElementById('j_token').value.trim(), status: document.getElementById('j_status').value,
         password: document.getElementById('j_password').value.trim()
     };
     if (!data.mapel || !data.jenis || !data.tanggal) { toast('Lengkapi data!', 'error'); return; }
-    try {
-        if (id) { await window.Firebase.updateDoc(window.Firebase.doc(window.db, 'cache_jadwal', id), data); toast('✅ Jadwal diupdate!'); }
-        else { await window.Firebase.addDoc(window.Firebase.collection(window.db, 'cache_jadwal'), data); toast('✅ Jadwal ditambahkan!'); }
-        closeModal(); renderJadwal();
-    } catch(e) { toast('Error: '+e.message, 'error'); }
+    if (id) await window.Firebase.updateDoc(window.Firebase.doc(window.db, 'cache_jadwal', id), data);
+    else await window.Firebase.addDoc(window.Firebase.collection(window.db, 'cache_jadwal'), data);
+    toast('✅ Tersimpan!'); closeModal(); renderJadwal();
 }
-
 function editJadwal(id) { openFormJadwal(id); }
-async function deleteJadwal(id) {
-    if (!confirm('Hapus jadwal ini?')) return;
-    await window.Firebase.deleteDoc(window.Firebase.doc(window.db, 'cache_jadwal', id));
-    toast('🗑️ Jadwal dihapus'); renderJadwal();
-}
-async function deleteAllJadwal() {
-    if (!confirm('⚠️ Hapus SEMUA jadwal?')) return;
-    const batch = window.Firebase.writeBatch(window.db);
-    allJadwal.forEach(j => batch.delete(window.Firebase.doc(window.db, 'cache_jadwal', j._id)));
-    await batch.commit();
-    toast('🗑️ Semua jadwal dihapus'); renderJadwal();
-}
+async function deleteJadwal(id) { if (!confirm('Hapus?')) return; await window.Firebase.deleteDoc(window.Firebase.doc(window.db, 'cache_jadwal', id)); toast('🗑️ Dihapus'); renderJadwal(); }
+async function deleteAllJadwal() { if (!confirm('Hapus SEMUA jadwal?')) return; const b = window.Firebase.writeBatch(window.db); allJadwal.forEach(j => b.delete(window.Firebase.doc(window.db, 'cache_jadwal', j._id))); await b.commit(); toast('🗑️ Semua dihapus'); renderJadwal(); }
 
-// ==================== TOKEN (CRUD) ====================
+// ==================== TOKEN ====================
 let allToken = [];
 
 async function renderToken() {
@@ -533,20 +420,9 @@ async function renderToken() {
     allToken = [];
     snap.forEach(d => allToken.push({ _id: d.id, ...d.data() }));
     if (!allToken.length) { document.getElementById('listToken').innerHTML = '<div class="loading">Belum ada token.</div>'; return; }
-    
     let html = '<table><thead><tr><th>Token</th><th>Jenjang</th><th>Mapel</th><th>Jenis</th><th>Status</th><th>Aksi</th></tr></thead><tbody>';
     allToken.forEach(t => {
-        html += `<tr>
-            <td><code>${t.token||''}</code></td>
-            <td><span class="badge badge-blue">${t.jenjang||''}</span></td>
-            <td>${t.mapel||''}</td>
-            <td>${t.jenis||''}</td>
-            <td><span class="badge ${t.status==='Aktif'?'badge-green':'badge-red'}">${t.status||''}</span></td>
-            <td>
-                <button class="btn btn-sm btn-warning" onclick="editToken('${t._id}')"><i class="fas fa-edit"></i></button>
-                <button class="btn btn-sm btn-danger" onclick="deleteToken('${t._id}')"><i class="fas fa-trash"></i></button>
-            </td>
-        </tr>`;
+        html += `<tr><td><code>${t.token||''}</code></td><td><span class="badge badge-blue">${t.jenjang||''}</span></td><td>${t.mapel||''}</td><td>${t.jenis||''}</td><td><span class="badge ${t.status==='Aktif'?'badge-green':'badge-red'}">${t.status||''}</span></td><td><button class="btn btn-sm btn-warning" onclick="editToken('${t._id}')"><i class="fas fa-edit"></i></button> <button class="btn btn-sm btn-danger" onclick="deleteToken('${t._id}')"><i class="fas fa-trash"></i></button></td></tr>`;
     });
     html += '</tbody></table>';
     document.getElementById('listToken').innerHTML = html;
@@ -555,25 +431,14 @@ async function renderToken() {
 function openFormToken(id=null) {
     const t = id ? allToken.find(x => x._id === id) : { token:'', jenjang:'9', mapel:'', jenis:'', status:'Aktif' };
     openModal(id ? 'Edit Token' : 'Tambah Token', `
-        <div class="form-group"><label>Token</label><input id="t_token" value="${t.token}" placeholder="TOKEN9"></div>
+        <div class="form-group"><label>Token</label><input id="t_token" value="${t.token}"></div>
         <div class="form-row">
-            <div class="form-group"><label>Jenjang</label>
-                <select id="t_jenjang">
-                    <option value="7" ${t.jenjang==='7'?'selected':''}>7</option>
-                    <option value="8" ${t.jenjang==='8'?'selected':''}>8</option>
-                    <option value="9" ${t.jenjang==='9'?'selected':''}>9</option>
-                </select>
-            </div>
-            <div class="form-group"><label>Mapel</label><input id="t_mapel" value="${t.mapel}" placeholder="Informatika"></div>
+            <div class="form-group"><label>Jenjang</label><select id="t_jenjang"><option value="7" ${t.jenjang==='7'?'selected':''}>7</option><option value="8" ${t.jenjang==='8'?'selected':''}>8</option><option value="9" ${t.jenjang==='9'?'selected':''}>9</option></select></div>
+            <div class="form-group"><label>Mapel</label><input id="t_mapel" value="${t.mapel}"></div>
         </div>
         <div class="form-row">
-            <div class="form-group"><label>Jenis</label><input id="t_jenis" value="${t.jenis}" placeholder="KUIS"></div>
-            <div class="form-group"><label>Status</label>
-                <select id="t_status">
-                    <option value="Aktif" ${t.status==='Aktif'?'selected':''}>Aktif</option>
-                    <option value="Nonaktif" ${t.status==='Nonaktif'?'selected':''}>Nonaktif</option>
-                </select>
-            </div>
+            <div class="form-group"><label>Jenis</label><input id="t_jenis" value="${t.jenis}"></div>
+            <div class="form-group"><label>Status</label><select id="t_status"><option value="Aktif" ${t.status==='Aktif'?'selected':''}>Aktif</option><option value="Nonaktif" ${t.status==='Nonaktif'?'selected':''}>Nonaktif</option></select></div>
         </div>
         <button class="btn btn-primary" onclick="saveToken('${id||''}')"><i class="fas fa-save"></i> Simpan</button>
     `);
@@ -582,107 +447,61 @@ function openFormToken(id=null) {
 async function saveToken(id) {
     const data = { token: document.getElementById('t_token').value.trim(), jenjang: document.getElementById('t_jenjang').value, mapel: document.getElementById('t_mapel').value.trim(), jenis: document.getElementById('t_jenis').value.trim(), status: document.getElementById('t_status').value };
     if (!data.token) { toast('Token wajib!', 'error'); return; }
-    try {
-        if (id) await window.Firebase.updateDoc(window.Firebase.doc(window.db, 'cache_token', id), data);
-        else await window.Firebase.addDoc(window.Firebase.collection(window.db, 'cache_token'), data);
-        toast('✅ Token disimpan!'); closeModal(); renderToken();
-    } catch(e) { toast('Error: '+e.message, 'error'); }
+    if (id) await window.Firebase.updateDoc(window.Firebase.doc(window.db, 'cache_token', id), data);
+    else await window.Firebase.addDoc(window.Firebase.collection(window.db, 'cache_token'), data);
+    toast('✅ Tersimpan!'); closeModal(); renderToken();
 }
-
 function editToken(id) { openFormToken(id); }
-async function deleteToken(id) {
-    if (!confirm('Hapus token ini?')) return;
-    await window.Firebase.deleteDoc(window.Firebase.doc(window.db, 'cache_token', id));
-    toast('🗑️ Token dihapus'); renderToken();
-}
-async function deleteAllToken() {
-    if (!confirm('⚠️ Hapus SEMUA token?')) return;
-    const batch = window.Firebase.writeBatch(window.db);
-    allToken.forEach(t => batch.delete(window.Firebase.doc(window.db, 'cache_token', t._id)));
-    await batch.commit();
-    toast('🗑️ Semua token dihapus'); renderToken();
-}
+async function deleteToken(id) { if (!confirm('Hapus?')) return; await window.Firebase.deleteDoc(window.Firebase.doc(window.db, 'cache_token', id)); toast('🗑️'); renderToken(); }
+async function deleteAllToken() { if (!confirm('Hapus SEMUA token?')) return; const b = window.Firebase.writeBatch(window.db); allToken.forEach(t => b.delete(window.Firebase.doc(window.db, 'cache_token', t._id))); await b.commit(); toast('🗑️ Semua dihapus'); renderToken(); }
 
-// ==================== SOAL (SYNC SAJA) ====================
+// ==================== SOAL ====================
 let allSoal = [];
 
 async function syncSoal() {
-    if (!confirm('🔄 Sync bank soal dari Spreadsheet ke Firebase?\n\nData lama akan diganti dengan data baru.')) return;
-    
-    toast('⏳ Mengambil data soal...', 'info');
+    if (!confirm('🔄 Sync bank soal dari Spreadsheet?')) return;
+    toast('⏳ Mengambil data...', 'info');
     try {
         const rows = await fetchSheet('BANK_SOAL', 'A:P');
-        console.log(`📊 Total baris: ${rows.length}`);
-        
-        if (rows.length <= 1) { toast('❌ Tidak ada data di spreadsheet', 'error'); return; }
-        
-        const deleted = await clearCollection('cache_soal');
-        console.log(`🗑️ Hapus ${deleted} soal lama`);
-        
+        if (rows.length <= 1) { toast('❌ Tidak ada data', 'error'); return; }
+        await clearCollection('cache_soal');
         let count = 0;
         for (let i = 1; i < rows.length; i++) {
             const row = rows[i];
             if (!row[0]) continue;
             await window.Firebase.addDoc(window.Firebase.collection(window.db, 'cache_soal'), {
-                id: String(row[0]||'').trim(),
-                jenjang: String(row[1]||'').trim(),
-                mapel: String(row[2]||'').trim(),
-                jenis: String(row[3]||'').trim(),
-                tipe: String(row[4]||'').trim(),
-                pertanyaan: String(row[5]||''),
-                pilihanA: String(row[6]||''),
-                pilihanB: String(row[7]||''),
-                pilihanC: String(row[8]||''),
-                pilihanD: String(row[9]||''),
-                pilihanE: String(row[10]||''),
-                kunci: String(row[11]||''),
-                bobot: parseFloat(row[12])||1,
-                status: String(row[13]||'').trim(),
-                gambar: String(row[14]||''),
-                grupSoal: String(row[15]||'')
+                id: String(row[0]||'').trim(), jenjang: String(row[1]||'').trim(), mapel: String(row[2]||'').trim(),
+                jenis: String(row[3]||'').trim(), tipe: String(row[4]||'').trim(), pertanyaan: String(row[5]||''),
+                pilihanA: String(row[6]||''), pilihanB: String(row[7]||''), pilihanC: String(row[8]||''),
+                pilihanD: String(row[9]||''), pilihanE: String(row[10]||''), kunci: String(row[11]||''),
+                bobot: parseFloat(row[12])||1, status: String(row[13]||'').trim(), gambar: String(row[14]||''), grupSoal: String(row[15]||'')
             });
             count++;
         }
-        toast(`✅ ${count} soal berhasil di-sync!`);
-        renderSoal();
-    } catch(e) { 
-        console.error(e);
-        toast('❌ Error: ' + e.message, 'error'); 
-    }
+        toast(`✅ ${count} soal di-sync!`); renderSoal();
+    } catch(e) { toast('❌ ' + e.message, 'error'); }
 }
 
 async function renderSoal() {
     const snap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'cache_soal'));
     allSoal = [];
     snap.forEach(d => allSoal.push({ _id: d.id, ...d.data() }));
-    
     const search = (document.getElementById('searchSoal')?.value || '').toLowerCase();
     const tipe = document.getElementById('filterTipeSoal')?.value || '';
     let filtered = allSoal;
     if (search) filtered = filtered.filter(s => (s.pertanyaan||'').toLowerCase().includes(search));
     if (tipe) filtered = filtered.filter(s => s.tipe === tipe);
-    
-    if (!filtered.length) { document.getElementById('listSoal').innerHTML = '<div class="loading">Belum ada soal.<br>Klik <strong>🔄 SYNC dari Spreadsheet</strong>.</div>'; return; }
-    
-    let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">Total: <strong>${filtered.length}</strong> soal (dari Firebase)</p>`;
-    html += '<table><thead><tr><th>ID</th><th>Jenjang</th><th>Mapel</th><th>Jenis</th><th>Tipe</th><th>Pertanyaan</th><th>Status</th></tr></thead><tbody>';
+    if (!filtered.length) { document.getElementById('listSoal').innerHTML = '<div class="loading">Belum ada soal.<br>Klik <strong>🔄 SYNC</strong>.</div>'; return; }
+    let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">Total: <strong>${filtered.length}</strong> soal</p><table><thead><tr><th>ID</th><th>Jenjang</th><th>Mapel</th><th>Jenis</th><th>Tipe</th><th>Pertanyaan</th><th>Status</th></tr></thead><tbody>`;
     filtered.slice(0, 100).forEach(s => {
-        html += `<tr>
-            <td><code>${s.id||''}</code></td>
-            <td><span class="badge badge-blue">${s.jenjang||''}</span></td>
-            <td>${s.mapel||''}</td>
-            <td>${s.jenis||''}</td>
-            <td><span class="badge badge-yellow">${s.tipe||''}</span></td>
-            <td>${(s.pertanyaan||'').substring(0,60)}...</td>
-            <td><span class="badge ${s.status==='Aktif'?'badge-green':'badge-red'}">${s.status||''}</span></td>
-        </tr>`;
+        html += `<tr><td><code>${s.id||''}</code></td><td><span class="badge badge-blue">${s.jenjang||''}</span></td><td>${s.mapel||''}</td><td>${s.jenis||''}</td><td><span class="badge badge-yellow">${s.tipe||''}</span></td><td>${(s.pertanyaan||'').substring(0,60)}...</td><td><span class="badge ${s.status==='Aktif'?'badge-green':'badge-red'}">${s.status||''}</span></td></tr>`;
     });
     html += '</tbody></table>';
-    if (filtered.length > 100) html += `<p style="color:#64748B;font-size:12px;margin-top:12px">Menampilkan 100 dari ${filtered.length} soal. Gunakan pencarian untuk memfilter.</p>`;
+    if (filtered.length > 100) html += `<p style="color:#64748B;font-size:12px;margin-top:12px">Menampilkan 100 dari ${filtered.length}</p>`;
     document.getElementById('listSoal').innerHTML = html;
 }
 
-// ==================== RESET (CRUD) ====================
+// ==================== RESET ====================
 let allReset = [];
 
 async function renderReset() {
@@ -692,8 +511,7 @@ async function renderReset() {
     if (!allReset.length) { document.getElementById('listReset').innerHTML = '<div class="loading">Belum ada reset.</div>'; return; }
     let html = '<table><thead><tr><th>Username</th><th>Mapel</th><th>Jenis</th><th>Reset</th><th>Aksi</th></tr></thead><tbody>';
     allReset.forEach(r => {
-        html += `<tr><td>${r.username||''}</td><td>${r.mapel||''}</td><td>${r.jenis||''}</td><td><span class="badge ${r.reset==='YA'?'badge-green':'badge-red'}">${r.reset}</span></td>
-        <td><button class="btn btn-sm btn-danger" onclick="deleteReset('${r._id}')"><i class="fas fa-trash"></i></button></td></tr>`;
+        html += `<tr><td>${r.username||''}</td><td>${r.mapel||''}</td><td>${r.jenis||''}</td><td><span class="badge ${r.reset==='YA'?'badge-green':'badge-red'}">${r.reset}</span></td><td><button class="btn btn-sm btn-danger" onclick="deleteReset('${r._id}')"><i class="fas fa-trash"></i></button></td></tr>`;
     });
     html += '</tbody></table>';
     document.getElementById('listReset').innerHTML = html;
@@ -703,8 +521,8 @@ function openFormReset() {
     openModal('Tambah Reset', `
         <div class="form-group"><label>Username</label><input id="r_username" placeholder="budi.santoso"></div>
         <div class="form-row">
-            <div class="form-group"><label>Mapel</label><input id="r_mapel" value="*" placeholder="* untuk semua"></div>
-            <div class="form-group"><label>Jenis</label><input id="r_jenis" value="*" placeholder="* untuk semua"></div>
+            <div class="form-group"><label>Mapel</label><input id="r_mapel" value="*"></div>
+            <div class="form-group"><label>Jenis</label><input id="r_jenis" value="*"></div>
         </div>
         <button class="btn btn-primary" onclick="saveReset()"><i class="fas fa-save"></i> Simpan</button>
     `);
@@ -714,21 +532,10 @@ async function saveReset() {
     const data = { username: document.getElementById('r_username').value.trim(), mapel: document.getElementById('r_mapel').value.trim(), jenis: document.getElementById('r_jenis').value.trim(), reset: 'YA' };
     if (!data.username) { toast('Username wajib!', 'error'); return; }
     await window.Firebase.addDoc(window.Firebase.collection(window.db, 'cache_reset'), data);
-    toast('✅ Reset ditambahkan!'); closeModal(); renderReset();
+    toast('✅ Tersimpan!'); closeModal(); renderReset();
 }
-
-async function deleteReset(id) {
-    if (!confirm('Hapus reset ini?')) return;
-    await window.Firebase.deleteDoc(window.Firebase.doc(window.db, 'cache_reset', id));
-    toast('🗑️ Reset dihapus'); renderReset();
-}
-async function deleteAllReset() {
-    if (!confirm('Hapus semua reset?')) return;
-    const batch = window.Firebase.writeBatch(window.db);
-    allReset.forEach(r => batch.delete(window.Firebase.doc(window.db, 'cache_reset', r._id)));
-    await batch.commit();
-    toast('🗑️ Semua reset dihapus'); renderReset();
-}
+async function deleteReset(id) { if (!confirm('Hapus?')) return; await window.Firebase.deleteDoc(window.Firebase.doc(window.db, 'cache_reset', id)); toast('🗑️'); renderReset(); }
+async function deleteAllReset() { if (!confirm('Hapus SEMUA reset?')) return; const b = window.Firebase.writeBatch(window.db); allReset.forEach(r => b.delete(window.Firebase.doc(window.db, 'cache_reset', r._id))); await b.commit(); toast('🗑️ Semua dihapus'); renderReset(); }
 
 // ==================== HASIL ====================
 let allHasil = [];
@@ -737,38 +544,21 @@ async function renderHasil() {
     const snap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'nilai_akhir'));
     allHasil = [];
     snap.forEach(d => allHasil.push({ _id: d.id, ...d.data() }));
-    
     const search = (document.getElementById('searchHasil')?.value || '').toLowerCase();
     const mapelFilter = document.getElementById('filterMapel')?.value || '';
-    
     const mapelSet = new Set(allHasil.map(h => h.mapel).filter(Boolean));
     const sel = document.getElementById('filterMapel');
-    if (sel.options.length <= 1) {
-        mapelSet.forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = m; sel.appendChild(o); });
-    }
-    
+    if (sel.options.length <= 1) mapelSet.forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = m; sel.appendChild(o); });
     let filtered = allHasil;
     if (search) filtered = filtered.filter(h => (h.nama||'').toLowerCase().includes(search) || (h.kelas||'').toLowerCase().includes(search));
     if (mapelFilter) filtered = filtered.filter(h => h.mapel === mapelFilter);
-    
     if (!filtered.length) { document.getElementById('listHasil').innerHTML = '<div class="loading">Belum ada nilai.</div>'; return; }
-    
     filtered.sort((a,b) => (a.kelas||'').localeCompare(b.kelas||'') || (a.nama||'').localeCompare(b.nama||''));
-    
-    let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">Total: <strong>${filtered.length}</strong> nilai</p>`;
-    html += '<table><thead><tr><th>Nama</th><th>Kelas</th><th>Mapel</th><th>Jenis</th><th>Skor</th><th>Nilai</th><th>Waktu</th></tr></thead><tbody>';
+    let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">Total: <strong>${filtered.length}</strong> nilai</p><table><thead><tr><th>Nama</th><th>Kelas</th><th>Mapel</th><th>Jenis</th><th>Skor</th><th>Nilai</th><th>Waktu</th></tr></thead><tbody>`;
     filtered.forEach(h => {
         const p = parseInt(h.persentase) || 0;
         const warna = p >= 75 ? 'badge-green' : p >= 60 ? 'badge-yellow' : 'badge-red';
-        html += `<tr>
-            <td>${h.nama||''}</td>
-            <td>${h.kelas||''}</td>
-            <td>${h.mapel||''}</td>
-            <td>${h.jenisUjian||''}</td>
-            <td><strong>${h.totalSkor}/${h.totalBobot}</strong></td>
-            <td><span class="badge ${warna}">${h.persentase||''}</span></td>
-            <td>${h.timestamp ? new Date(h.timestamp).toLocaleString('id-ID') : ''}</td>
-        </tr>`;
+        html += `<tr><td>${h.nama||''}</td><td>${h.kelas||''}</td><td>${h.mapel||''}</td><td>${h.jenisUjian||''}</td><td><strong>${h.totalSkor}/${h.totalBobot}</strong></td><td><span class="badge ${warna}">${h.persentase||''}</span></td><td>${h.timestamp ? new Date(h.timestamp).toLocaleString('id-ID') : ''}</td></tr>`;
     });
     html += '</tbody></table>';
     document.getElementById('listHasil').innerHTML = html;
@@ -777,9 +567,7 @@ async function renderHasil() {
 function exportHasil() {
     if (!allHasil.length) { toast('Tidak ada data', 'error'); return; }
     let csv = 'NIS,Nama,Kelas,Jenjang,Mapel,Jenis Ujian,Total Skor,Total Bobot,Persentase,Waktu\n';
-    allHasil.forEach(h => {
-        csv += `"${h.nis||''}","${h.nama||''}","${h.kelas||''}","${h.jenjang||''}","${h.mapel||''}","${h.jenisUjian||''}",${h.totalSkor||0},${h.totalBobot||0},"${h.persentase||''}","${h.timestamp||''}"\n`;
-    });
+    allHasil.forEach(h => { csv += `"${h.nis||''}","${h.nama||''}","${h.kelas||''}","${h.jenjang||''}","${h.mapel||''}","${h.jenisUjian||''}",${h.totalSkor||0},${h.totalBobot||0},"${h.persentase||''}","${h.timestamp||''}"\n`; });
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -789,70 +577,1001 @@ function exportHasil() {
 
 async function deleteAllNilai() {
     if (!confirm('⚠️ HAPUS SEMUA NILAI?')) return;
-    if (!confirm('Yakin? Ini akan hapus ' + allHasil.length + ' nilai!')) return;
-    const batch = window.Firebase.writeBatch(window.db);
-    allHasil.forEach(h => batch.delete(window.Firebase.doc(window.db, 'nilai_akhir', h._id)));
-    await batch.commit();
+    if (!confirm('Yakin? ' + allHasil.length + ' nilai akan dihapus!')) return;
+    const b = window.Firebase.writeBatch(window.db);
+    allHasil.forEach(h => b.delete(window.Firebase.doc(window.db, 'nilai_akhir', h._id)));
+    await b.commit();
     toast('🗑️ Semua nilai dihapus'); renderHasil();
 }
 
-// ==================== PENGATURAN ====================
+// ==================== PENGATURAN PELANGGARAN ====================
+const DEFAULT_PELANGGARAN = {
+    FULLSCREEN_EXIT:  { enabled: true, freeze: 30, max: 5,  label: 'Keluar Fullscreen', icon: 'fa-expand' },
+    TAB_SWITCH:       { enabled: true, freeze: 30, max: 5,  label: 'Pindah Tab', icon: 'fa-window-restore' },
+    RIGHT_CLICK:      { enabled: true, freeze: 30, max: 5,  label: 'Klik Kanan', icon: 'fa-mouse-pointer' },
+    PRINT_SCREEN:     { enabled: true, freeze: 30, max: 5,  label: 'Screenshot Keyboard', icon: 'fa-camera' },
+    KEYBOARD:         { enabled: true, freeze: 30, max: 5,  label: 'Shortcut Keyboard', icon: 'fa-keyboard' },
+    WINDOW_BLUR:      { enabled: true, freeze: 30, max: 3,  label: 'Keluar Jendela (Aplikasi Lain)', icon: 'fa-window-close' },
+    MOUSE_LEAVE:      { enabled: true, freeze: 0,  max: 99, label: 'Kursor Keluar (Warning)', icon: 'fa-arrow-up' },
+    MULTI_TOUCH:      { enabled: true, freeze: 0,  max: 99, label: 'Multi-Touch >3 Jari', icon: 'fa-hand-pointer' },
+    RAPID_TOUCH:      { enabled: true, freeze: 0,  max: 99, label: 'Sentuhan Cepat', icon: 'fa-fingerprint' },
+    RESIZE_DRASTIC:   { enabled: true, freeze: 0,  max: 99, label: 'Resize Drastis', icon: 'fa-arrows-alt' },
+    SPLIT_SCREEN:     { enabled: true, freeze: 0,  max: 99, label: 'Split Screen', icon: 'fa-columns' },
+    DEVTOOLS_OPEN:    { enabled: true, freeze: 45, max: 5,  label: 'DevTools Terbuka', icon: 'fa-code' },
+    SCREENSHOT_DETECT:{ enabled: true, freeze: 0,  max: 99, label: 'Deteksi Screenshot (Mobile)', icon: 'fa-mobile-alt' }
+};
+
+let pengaturanPelanggaran = JSON.parse(JSON.stringify(DEFAULT_PELANGGARAN));
+
 async function loadPengaturan() {
     try {
         const snap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'pengaturan'));
         snap.forEach(d => {
-            const p = d.data();
-            if (p.freezeDuration) document.getElementById('setFreezeDuration').value = p.freezeDuration;
-            if (p.maxPelanggaran) document.getElementById('setMaxPelanggaran').value = p.maxPelanggaran;
-            if (p.maxBlur) document.getElementById('setMaxBlur').value = p.maxBlur;
+            if (d.id === 'pelanggaran') {
+                const data = d.data();
+                if (data.globalFreeze) document.getElementById('setGlobalFreeze').value = data.globalFreeze;
+                if (data.globalMax) document.getElementById('setGlobalMax').value = data.globalMax;
+                if (data.items) pengaturanPelanggaran = { ...DEFAULT_PELANGGARAN, ...data.items };
+            }
         });
-    } catch(e) { console.error(e); }
+        renderPengaturanPelanggaran();
+    } catch(e) { console.error(e); renderPengaturanPelanggaran(); }
+}
+
+function renderPengaturanPelanggaran() {
+    let html = '';
+    for (let key in pengaturanPelanggaran) {
+        const p = pengaturanPelanggaran[key];
+        html += `<div class="pelanggaran-item">
+            <div class="pelanggaran-header">
+                <i class="fas ${p.icon}" style="color:#1E3A8A;width:20px;text-align:center"></i>
+                <strong>${p.label}</strong>
+                <code>${key}</code>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+                    <input type="checkbox" id="enable_${key}" ${p.enabled?'checked':''} onchange="togglePelanggaran('${key}')" style="width:auto;cursor:pointer">
+                    <span style="color:${p.enabled?'#16A34A':'#94A3B8'};font-weight:600" id="label_${key}">${p.enabled?'ON':'OFF'}</span>
+                </label>
+            </div>
+            <div class="pelanggaran-grid">
+                <div>
+                    <label style="font-size:11px;color:#64748B;display:block;margin-bottom:4px">Freeze Duration (detik, 0=warning saja)</label>
+                    <input type="number" id="freeze_${key}" value="${p.freeze}" min="0" onchange="updatePelanggaran('${key}')">
+                </div>
+                <div>
+                    <label style="font-size:11px;color:#64748B;display:block;margin-bottom:4px">Max sebelum dibatalkan</label>
+                    <input type="number" id="max_${key}" value="${p.max}" min="1" onchange="updatePelanggaran('${key}')">
+                </div>
+            </div>
+        </div>`;
+    }
+    document.getElementById('listPengaturanPelanggaran').innerHTML = html;
+}
+
+function togglePelanggaran(key) {
+    const checkbox = document.getElementById(`enable_${key}`);
+    const label = document.getElementById(`label_${key}`);
+    pengaturanPelanggaran[key].enabled = checkbox.checked;
+    label.textContent = checkbox.checked ? 'ON' : 'OFF';
+    label.style.color = checkbox.checked ? '#16A34A' : '#94A3B8';
+}
+
+function updatePelanggaran(key) {
+    pengaturanPelanggaran[key].freeze = parseInt(document.getElementById(`freeze_${key}`).value) || 0;
+    pengaturanPelanggaran[key].max = parseInt(document.getElementById(`max_${key}`).value) || 5;
 }
 
 async function savePengaturan() {
-    const data = {
-        freezeDuration: parseInt(document.getElementById('setFreezeDuration').value)||30,
-        maxPelanggaran: parseInt(document.getElementById('setMaxPelanggaran').value)||5,
-        maxBlur: parseInt(document.getElementById('setMaxBlur').value)||3,
-        updatedAt: new Date().toISOString()
-    };
-    await window.Firebase.setDoc(window.Firebase.doc(window.db, 'pengaturan', 'main'), data);
-    toast('✅ Pengaturan disimpan!');
+    const globalFreeze = parseInt(document.getElementById('setGlobalFreeze').value) || 30;
+    const globalMax = parseInt(document.getElementById('setGlobalMax').value) || 5;
+    for (let key in pengaturanPelanggaran) {
+        const f = document.getElementById(`freeze_${key}`);
+        const m = document.getElementById(`max_${key}`);
+        const e = document.getElementById(`enable_${key}`);
+        if (f) pengaturanPelanggaran[key].freeze = parseInt(f.value) || 0;
+        if (m) pengaturanPelanggaran[key].max = parseInt(m.value) || 5;
+        if (e) pengaturanPelanggaran[key].enabled = e.checked;
+    }
+    try {
+        await window.Firebase.setDoc(window.Firebase.doc(window.db, 'pengaturan', 'pelanggaran'), { globalFreeze, globalMax, items: pengaturanPelanggaran, updatedAt: new Date().toISOString() });
+        toast('✅ Pengaturan disimpan!');
+    } catch(e) { toast('❌ ' + e.message, 'error'); }
+}
+
+async function resetPengaturan() {
+    if (!confirm('🔄 Reset ke default?')) return;
+    pengaturanPelanggaran = JSON.parse(JSON.stringify(DEFAULT_PELANGGARAN));
+    document.getElementById('setGlobalFreeze').value = 30;
+    document.getElementById('setGlobalMax').value = 5;
+    renderPengaturanPelanggaran();
+    toast('🔄 Direset');
 }
 
 // ==================== EXPORTS ====================
-window.switchTab = switchTab;
-window.syncSiswa = syncSiswa;
-window.renderSiswa = renderSiswa;
-window.openFormJadwal = openFormJadwal;
-window.editJadwal = editJadwal;
-window.deleteJadwal = deleteJadwal;
-window.deleteAllJadwal = deleteAllJadwal;
-window.saveJadwal = saveJadwal;
-window.openFormToken = openFormToken;
-window.editToken = editToken;
-window.deleteToken = deleteToken;
-window.deleteAllToken = deleteAllToken;
-window.saveToken = saveToken;
-window.syncSoal = syncSoal;
-window.renderSoal = renderSoal;
-window.openFormReset = openFormReset;
-window.saveReset = saveReset;
-window.deleteReset = deleteReset;
-window.deleteAllReset = deleteAllReset;
-window.renderHasil = renderHasil;
-window.exportHasil = exportHasil;
-window.deleteAllNilai = deleteAllNilai;
-window.savePengaturan = savePengaturan;
-window.closeModal = closeModal;
+Object.assign(window, {
+    switchTab, syncSiswa, renderSiswa, openFormJadwal, editJadwal, deleteJadwal, deleteAllJadwal, saveJadwal,
+    openFormToken, editToken, deleteToken, deleteAllToken, saveToken, syncSoal, renderSoal,
+    openFormReset, saveReset, deleteReset, deleteAllReset, renderHasil, exportHasil, deleteAllNilai,
+    savePengaturan, closeModal, loadPengaturan, togglePelanggaran, updatePelanggaran, resetPengaturan
+});
 
-// ==================== INIT ====================
 window.addEventListener('load', () => {
-    setTimeout(() => {
-        if (window.db && window.Firebase) loadDashboard();
-        else setTimeout(() => loadDashboard(), 1000);
+    setTimeout(() => { if (window.db && window.Firebase) loadDashboard(); else setTimeout(() => loadDashboard(), 1000); }, 500);
+});
+
+// ==================== KONFIGURASI ====================
+const CONFIG = {
+    SPREADSHEET_ID: '1zc5lh-8XWEhGYJajqooWGK3Vo89kqob1iAaIdaIiXc0',
+    API_KEY: 'AIzaSyAG16CaL_CwY6Hktj6nNrxCoPjYXcJZHcE'
+};
+
+// ==================== VARIABEL GLOBAL ====================
+let currentUser = null, currentUjian = null, dataSoal = [], indexSoal = 0, jawabanLokal = {}, raguLokal = {},
+    timerInterval = null, waktuSelesai = null, waktuMulaiServer = null, minimalMenit = 0, ujianSelesai = false,
+    idSesi = null, pelanggaranCount = 0, totalPenalti = 0, tombolSelesaiAktif = true, isFullscreen = false,
+    isFrozen = false, freezeInterval = null, pendingUser = null, pendingUjian = null, pendingWaktuSelesai = null,
+    pendingSesiAktif = null, isLocked = false, debounceTimer = null, freezeDuration = 30, maxPelanggaran = 5,
+    pendingSiswa = null, daftarUjianAktif = [], countdownInterval = null, isDragging = false, screenshotBlocked = false, lastVisibilityChangeTime = 0;
+
+window.currentMatchingSoal = null;
+window.currentMatchingJawaban = {};
+window.hurufMapping = {};
+window.skorPerSoal = {};
+window.pelanggaranPerJenis = {};
+
+// ==================== PENGATURAN PELANGGARAN ====================
+let pengaturanPelanggaran = {};
+let globalFreeze = 30;
+let globalMaxPelanggaran = 5;
+
+async function loadPengaturanPelanggaran() {
+    try {
+        const snap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'pengaturan'));
+        snap.forEach(d => {
+            if (d.id === 'pelanggaran') {
+                const data = d.data();
+                globalFreeze = data.globalFreeze || 30;
+                globalMaxPelanggaran = data.globalMax || 5;
+                pengaturanPelanggaran = data.items || {};
+                freezeDuration = globalFreeze;
+                maxPelanggaran = globalMaxPelanggaran;
+                console.log('✅ Pengaturan pelanggaran dimuat:', Object.keys(pengaturanPelanggaran).length, 'item');
+            }
+        });
+    } catch(e) { console.warn('⚠️ Gagal load pengaturan:', e); }
+}
+
+function isPelanggaranAktif(kode) {
+    const p = pengaturanPelanggaran[kode];
+    if (!p) return true;
+    return p.enabled !== false;
+}
+
+function getFreezeDuration(kode) {
+    const p = pengaturanPelanggaran[kode];
+    if (!p) return globalFreeze;
+    return p.freeze !== undefined ? p.freeze : globalFreeze;
+}
+
+function getMaxPelanggaran(kode) {
+    const p = pengaturanPelanggaran[kode];
+    if (!p) return globalMaxPelanggaran;
+    return p.max !== undefined ? p.max : globalMaxPelanggaran;
+}
+
+// ==================== TOAST & MODAL ====================
+function showToast(m, t = "info", d = 2000) { const c = document.getElementById("toastContainer"); if (!c) { alert(m); return; } const e = document.createElement("div"); e.className = `toast ${t}`; e.innerHTML = `<i class="fas fa-${t === "success" ? "check-circle" : t === "error" ? "times-circle" : t === "warning" ? "exclamation-triangle" : "info-circle"}"></i> ${m}`; c.appendChild(e); setTimeout(() => { e.classList.add("hide"); setTimeout(() => e.remove(), 300); }, d); }
+function showModal(o) { const v = document.getElementById("modalOverlay"); if (!v) { alert(o.message); return; } const { icon: i, iconType: t = "info", title: d, message: m, showCheckbox: s = false, checkboxLabel: c = "", buttons: b = [], onClose: l } = o; document.getElementById("modalIcon").textContent = i || (t === "success" ? "✅" : t === "error" ? "❌" : t === "warning" ? "⚠️" : "ℹ️"); document.getElementById("modalIcon").className = `modal-icon ${t}`; document.getElementById("modalTitle").textContent = d; document.getElementById("modalMessage").textContent = m; const h = document.getElementById("modalCheckboxContainer"); if (s) { h.style.display = "flex"; document.getElementById("modalCheckboxLabel").textContent = c; document.getElementById("modalCheckbox").checked = false; } else h.style.display = "none"; const u = document.getElementById("modalButtons"); u.innerHTML = ""; b.forEach(n => { const x = document.createElement("button"); x.className = `modal-btn ${n.type || "secondary"}`; x.textContent = n.text; x.onclick = () => { if (n.onClick) n.onClick(s ? document.getElementById("modalCheckbox").checked : false); closeModal(); }; u.appendChild(x); }); v.style.display = "flex"; v.onclick = e => { if (e.target === v) { closeModal(); if (l) l(); } }; }
+function closeModal() { document.getElementById("modalOverlay").style.display = "none"; }
+function showSuccess(m) { showToast(m, "success"); }
+function showError(m) { showToast(m, "error"); }
+
+// ==================== FREEZE ====================
+function freezeScreen(d = null) {
+    if (isFrozen) return;
+    if (d === 0) return;
+    isFrozen = true;
+    const dur = d !== null ? d : freezeDuration;
+    const o = document.getElementById("freezeOverlay"), t = document.getElementById("freezeTimer");
+    o.style.display = "flex";
+    let r = dur;
+    const e = () => {
+        const m = Math.floor(r / 60), s = r % 60;
+        t.textContent = `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+        if (r <= 0) { clearInterval(freezeInterval); o.style.display = "none"; isFrozen = false; showToast("Layar sudah tidak dibekukan!", "warning", 5000); }
+        r--;
+    };
+    e();
+    freezeInterval = setInterval(e, 1000);
+}
+
+// ==================== HELPER ====================
+function togglePassword() { const i = document.getElementById("passwordInput"); if (i) { i.type = i.type === "password" ? "text" : "password"; const icon = document.querySelector('.toggle-password-modern'); if (icon) icon.className = i.type === "password" ? "fas fa-eye toggle-password-modern" : "fas fa-eye-slash toggle-password-modern"; } }
+function toggleNav() { if (isFrozen) return; document.getElementById("navPanel").classList.toggle("show"); }
+function toggleRagu() { if (isFrozen || !dataSoal[indexSoal]) return; raguLokal[dataSoal[indexSoal].id] = !raguLokal[dataSoal[indexSoal].id]; renderNavigator(); showToast(raguLokal[dataSoal[indexSoal].id] ? "Ditandai ragu" : "Tanda ragu dihapus", "info", 1500); }
+function updateNavInfo() { const t = dataSoal.length, j = Object.keys(jawabanLokal).length, e = document.getElementById("navInfo"); if (e) e.textContent = `✅ ${j}/${t} terjawab`; }
+
+function parseTanggal(s) { if (!s) return null; s = String(s).trim(); const p = s.split('-'); if (p.length === 3) return new Date(parseInt(p[0]), parseInt(p[1])-1, parseInt(p[2])); const p2 = s.split('/'); if (p2.length === 3) return new Date(parseInt(p2[2]), parseInt(p2[1])-1, parseInt(p2[0])); return null; }
+function formatTanggal(d) { if (!d) return ''; const t = new Date(d); return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`; }
+function parseWaktu(w, ref) { if (!w || !w.trim()) return null; const p = String(w).trim().split(':'); if (p.length >= 2) { const t = ref ? new Date(ref) : new Date(); t.setHours(parseInt(p[0]), parseInt(p[1]), 0, 0); return t; } return null; }
+
+// ==================== FULLSCREEN ====================
+function enterFullscreen(){const e=document.documentElement;if(e.requestFullscreen){e.requestFullscreen().catch(()=>{isFullscreen=true})}else if(e.webkitRequestFullscreen){e.webkitRequestFullscreen();isFullscreen=true}else{isFullscreen=true;showToast('📱 Mode ujian aktif!','info',2000)}}
+function showFullscreenPrompt(){if(/iPhone|iPad|iPod/i.test(navigator.userAgent)){isFullscreen=true;return}showModal({iconType:"info",title:"Mode Fullscreen Wajib",message:"Klik tombol di bawah untuk masuk fullscreen.",buttons:[{text:"Masuk Fullscreen",type:"primary",onClick:()=>enterFullscreen()}],onClose:()=>{if(!isFullscreen)showFullscreenPrompt()}})}
+document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement) { if (currentUser && !ujianSelesai) { isFullscreen = false; catatPelanggaran("FULLSCREEN_EXIT", "Keluar fullscreen"); if (isPelanggaranAktif('FULLSCREEN_EXIT')) { const dur = getFreezeDuration('FULLSCREEN_EXIT'); if (dur > 0) freezeScreen(dur); } showFullscreenPrompt(); } } else isFullscreen = true; });
+
+// ==================== ANTI-CURANG ====================
+window.addEventListener('pagehide', () => { isLocked = true; });
+window.addEventListener('pageshow', () => { if (isLocked) isLocked = false; });
+
+document.addEventListener("contextmenu", e => { e.preventDefault(); if (currentUser && !ujianSelesai && !isFrozen && isPelanggaranAktif('RIGHT_CLICK')) { catatPelanggaran("RIGHT_CLICK", "Klik kanan"); const dur = getFreezeDuration('RIGHT_CLICK'); if (dur > 0) freezeScreen(dur); } });
+
+document.addEventListener('selectstart', e => { if (currentUser && !ujianSelesai) e.preventDefault(); });
+
+document.addEventListener("keydown", e => {
+    if (!currentUser || ujianSelesai || isFrozen) return;
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+    if (e.key === "F11" || e.key === "Escape" || e.key === "PrintScreen") {
+        e.preventDefault();
+        if (e.key === "PrintScreen" && isPelanggaranAktif('PRINT_SCREEN')) {
+            catatPelanggaran('PRINT_SCREEN', 'Screenshot');
+            const dur = getFreezeDuration('PRINT_SCREEN');
+            if (dur > 0) freezeScreen(dur);
+            showToast('🚫 Screenshot tidak diizinkan!', 'error');
+        }
+        return false;
+    }
+    if (e.ctrlKey && ['w','t','n','p','c','v','a','x'].includes(e.key.toLowerCase())) {
+        e.preventDefault();
+        if (isPelanggaranAktif('KEYBOARD')) {
+            catatPelanggaran("KEYBOARD", `Ctrl+${e.key.toUpperCase()}`);
+            showToast(`🚫 Ctrl+${e.key.toUpperCase()} dilarang!`, 'warning');
+            const dur = getFreezeDuration('KEYBOARD');
+            if (dur > 0) freezeScreen(dur);
+        }
+        return false;
+    }
+});
+
+window.addEventListener("beforeunload", e => { if (currentUser && !ujianSelesai) { e.preventDefault(); e.returnValue = ""; } });
+
+// ==================== CATAT PELANGGARAN ====================
+function catatPelanggaran(j, d) {
+    if (!currentUser || ujianSelesai) return;
+    if (!isPelanggaranAktif(j)) { console.log(`⏭️ ${j} OFF, skip`); return; }
+    
+    pelanggaranCount++;
+    totalPenalti++;
+    if (!window.pelanggaranPerJenis) window.pelanggaranPerJenis = {};
+    window.pelanggaranPerJenis[j] = (window.pelanggaranPerJenis[j] || 0) + 1;
+    
+    const maxJenis = getMaxPelanggaran(j);
+    console.warn(`⚠️ ${j} - ${d} (${window.pelanggaranPerJenis[j]}/${maxJenis})`);
+    
+    if (window.pelanggaranPerJenis[j] >= maxJenis && maxJenis > 0) {
+        showModal({
+            iconType: 'error',
+            title: '⛔ UJIAN DIBATALKAN',
+            message: `${d} terdeteksi ${window.pelanggaranPerJenis[j]}x (maks: ${maxJenis}). Ujian diakhiri.`,
+            buttons: [{ text: 'OK', type: 'primary', onClick: () => selesaiUjian() }]
+        });
+    }
+}
+
+// ==================== ANTI-FLOATING APPS ====================
+let blurCount = 0, lastBlurTime = 0, lastWindowSize = { width: innerWidth, height: innerHeight }, resizeTimer = null, touchStart = 0, touchCount = 0, devtoolsOpen = false, lastVisChange = 0;
+const BLUR_COOLDOWN = 5000, DEV_THRESHOLD = 160, VIS_COOLDOWN = 3000;
+
+window.addEventListener('blur', () => {
+    if (!currentUser || ujianSelesai || isFrozen || isDragging) return;
+    if (!isPelanggaranAktif('WINDOW_BLUR')) return;
+    const n = Date.now();
+    if (n - lastBlurTime < BLUR_COOLDOWN) return;
+    lastBlurTime = n;
+    blurCount++;
+    catatPelanggaran('WINDOW_BLUR', `Keluar (${blurCount})`);
+    const dur = getFreezeDuration('WINDOW_BLUR');
+    if (dur > 0) freezeScreen(dur);
+    document.getElementById('alertOverlay').style.display = 'block';
+    document.getElementById('alertSound').play();
+    showToast(`⚠️ Jangan buka aplikasi lain!`, 'error', 5000);
+    setTimeout(() => document.getElementById('alertOverlay').style.display = 'none', 3000);
+});
+
+window.addEventListener('resize', () => {
+    if (!currentUser || ujianSelesai || isFrozen) return;
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+        const nW = innerWidth, nH = innerHeight;
+        if ((Math.abs(nW - lastWindowSize.width) / lastWindowSize.width > 0.4 || Math.abs(nH - lastWindowSize.height) / lastWindowSize.height > 0.4) && isFullscreen && isPelanggaranAktif('RESIZE_DRASTIC')) {
+            catatPelanggaran('RESIZE_DRASTIC', 'Ukuran drastis');
+            showToast('⚠️ Perubahan mencurigakan!', 'warning', 4000);
+        }
+        lastWindowSize = { width: nW, height: nH };
     }, 500);
 });
+
+document.addEventListener('mouseleave', e => {
+    if (!currentUser || ujianSelesai || isFrozen || isDragging) return;
+    if (!isPelanggaranAktif('MOUSE_LEAVE')) return;
+    if (e.clientY <= 0 || e.clientX <= 0 || e.clientX >= innerWidth || e.clientY >= innerHeight) {
+        const n = Date.now();
+        if (n - lastBlurTime < BLUR_COOLDOWN) return;
+        lastBlurTime = n;
+        catatPelanggaran('MOUSE_LEAVE', 'Kursor keluar');
+        showToast('👆 Kursor keluar area!', 'warning', 3000);
+    }
+});
+
+document.addEventListener('touchstart', e => {
+    if (!currentUser || ujianSelesai || isFrozen || isDragging) return;
+    if (e.touches.length > 3 && isPelanggaranAktif('MULTI_TOUCH')) {
+        catatPelanggaran('MULTI_TOUCH', `${e.touches.length} jari`);
+        showToast(`⚠️ Multi-touch ${e.touches.length} jari!`, 'warning', 3000);
+    }
+    const n = Date.now();
+    if (n - touchStart < 100) {
+        touchCount++;
+        if (touchCount > 5 && isPelanggaranAktif('RAPID_TOUCH')) {
+            catatPelanggaran('RAPID_TOUCH', 'Sentuhan cepat');
+            showToast('⚠️ Terlalu cepat!', 'warning', 3000);
+            touchCount = 0;
+        }
+    } else touchCount = 0;
+    touchStart = n;
+});
+
+document.addEventListener('touchstart', function(e) {
+    if (e.touches.length >= 3 && currentUser && !ujianSelesai && isPelanggaranAktif('SCREENSHOT_DETECT')) {
+        e.preventDefault();
+        showToast('🚫 Screenshot tidak diizinkan!', 'error', 2000);
+    }
+}, { passive: false });
+
+function detectDevTools() {
+    if (!currentUser || ujianSelesai) return;
+    if (!isPelanggaranAktif('DEVTOOLS_OPEN')) return;
+    if ((outerWidth - innerWidth > DEV_THRESHOLD || outerHeight - innerHeight > DEV_THRESHOLD) && !devtoolsOpen) {
+        devtoolsOpen = true;
+        catatPelanggaran('DEVTOOLS_OPEN', 'DevTools');
+        const dur = getFreezeDuration('DEVTOOLS_OPEN');
+        if (dur > 0) freezeScreen(dur);
+        showToast('🚫 Developer tools!', 'error', 5000);
+    } else devtoolsOpen = false;
+}
+setInterval(detectDevTools, 1000);
+
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden && currentUser && !ujianSelesai && !isFrozen) {
+        const n = Date.now();
+        if (n - lastVisChange < VIS_COOLDOWN) return;
+        lastVisChange = n;
+        if (n - lastVisibilityChangeTime < 500 && isPelanggaranAktif('SCREENSHOT_DETECT')) {
+            catatPelanggaran('SCREENSHOT_DETECT', 'Kemungkinan screenshot');
+            showToast('🚫 Screenshot terdeteksi!', 'error', 3000);
+        }
+        lastVisibilityChangeTime = n;
+        if (!isLocked && isPelanggaranAktif('TAB_SWITCH')) {
+            catatPelanggaran('TAB_SWITCH', 'Pindah tab');
+            const dur = getFreezeDuration('TAB_SWITCH');
+            if (dur > 0) freezeScreen(dur);
+            document.getElementById('alertOverlay').style.display = 'block';
+            document.getElementById('alertSound').play();
+            showToast('🚫 Jangan pindah tab!', 'error', 4000);
+            setTimeout(() => document.getElementById('alertOverlay').style.display = 'none', 3000);
+        }
+    }
+});
+
+// ==================== UPDATE TOMBOL SELESAI ====================
+function updateTombolSelesai() { const b = document.querySelector(".btn-selesai-modern"); if (!b || !waktuMulaiServer) return; tombolSelesaiAktif = true; b.disabled = false; b.innerHTML = `<i class="fas fa-check-circle"></i> SELESAI`; }
+
+// ==================== PARSE ISTILAH ====================
+function parseIstilahDariPertanyaan(teks) { const map = {}; let t = teks; ['BAGIAN B','Bagian B','Pilihan:','Pilihan Jawaban:','\nA.','\nA)','\nA ','A. if','A. '].forEach(m => { const i = teks.indexOf(m); if (i !== -1) t = teks.substring(0, i); }); const lines = t.split('\n'); let cur = null; lines.forEach(l => { l = l.trim(); if (!l) return; const m = l.match(/^(\d+)\.\s+(.+)$/); if (m) { cur = m[1]; map[cur] = m[2]; } else if (cur) map[cur] += ' ' + l; }); if (!Object.keys(map).length) { const r = /(\d+)\.\s*([^\n]+)/g; let m; while ((m = r.exec(t)) !== null) map[m[1]] = m[2].trim(); } return map; }
+
+// ==================== LOGIN (FIREBASE) ====================
+async function handleLogin() {
+    const u = document.getElementById("usernameInput").value.trim(), p = document.getElementById("passwordInput").value.trim();
+    if (!u) { showError("Isi username!"); return; }
+    if (!p) { showError("Isi password!"); return; }
+    try {
+        await loadPengaturanPelanggaran();
+        
+        const coll = window.Firebase.collection(window.db, 'cache_siswa');
+        const q = window.Firebase.query(coll, window.Firebase.where('username', '==', u));
+        const snap = await window.Firebase.getDocs(q);
+        if (snap.empty) { showError("Username tidak terdaftar!"); return; }
+        const data = snap.docs[0].data();
+        if (data.password !== p) { showError("Password salah!"); return; }
+        const siswa = { nis: data.nis, nama: data.nama, username: data.username, kelas: data.kelas, jenjang: data.jenjang };
+        document.getElementById("passwordInput").value = "";
+        pendingSiswa = siswa;
+        document.getElementById("loginScreen").style.display = "none";
+        document.getElementById("dashboardScreen").style.display = "block";
+        document.getElementById("dashboardNama").textContent = siswa.nama;
+        document.getElementById("dashboardNIS").textContent = siswa.nis;
+        document.getElementById("dashboardKelas").textContent = siswa.kelas;
+        await loadUjianAktif(siswa);
+    } catch (e) { console.error(e); showError("Gagal terhubung."); }
+}
+
+// ==================== CEK RESET (FIREBASE) ====================
+async function cekResetUjian(u, m, j) {
+    try {
+        const snap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'cache_reset'));
+        for (const d of snap.docs) {
+            const row = d.data();
+            if (row.username === u && (row.mapel === m || row.mapel === '*' || row.mapel === 'SEMUA') && (row.jenis === j || row.jenis === '*' || row.jenis === 'SEMUA') && row.reset === 'YA') return true;
+        }
+    } catch(e) {}
+    return false;
+}
+
+// ==================== LOAD UJIAN AKTIF (FIREBASE) ====================
+async function loadUjianAktif(siswa) {
+    const container = document.getElementById("ujianAktifList");
+    try {
+        const jadwalColl = window.Firebase.collection(window.db, 'cache_jadwal');
+        const jadwalQ = window.Firebase.query(jadwalColl, window.Firebase.where('jenjang', '==', siswa.jenjang), window.Firebase.where('status', '==', 'Aktif'));
+        const jadwalSnap = await window.Firebase.getDocs(jadwalQ);
+        
+        const tokenColl = window.Firebase.collection(window.db, 'cache_token');
+        const tokenSnap = await window.Firebase.getDocs(tokenColl);
+        const tokenMap = {};
+        tokenSnap.forEach(d => { const t = d.data(); tokenMap[t.token] = t; });
+        
+        const now = new Date(), hariIni = formatTanggal(now);
+        daftarUjianAktif = [];
+        
+        for (const docSnap of jadwalSnap.docs) {
+            const row = docSnap.data();
+            const tgl = parseTanggal(row.tanggal);
+            if (!tgl || formatTanggal(tgl) !== hariIni) continue;
+            
+            const tokenInfo = tokenMap[row.token];
+            const mapelCek = tokenInfo?.mapel || row.mapel;
+            const jenisCek = tokenInfo?.jenis || row.jenis;
+            
+            let statusWaktu = 'tersedia', mulaiObj = null, selesaiObj = null;
+            if (row.waktuMulai && row.waktuSelesai) {
+                mulaiObj = parseWaktu(row.waktuMulai, tgl);
+                selesaiObj = parseWaktu(row.waktuSelesai, tgl);
+                if (mulaiObj && selesaiObj) statusWaktu = now < mulaiObj ? 'belum_mulai' : (now > selesaiObj ? 'selesai' : 'berlangsung');
+            }
+            
+            let sudahSelesai = false, nilaiData = null;
+            if (!(await cekResetUjian(siswa.username, mapelCek, jenisCek)) && window.db) {
+                try {
+                    const q = window.Firebase.query(window.Firebase.collection(window.db,'nilai_akhir'), window.Firebase.where('username','==',siswa.username), window.Firebase.where('mapel','==',mapelCek), window.Firebase.where('jenisUjian','==',jenisCek));
+                    const snap = await window.Firebase.getDocs(q);
+                    if (!snap.empty) { sudahSelesai = true; nilaiData = snap.docs[0].data(); }
+                } catch(e) {}
+            }
+            
+            daftarUjianAktif.push({
+                token: row.token, mapel: mapelCek, jenis: jenisCek, tanggal: hariIni,
+                waktuMulai: row.waktuMulai, waktuSelesai: row.waktuSelesai,
+                waktuMulaiObj: mulaiObj, waktuSelesaiObj: selesaiObj,
+                statusWaktu, sudahSelesai, nilaiData, password: row.password || ''
+            });
+        }
+        
+        daftarUjianAktif.sort((a,b) => a.statusWaktu === 'berlangsung' ? -1 : 1);
+        renderUjianList(daftarUjianAktif);
+        startCountdown();
+    } catch (e) { console.error(e); container.innerHTML = `<div class="ujian-empty"><i class="fas fa-exclamation-triangle"></i><h4>Gagal Memuat</h4></div>`; }
+}
+
+// ==================== RENDER UJIAN LIST ====================
+function renderUjianList(list) {
+    const container = document.getElementById("ujianAktifList");
+    if (!list.length) { container.innerHTML = `<div class="ujian-empty"><i class="fas fa-calendar-times"></i><h4>Tidak Ada Ujian</h4></div>`; return; }
+    let html = ''; const now = new Date();
+    list.forEach((u, i) => {
+        let status = '', cls = '', can = false, waktu = '';
+        if (u.sudahSelesai) { status = `✅ Selesai | ${u.nilaiData?.totalSkor?.toFixed(0)||'0'}/${u.nilaiData?.totalBobot||'?'}`; cls = 'status-selesai'; waktu = `<span><i class="fas fa-check-circle"></i> Sudah dikerjakan</span>`; }
+        else if (!u.waktuMulaiObj) { status = '📋 Tersedia'; cls = 'status-berlangsung'; can = true; waktu = `<span><i class="fas fa-clock"></i> ${u.waktuMulai||'-'} - ${u.waktuSelesai||'-'}</span>`; }
+        else if (now < u.waktuMulaiObj) { const d = Math.floor((u.waktuMulaiObj - now) / 1000); status = `⏰ Mulai <span class="countdown" data-i="${i}" data-type="mulai">${String(Math.floor(d/3600)).padStart(2,'0')}:${String(Math.floor((d%3600)/60)).padStart(2,'0')}:${String(d%60).padStart(2,'0')}</span>`; cls = 'status-belum'; waktu = `<span><i class="fas fa-clock"></i> ${u.waktuMulai} - ${u.waktuSelesai}</span>`; }
+        else if (now > u.waktuSelesaiObj) { status = '❌ Berakhir'; cls = 'status-selesai'; waktu = `<span><i class="fas fa-clock"></i> ${u.waktuMulai} - ${u.waktuSelesai}</span>`; }
+        else { const d = Math.floor((u.waktuSelesaiObj - now) / 1000); status = `🟢 Sisa <span class="countdown" data-i="${i}" data-type="selesai">${String(Math.floor(d/3600)).padStart(2,'0')}:${String(Math.floor((d%3600)/60)).padStart(2,'0')}:${String(d%60).padStart(2,'0')}</span>`; cls = 'status-berlangsung'; can = true; waktu = `<span><i class="fas fa-hourglass-half"></i> ${u.waktuMulai} - ${u.waktuSelesai}</span>`; }
+        html += `<div class="ujian-card" data-index="${i}" onclick="pilihUjian('${u.token}')"><div class="ujian-card-header"><div class="ujian-icon"><i class="fas fa-book-open"></i></div><div class="ujian-info"><h4>${u.mapel}</h4><div class="ujian-meta"><span><i class="fas fa-tag"></i> ${u.jenis}</span>${waktu}</div></div></div><div class="ujian-card-footer"><span class="ujian-status ${cls}">${status}</span><button class="btn-mulai" ${can?'':'disabled'} onclick="event.stopPropagation();pilihUjian('${u.token}')"><i class="fas fa-play"></i> Mulai</button></div></div>`;
+    });
+    container.innerHTML = html;
+}
+
+// ==================== COUNTDOWN ====================
+function startCountdown() {
+    if (countdownInterval) clearInterval(countdownInterval);
+    function update() {
+        const now = new Date(); let render = false;
+        daftarUjianAktif.forEach((u, i) => {
+            if (u.sudahSelesai || !u.waktuMulaiObj) return;
+            const card = document.querySelector(`.ujian-card[data-index="${i}"]`); if (!card) return;
+            const span = card.querySelector('.ujian-status'), btn = card.querySelector('.btn-mulai');
+            if (now < u.waktuMulaiObj) {
+                const d = Math.floor((u.waktuMulaiObj - now) / 1000);
+                const c = span?.querySelector('.countdown');
+                if (c) c.textContent = `${String(Math.floor(d/3600)).padStart(2,'0')}:${String(Math.floor((d%3600)/60)).padStart(2,'0')}:${String(d%60).padStart(2,'0')}`;
+            } else if (now > u.waktuSelesaiObj) {
+                span.className = 'ujian-status status-selesai'; span.textContent = '❌ Berakhir';
+                if (btn) btn.disabled = true; u.statusWaktu = 'selesai';
+            } else {
+                const d = Math.floor((u.waktuSelesaiObj - now) / 1000);
+                if (u.statusWaktu !== 'berlangsung') { u.statusWaktu = 'berlangsung'; render = true; }
+                else { const c = span?.querySelector('.countdown'); if (c) c.textContent = `${String(Math.floor(d/3600)).padStart(2,'0')}:${String(Math.floor((d%3600)/60)).padStart(2,'0')}:${String(d%60).padStart(2,'0')}`; }
+            }
+        });
+        if (render) renderUjianList(daftarUjianAktif);
+    }
+    countdownInterval = setInterval(update, 1000);
+    update();
+}
+
+// ==================== PILIH UJIAN ====================
+async function pilihUjian(token) {
+    const u = daftarUjianAktif.find(x => x.token === token);
+    if (!u) { showError("Ujian tidak ditemukan!"); return; }
+    if (u.sudahSelesai) { showError("Sudah selesai!"); return; }
+    const now = new Date();
+    if (u.waktuMulaiObj && now < u.waktuMulaiObj) { showError(`Belum mulai! Sisa ${Math.floor((u.waktuMulaiObj-now)/60000)} menit.`); return; }
+    if (u.waktuSelesaiObj && now > u.waktuSelesaiObj) { showError("Sudah berakhir!"); return; }
+    if (u.password && u.password.trim() !== '') { const pw = prompt('🔐 Ujian ini terkunci. Masukkan password:'); if (pw !== u.password) { showError('❌ Password salah!'); return; } showToast('✅ Password benar!', 'success', 1000); }
+    document.getElementById("tokenInput").value = token;
+    await prosesUjianDipilih(u);
+}
+
+// ==================== PROSES UJIAN DIPILIH ====================
+async function prosesUjianDipilih(u) {
+    const siswa = pendingSiswa;
+    try {
+        const tokenColl = window.Firebase.collection(window.db, 'cache_token');
+        const tokenQ = window.Firebase.query(tokenColl, window.Firebase.where('token', '==', u.token), window.Firebase.where('status', '==', 'Aktif'));
+        const tokenSnap = await window.Firebase.getDocs(tokenQ);
+        if (tokenSnap.empty) { showError("Token tidak valid!"); return; }
+        const info = tokenSnap.docs[0].data();
+        if (info.jenjang !== siswa.jenjang) { showError(`Untuk kelas ${info.jenjang}!`); return; }
+        
+        const jadwalColl = window.Firebase.collection(window.db, 'cache_jadwal');
+        const jadwalQ = window.Firebase.query(jadwalColl, window.Firebase.where('jenjang', '==', info.jenjang), window.Firebase.where('mapel', '==', info.mapel), window.Firebase.where('jenis', '==', info.jenis), window.Firebase.where('status', '==', 'Aktif'));
+        const jadwalSnap = await window.Firebase.getDocs(jadwalQ);
+        if (jadwalSnap.empty) { showError("Jadwal tidak ditemukan!"); return; }
+        const jadwal = jadwalSnap.docs[0].data();
+        
+        const now = new Date(), tgl = parseTanggal(jadwal.tanggal);
+        if (formatTanggal(tgl) !== formatTanggal(now)) { showError(`Jadwal tanggal ${formatTanggal(tgl)}`); return; }
+        if (jadwal.waktuMulai) { const m = parseWaktu(jadwal.waktuMulai, tgl); if (m && now < m) { showError(`Belum mulai!`); return; } }
+        if (jadwal.waktuSelesai) { const s = parseWaktu(jadwal.waktuSelesai, tgl); if (s && now > s) { showError(`Sudah berakhir!`); return; } }
+        
+        const wS = parseWaktu(jadwal.waktuSelesai, tgl) || new Date();
+        const jadwalLengkap = { ...info, ...jadwal, min: jadwal.minimalMenit || 0 };
+        
+        if (!(await cekResetUjian(siswa.username, info.mapel, info.jenis)) && window.db) {
+            const sesiSnap = await window.Firebase.getDocs(window.Firebase.query(window.Firebase.collection(window.db,'sesi_ujian'), window.Firebase.where('username','==',siswa.username), window.Firebase.where('status','==','Aktif'), window.Firebase.where('mapel','==',info.mapel)));
+            if (!sesiSnap.empty) {
+                const sesi = sesiSnap.docs[0].data(); sesi.idSesi = sesiSnap.docs[0].id;
+                pendingUser = siswa; pendingUjian = jadwalLengkap; pendingWaktuSelesai = wS; pendingSesiAktif = sesi;
+                clearInterval(countdownInterval);
+                document.getElementById("dashboardScreen").style.display = "none";
+                document.getElementById("resumeScreen").style.display = "block";
+                document.getElementById("resumeMapel").textContent = info.mapel;
+                document.getElementById("resumeJenis").textContent = info.jenis;
+                const sisa = Math.max(Math.floor((wS - now) / 1000), 0);
+                document.getElementById("resumeSisaWaktu").textContent = `${Math.floor(sisa/3600)}j ${Math.floor((sisa%3600)/60)}m`;
+                return;
+            }
+            const nilaiSnap = await window.Firebase.getDocs(window.Firebase.query(window.Firebase.collection(window.db,'nilai_akhir'), window.Firebase.where('username','==',siswa.username), window.Firebase.where('mapel','==',info.mapel), window.Firebase.where('jenisUjian','==',info.jenis)));
+            if (!nilaiSnap.empty) {
+                const n = nilaiSnap.docs[0].data();
+                showModal({ iconType: 'warning', title: '⏰ Sudah Selesai', message: `Nilai: ${n.totalSkor}/${n.totalBobot}`, buttons: [{ text: 'OK', type: 'primary' }] });
+                return;
+            }
+        }
+        
+        clearInterval(countdownInterval);
+        document.getElementById("dashboardScreen").style.display = "none";
+        document.getElementById("confirmScreen").style.display = "block";
+        pendingUser = siswa; pendingUjian = jadwalLengkap; pendingWaktuSelesai = wS;
+        document.getElementById("confirmNIS").textContent = siswa.nis;
+        document.getElementById("confirmNama").textContent = siswa.nama;
+        document.getElementById("confirmKelas").textContent = siswa.kelas;
+        document.getElementById("confirmMapel").textContent = `${info.mapel} - ${info.jenis}`;
+        document.getElementById("confirmWaktu").textContent = `${jadwal.waktuMulai||'-'} - ${jadwal.waktuSelesai||'-'}`;
+    } catch (e) { console.error(e); showError("Gagal memproses."); }
+}
+
+// ==================== LOGOUT & CANCEL ====================
+function logoutToLogin() { clearInterval(countdownInterval); pendingSiswa = null; document.getElementById("dashboardScreen").style.display = "none"; document.getElementById("loginScreen").style.display = "block"; document.getElementById("usernameInput").value = document.getElementById("passwordInput").value = ""; }
+function cancelConfirm() { document.getElementById("confirmScreen").style.display = "none"; document.getElementById("dashboardScreen").style.display = "block"; startCountdown(); }
+function cancelResume() { if (!confirm("Hapus sesi?")) return; if (pendingSesiAktif && window.db) window.Firebase.addDoc(window.Firebase.collection(window.db,'sesi_ujian'), {...pendingSesiAktif, status:'Dibatalkan'}); document.getElementById("resumeScreen").style.display = "none"; document.getElementById("confirmScreen").style.display = "block"; document.getElementById("confirmNIS").textContent = pendingUser.nis; document.getElementById("confirmNama").textContent = pendingUser.nama; document.getElementById("confirmKelas").textContent = pendingUser.kelas; document.getElementById("confirmMapel").textContent = `${pendingUjian.mapel} - ${pendingUjian.jenis}`; document.getElementById("confirmWaktu").textContent = `${pendingUjian.waktuMulai||pendingUjian.mulai||'-'} - ${pendingUjian.waktuSelesai||pendingUjian.selesai||'-'}`; }
+
+// ==================== CONTINUE & START EXAM ====================
+async function continueExam() {
+    if (!pendingUser || !pendingUjian || !pendingSesiAktif) { cancelResume(); return; }
+    currentUser = pendingUser; currentUjian = pendingUjian; waktuSelesai = pendingWaktuSelesai;
+    minimalMenit = pendingUjian.min || 0; idSesi = pendingSesiAktif.idSesi;
+    waktuMulaiServer = new Date(pendingSesiAktif.waktuMulai);
+    try { const s = localStorage.getItem(`skor_${idSesi}`); window.skorPerSoal = s ? JSON.parse(s) : {}; } catch (e) { window.skorPerSoal = {}; }
+    document.getElementById("resumeScreen").style.display = "none";
+    document.getElementById("examScreen").style.display = "block";
+    document.getElementById("namaDisplay").innerText = `${currentUser.nama} | ${currentUser.kelas}`;
+    document.getElementById("infoDisplay").innerText = `${currentUjian.mapel} - ${currentUjian.jenis}`;
+    await ambilSoal(currentUser.jenjang, currentUjian.mapel, currentUjian.jenis);
+    await loadJawabanDariFirebase();
+    mulaiTimer(); renderNavigator(); showFullscreenPrompt(); setInterval(updateTombolSelesai, 1000);
+}
+
+async function startExam() {
+    if (!pendingUser || !pendingUjian) { cancelConfirm(); return; }
+    currentUser = pendingUser; currentUjian = pendingUjian; waktuSelesai = pendingWaktuSelesai;
+    minimalMenit = pendingUjian.min || 0; waktuMulaiServer = new Date();
+    idSesi = 'SES-' + Date.now() + '-' + Math.random().toString(36).substr(2,9);
+    window.skorPerSoal = {}; localStorage.removeItem(`skor_${idSesi}`);
+    if (window.db) window.Firebase.addDoc(window.Firebase.collection(window.db,'sesi_ujian'), {
+        idSesi, username: currentUser.username, nis: currentUser.nis, nama: currentUser.nama,
+        jenjang: currentUser.jenjang, kelas: currentUser.kelas, mapel: currentUjian.mapel,
+        jenisUjian: currentUjian.jenis, waktuMulai: new Date().toISOString(), status: 'Aktif',
+        token: document.getElementById("tokenInput").value, totalSkorSementara: 0
+    });
+    document.getElementById("confirmScreen").style.display = "none";
+    document.getElementById("examScreen").style.display = "block";
+    document.getElementById("namaDisplay").innerText = `${currentUser.nama} | ${currentUser.kelas}`;
+    document.getElementById("infoDisplay").innerText = `${currentUjian.mapel} - ${currentUjian.jenis}`;
+    await ambilSoal(currentUser.jenjang, currentUjian.mapel, currentUjian.jenis);
+    mulaiTimer(); renderNavigator(); showFullscreenPrompt(); setInterval(updateTombolSelesai, 1000);
+}
+
+// ==================== LOAD JAWABAN ====================
+async function loadJawabanDariFirebase() {
+    if (!window.db || !idSesi) return;
+    const snap = await window.Firebase.getDocs(window.Firebase.query(window.Firebase.collection(window.db,'jawaban_siswa'), window.Firebase.where('idSesi','==',idSesi)));
+    snap.forEach(d => { const data = d.data(); jawabanLokal[data.idSoal] = data.jawaban; });
+    if (snap.size) renderNavigator();
+}
+
+// ==================== ACAK SOAL ====================
+function shuffleArray(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function acakSoalDenganGrup(l) { const g = {}, t = []; l.forEach(s => { if (s.grupSoal) { const n = s.grupSoal.trim(); if (!g[n]) g[n] = []; g[n].push(s); } else t.push(s); }); const b = Object.values(g), semua = [...b, ...t.map(s => [s])], acak = shuffleArray(semua), hasil = []; acak.forEach(block => block.forEach(s => hasil.push(s))); return hasil; }
+
+async function ambilSoal(j, m, js) {
+    try {
+        const coll = window.Firebase.collection(window.db, 'cache_soal');
+        const q = window.Firebase.query(coll, window.Firebase.where('jenjang', '==', String(j)), window.Firebase.where('mapel', '==', String(m)), window.Firebase.where('jenis', '==', String(js)), window.Firebase.where('status', '==', 'Aktif'));
+        const snap = await window.Firebase.getDocs(q);
+        let mentah = [];
+        snap.forEach(d => {
+            const row = d.data();
+            mentah.push({
+                id: row.id, tipe: row.tipe, pertanyaan: row.pertanyaan,
+                pilihan: [row.pilihanA, row.pilihanB, row.pilihanC, row.pilihanD, row.pilihanE].filter(p => p),
+                kunci: row.kunci, bobot: row.bobot, gambar: row.gambar, grupSoal: row.grupSoal
+            });
+        });
+        if (!mentah.length) { document.getElementById("soalContainer").innerHTML = "<p>Belum ada soal.</p>"; return; }
+        dataSoal = acakSoalDenganGrup(mentah);
+        renderSoal(0);
+    } catch(e) { console.error(e); }
+}
+
+// ==================== RENDER NAVIGASI ====================
+function renderNavigator() { let h = ""; for (let i = 0; i < dataSoal.length; i++) { const s = dataSoal[i], a = jawabanLokal[s.id] !== undefined, r = raguLokal[s.id], c = i === indexSoal; let cls = a ? "answered" : "unanswered"; if (r && !c) cls = "ragu"; if (c) cls = "current"; h += `<button class="nav-btn-num ${cls}" onclick="goToSoal(${i})">${i+1}</button>`; } document.getElementById("navGrid").innerHTML = h; updateNavInfo(); }
+function goToSoal(i) { if (isFrozen) return; renderSoal(i); renderNavigator(); if (window.innerWidth <= 500) document.getElementById("navPanel").classList.remove("show"); }
+
+// ==================== RENDER SOAL ====================
+function renderSoal(idx) {
+    indexSoal = idx; const s = dataSoal[idx];
+    document.getElementById("progressFill").style.width = ((idx+1)/dataSoal.length*100)+"%";
+    let h = `<h3>Soal ${idx+1}/${dataSoal.length} [${s.tipe}]</h3>`;
+    if (s.gambar) { let u = s.gambar; if (u.match(/^[a-zA-Z0-9_-]{20,}$/)) u = `https://drive.google.com/uc?export=view&id=${u}`; h += `<img src="${u}" style="max-width:100%;">`; }
+    h += `<p><strong>${s.pertanyaan}</strong></p>`; const jaw = jawabanLokal[s.id];
+    
+    if (s.tipe === "PG") {
+        s.pilihan.forEach((o,i) => { const hu = String.fromCharCode(65+i); h += `<label class="option-label"><input type="radio" name="jwb" value="${hu}" ${jaw===hu?"checked":""} ${isFrozen?"disabled":""} onchange="autoSavePG('${s.id}')"> ${hu}. ${o}</label>`; });
+        h += `<button class="btn-simpan" onclick="simpanPG('${s.id}')" ${isFrozen?"disabled":""}><i class="fas fa-save"></i> Simpan</button>`;
+    } else if (s.tipe === "PGK") {
+        let a = []; try { a = JSON.parse(jaw||"[]"); } catch(e){}
+        s.pilihan.forEach((o,i) => { const hu = String.fromCharCode(65+i); h += `<label class="option-label"><input type="checkbox" name="jwb" value="${hu}" ${a.includes(hu)?"checked":""} ${isFrozen?"disabled":""} onchange="autoSavePGK('${s.id}')"> ${hu}. ${o}</label>`; });
+        h += `<button class="btn-simpan" onclick="simpanPGK('${s.id}')" ${isFrozen?"disabled":""}><i class="fas fa-save"></i> Simpan</button>`;
+    } else if (s.tipe === "B/S") {
+        const p = s.pilihan.filter(x=>x);
+        if (!p.length) {
+            h += `<div style="background:#f8fafc;padding:16px;border-radius:12px;"><p>${s.pertanyaan}</p><div style="display:flex;gap:24px;"><label><input type="radio" name="bs_single" value="B" ${jaw==='B'?'checked':''} onchange="autoSaveBSSingle('${s.id}')"> ✅ BENAR</label><label><input type="radio" name="bs_single" value="S" ${jaw==='S'?'checked':''} onchange="autoSaveBSSingle('${s.id}')"> ❌ SALAH</label></div></div>`;
+            h += `<button class="btn-simpan" onclick="simpanBSSingle('${s.id}')"><i class="fas fa-save"></i> Simpan</button>`;
+        } else {
+            let a = []; try { a = jaw ? JSON.parse(jaw) : []; } catch(e){ a = (jaw==='B'||jaw==='S') ? [jaw] : []; }
+            p.forEach((t,i) => { const jwb = a[i]||''; h += `<div style="background:#f8fafc;padding:14px;border-radius:12px;margin-bottom:10px;"><p>${i+1}. ${t}</p><div style="display:flex;gap:20px;"><label><input type="radio" name="bs_${i}" value="B" ${jwb==='B'?'checked':''} onchange="autoSaveBS('${s.id}',${p.length})"> ✅ Benar</label><label><input type="radio" name="bs_${i}" value="S" ${jwb==='S'?'checked':''} onchange="autoSaveBS('${s.id}',${p.length})"> ❌ Salah</label></div></div>`; });
+            h += `<button class="btn-simpan" onclick="simpanBS('${s.id}',${p.length})"><i class="fas fa-save"></i> Simpan</button>`;
+        }
+    } else if (s.tipe === "Jodoh") {
+        let k = {}, o = {}; try { k = JSON.parse(s.kunci); o = jaw ? JSON.parse(jaw) : {}; } catch(e){ o = {}; }
+        const istilahMap = parseIstilahDariPertanyaan(s.pertanyaan);
+        const istilahList = Object.keys(istilahMap).length > 0 ? Object.keys(istilahMap) : Object.keys(k);
+        const opsi = s.pilihan.filter(p => p && p.trim());
+        h += `<div style="background:#E8F0FE;padding:12px;border-radius:12px;margin-bottom:16px;"><p style="font-weight:600;color:#1E3A8A;margin:0;"><i class="fas fa-info-circle"></i> Pilih jawaban yang tepat untuk setiap istilah di bawah ini!</p></div>`;
+        h += `<div style="display:flex;gap:12px;flex-wrap:wrap;">`;
+        h += `<div style="flex:1;min-width:240px;background:#FFF9E6;padding:14px;border-radius:14px;border:2px solid #FDE68A;"><div style="font-weight:700;margin-bottom:10px;color:#92400E;">📋 DAFTAR ISTILAH</div>`;
+        istilahList.forEach((key, idx) => {
+            const namaIstilah = istilahMap[key] || key;
+            const selected = o[key] || '';
+            h += `<div style="background:white;padding:12px;border-radius:10px;margin-bottom:8px;border:2px solid #FDE68A;"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><span style="font-weight:700;color:#1E3A8A;">${idx+1}.</span><span style="font-weight:600;color:#1E293B;font-size:13px;flex:1;">${namaIstilah}</span><select id="jodoh_${s.id}_${key}" onchange="autoSaveJodohDropdown('${s.id}')" style="padding:8px;border-radius:8px;border:2px solid #E2E8F0;font-size:13px;" ${isFrozen?'disabled':''}><option value="">-- Pilih --</option>`;
+            opsi.forEach((opt, i) => { const hu = String.fromCharCode(65 + i); const usedByOther = Object.entries(o).some(([k, v]) => k !== key && v === hu); h += `<option value="${hu}" ${selected === hu ? 'selected' : ''} ${usedByOther ? 'disabled' : ''}>${hu}. ${opt.replace(/^[A-E]\.\s*/, '')}${usedByOther ? ' (dipakai)' : ''}</option>`; });
+            h += `</select></div></div>`;
+        });
+        h += `</div><div style="flex:1;min-width:240px;background:#E8F4FD;padding:14px;border-radius:14px;border:2px solid #BFDBFE;"><div style="font-weight:700;margin-bottom:10px;color:#1E40AF;">📦 DAFTAR JAWABAN</div>`;
+        opsi.forEach((opt, i) => { const hu = String.fromCharCode(65 + i); const isUsed = Object.values(o).includes(hu); h += `<div style="background:${isUsed?'#DCFCE7':'white'};padding:10px 12px;border-radius:8px;margin-bottom:6px;border:1px solid ${isUsed?'#BBF7D0':'#E2E8F0'};font-size:13px;"><strong style="color:#1E3A8A;">${hu}.</strong> ${opt.replace(/^[A-E]\.\s*/, '')}${isUsed ? ' ✅' : ''}</div>`; });
+        h += `</div></div>`;
+        h += `<button class="btn-simpan" onclick="simpanJodohDropdown('${s.id}')" ${isFrozen?'disabled':''} style="margin-top:12px;"><i class="fas fa-save"></i> Simpan Jawaban</button>`;
+    } else if (s.tipe === "Isian") {
+        h += `<input type="text" id="isian" value="${jaw||''}" placeholder="Ketik jawaban..." style="width:100%;padding:14px;border-radius:16px;border:1px solid #E2E8F0;" ${isFrozen?"disabled":""} oninput="debounceAutoSaveIsian('${s.id}')">`;
+        h += `<button class="btn-simpan" onclick="simpanIsian('${s.id}')"><i class="fas fa-save"></i> Simpan</button>`;
+    }
+    document.getElementById("soalContainer").innerHTML = h;
+}
+
+// ==================== SIMPAN JAWABAN ====================
+async function simpanJawabanKeFirebase(idSoal, jawaban, skor) {
+    if (!window.db || !idSesi) return;
+    try {
+        const coll = window.Firebase.collection(window.db, 'jawaban_siswa');
+        const q = window.Firebase.query(coll, window.Firebase.where('idSesi','==',idSesi), window.Firebase.where('idSoal','==',idSoal));
+        const snap = await window.Firebase.getDocs(q);
+        if (!snap.empty) await window.Firebase.updateDoc(snap.docs[0].ref, { jawaban, skor, timestamp: new Date().toISOString() });
+        else await window.Firebase.addDoc(coll, { idSesi, username: currentUser.username, nis: currentUser.nis, nama: currentUser.nama, jenjang: currentUser.jenjang, kelas: currentUser.kelas, mapel: currentUjian.mapel, jenisUjian: currentUjian.jenis, idSoal, jawaban, skor, timestamp: new Date().toISOString() });
+        const skorPerSoal = JSON.parse(localStorage.getItem(`skor_${idSesi}`) || '{}');
+        const skorLama = skorPerSoal[idSoal] || 0;
+        skorPerSoal[idSoal] = skor;
+        localStorage.setItem(`skor_${idSesi}`, JSON.stringify(skorPerSoal));
+        const sesiQ = window.Firebase.query(window.Firebase.collection(window.db,'sesi_ujian'), window.Firebase.where('idSesi','==',idSesi));
+        const sesiSnap = await window.Firebase.getDocs(sesiQ);
+        if (!sesiSnap.empty) { const old = sesiSnap.docs[0].data().totalSkorSementara || 0; await window.Firebase.updateDoc(sesiSnap.docs[0].ref, { totalSkorSementara: old - skorLama + skor }); }
+    } catch (e) {}
+}
+
+function simpanKeLocalStorage() { if (idSesi) localStorage.setItem(`jawaban_${idSesi}`, JSON.stringify(jawabanLokal)); }
+
+function autoSavePG(id) { const s = document.querySelector('input[name="jwb"]:checked'); if (!s) return; jawabanLokal[id] = s.value; renderNavigator(); simpanKeLocalStorage(); const soal = dataSoal.find(q=>q.id===id); simpanJawabanKeFirebase(id, s.value, s.value === soal.kunci ? soal.bobot : 0); showToast('Tersimpan','success',800); }
+
+// ✅ PGK SISTEM 1: ALL-OR-NOTHING
+function autoSavePGK(id) {
+    const a = Array.from(document.querySelectorAll('input[name="jwb"]:checked')).map(c=>c.value);
+    if (!a.length) return;
+    jawabanLokal[id] = JSON.stringify(a);
+    renderNavigator();
+    simpanKeLocalStorage();
+    const soal = dataSoal.find(q=>q.id===id);
+    let s = 0;
+    try {
+        const ja = [...a].sort();
+        const ka = JSON.parse(soal.kunci).sort();
+        if (ja.length === ka.length && ja.every((v, i) => v === ka[i])) s = soal.bobot;
+    } catch(e){}
+    simpanJawabanKeFirebase(id, JSON.stringify(a), s);
+    showToast('Tersimpan','success',800);
+}
+
+function autoSaveBSSingle(id) { const s = document.querySelector('input[name="bs_single"]:checked'); if (!s) return; jawabanLokal[id] = s.value; renderNavigator(); simpanKeLocalStorage(); const soal = dataSoal.find(q=>q.id===id); simpanJawabanKeFirebase(id, s.value, s.value === soal.kunci ? soal.bobot : 0); showToast('Tersimpan','success',800); }
+
+function autoSaveBS(id, n) {
+    let semua = true;
+    for (let i=0; i<n; i++) if (!document.querySelector(`input[name="bs_${i}"]:checked`)) { semua = false; break; }
+    if (!semua) return;
+    const a = [];
+    for (let i=0; i<n; i++) a.push(document.querySelector(`input[name="bs_${i}"]:checked`).value);
+    jawabanLokal[id] = JSON.stringify(a);
+    renderNavigator();
+    simpanKeLocalStorage();
+    const soal = dataSoal.find(q=>q.id===id);
+    let s = 0;
+    try { const k = JSON.parse(soal.kunci); let b = 0; for (let i=0; i<k.length; i++) if (a[i] === k[i]) b++; s = (b/k.length) * soal.bobot; } catch(e){}
+    simpanJawabanKeFirebase(id, JSON.stringify(a), s);
+    showToast('Tersimpan','success',800);
+}
+
+function debounceAutoSaveIsian(id) {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+        const i = document.getElementById('isian');
+        if (!i?.value.trim()) return;
+        jawabanLokal[id] = i.value.trim();
+        renderNavigator();
+        simpanKeLocalStorage();
+        const soal = dataSoal.find(q=>q.id===id);
+        let s = 0;
+        if (soal.kunci.toLowerCase().replace(/\s+/g,' ').trim() === i.value.trim().toLowerCase().replace(/\s+/g,' ').trim()) s = soal.bobot;
+        simpanJawabanKeFirebase(id, i.value.trim(), s);
+        showToast('Tersimpan','success',800);
+    }, 1000);
+}
+
+function simpanPG(id) { autoSavePG(id); }
+function simpanPGK(id) { autoSavePGK(id); }
+function simpanBSSingle(id) { autoSaveBSSingle(id); }
+function simpanBS(id, n) { autoSaveBS(id, n); }
+
+function autoSaveJodohDropdown(id) {
+    const soal = dataSoal.find(q=>q.id===id);
+    if (!soal) return;
+    let k = {}; try { k = JSON.parse(soal.kunci); } catch(e){ return; }
+    const o = {};
+    let allFilled = true;
+    const totalKey = Object.keys(k).length;
+    Object.keys(k).forEach(key => {
+        const select = document.getElementById(`jodoh_${id}_${key}`);
+        if (select && select.value) { o[key] = select.value; } else { allFilled = false; }
+    });
+    if (allFilled) {
+        jawabanLokal[id] = JSON.stringify(o);
+        renderNavigator();
+        simpanKeLocalStorage();
+        let benar = 0;
+        for (let key in k) if (o[key] === k[key]) benar++;
+        simpanJawabanKeFirebase(id, JSON.stringify(o), (benar/totalKey)*soal.bobot);
+        showToast(`✅ Tersimpan otomatis! (${benar}/${totalKey} benar)`,'success',1500);
+    } else {
+        showToast(`📝 ${Object.keys(o).length}/${totalKey} terjawab`,'info',1000);
+    }
+}
+
+function simpanJodohDropdown(id) {
+    const soal = dataSoal.find(q=>q.id===id);
+    if (!soal) return;
+    let k = {}; try { k = JSON.parse(soal.kunci); } catch(e) { showError('Format kunci salah!'); return; }
+    const o = {};
+    const totalKey = Object.keys(k).length;
+    Object.keys(k).forEach(key => {
+        const select = document.getElementById(`jodoh_${id}_${key}`);
+        if (select && select.value) o[key] = select.value;
+    });
+    const filledKey = Object.keys(o).length;
+    if (filledKey < totalKey) { showError(`Baru ${filledKey} dari ${totalKey} yang dijawab!`); return; }
+    jawabanLokal[id] = JSON.stringify(o);
+    renderNavigator();
+    simpanKeLocalStorage();
+    let benar = 0;
+    for (let key in k) if (o[key] === k[key]) benar++;
+    simpanJawabanKeFirebase(id, JSON.stringify(o), (benar/totalKey)*soal.bobot);
+    showSuccess(`✅ Jawaban tersimpan! (${benar}/${totalKey} benar)`);
+}
+
+function simpanIsian(id) {
+    const i = document.getElementById('isian');
+    if (!i?.value.trim()) { showError("Isi jawaban!"); return; }
+    jawabanLokal[id] = i.value.trim();
+    renderNavigator();
+    simpanKeLocalStorage();
+    const soal = dataSoal.find(q=>q.id===id);
+    let s = 0;
+    if (soal.kunci.toLowerCase().replace(/\s+/g,' ').trim() === i.value.trim().toLowerCase().replace(/\s+/g,' ').trim()) s = soal.bobot;
+    simpanJawabanKeFirebase(id, i.value.trim(), s);
+    showSuccess("Tersimpan!");
+}
+
+function prevSoal() { if (isFrozen) return; if (indexSoal > 0) goToSoal(indexSoal-1); }
+function nextSoal() { if (isFrozen) return; if (indexSoal < dataSoal.length-1) goToSoal(indexSoal+1); }
+
+// ==================== TIMER ====================
+function mulaiTimer() {
+    if (!waktuSelesai) return;
+    if (timerInterval) clearInterval(timerInterval);
+    function tick() {
+        const s = Math.max(waktuSelesai - new Date(), 0), d = Math.floor(s/1000);
+        document.getElementById("timerDisplay").innerText = `${Math.floor(d/60)}:${String(d%60).padStart(2,'0')}`;
+        if (d === 0 && !ujianSelesai) {
+            ujianSelesai = true;
+            clearInterval(timerInterval);
+            showModal({ iconType: "warning", title: "Waktu Habis", message: "Ujian berakhir.", buttons: [{ text: "OK", type: "primary", onClick: selesaiUjian }] });
+        }
+    }
+    tick();
+    timerInterval = setInterval(tick, 1000);
+}
+
+function konfirmasiSelesai() {
+    if (isFrozen) return;
+    const b = dataSoal.filter(s => !jawabanLokal[s.id]).length;
+    showModal({
+        iconType: "warning", title: "Akhiri Ujian?", message: `📝 ${dataSoal.length-b} dijawab\n⚠️ ${b} belum`,
+        showCheckbox: true, checkboxLabel: "Saya yakin",
+        buttons: [{ text: "Lanjutkan", type: "secondary" }, { text: "Ya, Selesai", type: "warning", onClick: c => { if (!c) showError("Centang!"); else selesaiUjian(); } }]
+    });
+}
+
+// ==================== SELESAI UJIAN ====================
+async function selesaiUjian() {
+    clearInterval(timerInterval);
+    if (freezeInterval) clearInterval(freezeInterval);
+    ujianSelesai = true;
+    
+    let totalSkor = 0, totalBobot = 0, jumlahBenar = 0;
+    if (window.db && idSesi) {
+        try {
+            const snap = await window.Firebase.getDocs(window.Firebase.query(window.Firebase.collection(window.db,'sesi_ujian'), window.Firebase.where('idSesi','==',idSesi)));
+            if (!snap.empty) totalSkor = snap.docs[0].data().totalSkorSementara || 0;
+        } catch(e){}
+    }
+    
+    dataSoal.forEach(s => {
+        const b = s.bobot || 1;
+        totalBobot += b;
+        const j = jawabanLokal[s.id];
+        if (!j) return;
+        
+        if (s.tipe === "PG" && j === s.kunci) { totalSkor += b; jumlahBenar++; }
+        else if (s.tipe === "PGK") {
+            try {
+                const ja = JSON.parse(j).sort();
+                const ka = JSON.parse(s.kunci).sort();
+                if (ja.length === ka.length && ja.every((v, i) => v === ka[i])) { totalSkor += b; jumlahBenar++; }
+            } catch(e){}
+        }
+        else if (s.tipe === "B/S") {
+            try {
+                if (j.startsWith('[')) {
+                    const ja = JSON.parse(j), ka = JSON.parse(s.kunci);
+                    let x = 0;
+                    for (let i = 0; i < ka.length; i++) if (ja[i] === ka[i]) x++;
+                    totalSkor += (x/ka.length)*b;
+                    if (x === ka.length) jumlahBenar++;
+                } else { if (j === s.kunci) { totalSkor += b; jumlahBenar++; } }
+            } catch(e) { if (j === s.kunci) { totalSkor += b; jumlahBenar++; } }
+        }
+        else if (s.tipe === "Jodoh") {
+            try {
+                const jo = JSON.parse(j), ko = JSON.parse(s.kunci);
+                let benar = 0;
+                const tt = Object.keys(ko).length;
+                for (let key in ko) if (jo[key] === ko[key]) benar++;
+                totalSkor += (benar/tt)*b;
+                if (benar === tt) jumlahBenar++;
+            } catch(e){}
+        }
+        else if (s.tipe === "Isian") {
+            const jn = String(j).toLowerCase().replace(/\s+/g,' ').trim();
+            const kn = String(s.kunci).toLowerCase().replace(/\s+/g,' ').trim();
+            if (kn === '*' || kn === 'semua' || kn === 'all') { totalSkor += b; jumlahBenar++; }
+            else if (kn.includes('|')) { if (kn.split('|').map(k=>k.trim()).includes(jn)) { totalSkor += b; jumlahBenar++; } }
+            else if (jn === kn) { totalSkor += b; jumlahBenar++; }
+        }
+    });
+    
+    if (totalSkor > totalBobot) totalSkor = totalBobot;
+    const persen = totalBobot > 0 ? Math.round((totalSkor / totalBobot) * 100) : 0;
+    
+    if (document.exitFullscreen) document.exitFullscreen();
+    document.getElementById("freezeOverlay").style.display = "none";
+    
+    if (window.db) {
+        try {
+            const nilaiData = {
+                idSesi, username: currentUser?.username || pendingUser?.username, nis: currentUser?.nis || pendingUser?.nis,
+                nama: currentUser?.nama || pendingUser?.nama, kelas: currentUser?.kelas || pendingUser?.kelas,
+                jenjang: currentUser?.jenjang || pendingUser?.jenjang, mapel: currentUjian?.mapel || pendingUjian?.mapel,
+                jenisUjian: currentUjian?.jenis || pendingUjian?.jenis, totalSkor, jumlahBenar,
+                jumlahSoal: dataSoal.length, totalBobot, persentase: persen+'%',
+                pelanggaran: window.pelanggaranPerJenis || {}, totalPelanggaran: pelanggaranCount,
+                timestamp: new Date().toISOString()
+            };
+            const q = window.Firebase.query(window.Firebase.collection(window.db,'nilai_akhir'), window.Firebase.where('idSesi','==',idSesi));
+            const snap = await window.Firebase.getDocs(q);
+            if (!snap.empty) await window.Firebase.updateDoc(snap.docs[0].ref, nilaiData);
+            else await window.Firebase.addDoc(window.Firebase.collection(window.db,'nilai_akhir'), nilaiData);
+        } catch(e){}
+        try {
+            const q = window.Firebase.query(window.Firebase.collection(window.db,'sesi_ujian'), window.Firebase.where('idSesi','==',idSesi));
+            const snap = await window.Firebase.getDocs(q);
+            snap.forEach(d => window.Firebase.updateDoc(d.ref, { status: 'Selesai', waktuSelesai: new Date().toISOString() }));
+        } catch(e){}
+    }
+    
+    localStorage.removeItem(`jawaban_${idSesi}`);
+    localStorage.removeItem(`skor_${idSesi}`);
+    
+    showModal({ iconType: "success", title: "🎉 Ujian Selesai!", message: "", buttons: [{ text: "Tutup", type: "success", onClick: () => location.reload() }] });
+    setTimeout(() => {
+        document.querySelector(".modal-message").innerHTML = `<div style="text-align:center;"><div style="font-size:56px;font-weight:800;color:#1E3A8A;">${totalSkor}/${totalBobot}</div><div style="font-size:16px;color:#64748B;margin-top:8px;">Total Skor</div><div style="margin-top:20px;padding-top:16px;border-top:1px solid #E2E8F0;"><span style="font-size:14px;color:#94A3B8;">${persen}%</span></div></div>`;
+    }, 50);
+}
+
+// ==================== INISIALISASI ====================
+document.addEventListener('DOMContentLoaded', () => { const y = document.getElementById('currentYear'); if (y) y.textContent = new Date().getFullYear(); });
 </script>
 </body>
 </html>
