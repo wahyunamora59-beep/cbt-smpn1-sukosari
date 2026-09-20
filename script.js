@@ -7,7 +7,7 @@ const CONFIG = {
 // ==================== VARIABEL GLOBAL ====================
 let currentUser = null, currentUjian = null, dataSoal = [], indexSoal = 0, jawabanLokal = {}, raguLokal = {},
     timerInterval = null, waktuSelesai = null, waktuMulaiServer = null, minimalMenit = 0, ujianSelesai = false,
-    idSesi = null, pelanggaranCount = 0, totalPenalti = 0, tombolSelesaiAktif = true, isFullscreen = false,
+    idSesi = null, pelanggaranCount = 0, totalPenalti = 0, tombolSelesaiAktif = false, isFullscreen = false,
     isFrozen = false, freezeInterval = null, pendingUser = null, pendingUjian = null, pendingWaktuSelesai = null,
     pendingSesiAktif = null, isLocked = false, debounceTimer = null, freezeDuration = 30, maxPelanggaran = 5,
     pendingSiswa = null, daftarUjianAktif = [], countdownInterval = null, isDragging = false, screenshotBlocked = false, lastVisibilityChangeTime = 0;
@@ -262,8 +262,33 @@ document.addEventListener('visibilitychange', () => {
     }
 });
 
-// ==================== UPDATE TOMBOL SELESAI ====================
-function updateTombolSelesai() { const b = document.querySelector(".btn-selesai-modern"); if (!b || !waktuMulaiServer) return; tombolSelesaiAktif = true; b.disabled = false; b.innerHTML = `<i class="fas fa-check-circle"></i> SELESAI`; }
+// ==================== UPDATE TOMBOL SELESAI (MINIMAL WAKTU AKTIF) ====================
+function updateTombolSelesai() {
+    const b = document.querySelector(".btn-selesai-modern");
+    if (!b || !waktuMulaiServer) return;
+    
+    // Jika minimalMenit = 0, langsung aktif
+    if (minimalMenit <= 0) {
+        tombolSelesaiAktif = true;
+        b.disabled = false;
+        b.innerHTML = `<i class="fas fa-check-circle"></i> SELESAI`;
+        return;
+    }
+    
+    // Hitung sisa waktu minimal
+    const m = Math.floor((new Date() - waktuMulaiServer) / 60000);
+    const r = Math.max(minimalMenit - m, 0);
+    
+    if (r > 0 && !ujianSelesai) {
+        tombolSelesaiAktif = false;
+        b.disabled = true;
+        b.innerHTML = `<i class="fas fa-lock"></i> (${r}m)`;
+    } else {
+        tombolSelesaiAktif = true;
+        b.disabled = false;
+        b.innerHTML = `<i class="fas fa-check-circle"></i> SELESAI`;
+    }
+}
 
 // ==================== PARSE ISTILAH ====================
 function parseIstilahDariPertanyaan(teks) { const map = {}; let t = teks; ['BAGIAN B','Bagian B','Pilihan:','Pilihan Jawaban:','\nA.','\nA)','\nA ','A. if','A. '].forEach(m => { const i = teks.indexOf(m); if (i !== -1) t = teks.substring(0, i); }); const lines = t.split('\n'); let cur = null; lines.forEach(l => { l = l.trim(); if (!l) return; const m = l.match(/^(\d+)\.\s+(.+)$/); if (m) { cur = m[1]; map[cur] = m[2]; } else if (cur) map[cur] += ' ' + l; }); if (!Object.keys(map).length) { const r = /(\d+)\.\s*([^\n]+)/g; let m; while ((m = r.exec(t)) !== null) map[m[1]] = m[2].trim(); } return map; }
@@ -351,6 +376,7 @@ async function loadUjianAktif(siswa) {
                 token: row.token, mapel: mapelCek, jenis: jenisCek, tanggal: hariIni,
                 waktuMulai: row.waktuMulai, waktuSelesai: row.waktuSelesai,
                 waktuMulaiObj: mulaiObj, waktuSelesaiObj: selesaiObj,
+                minimalMenit: row.minimalMenit || 0,
                 statusWaktu, sudahSelesai, nilaiData, password: row.password || ''
             });
         }
@@ -496,7 +522,9 @@ async function continueExam() {
     document.getElementById("infoDisplay").innerText = `${currentUjian.mapel} - ${currentUjian.jenis}`;
     await ambilSoal(currentUser.jenjang, currentUjian.mapel, currentUjian.jenis);
     await loadJawabanDariFirebase();
-    mulaiTimer(); renderNavigator(); showFullscreenPrompt(); setInterval(updateTombolSelesai, 1000);
+    mulaiTimer(); renderNavigator(); showFullscreenPrompt();
+    updateTombolSelesai();
+    setInterval(updateTombolSelesai, 1000);
 }
 
 async function startExam() {
@@ -516,7 +544,9 @@ async function startExam() {
     document.getElementById("namaDisplay").innerText = `${currentUser.nama} | ${currentUser.kelas}`;
     document.getElementById("infoDisplay").innerText = `${currentUjian.mapel} - ${currentUjian.jenis}`;
     await ambilSoal(currentUser.jenjang, currentUjian.mapel, currentUjian.jenis);
-    mulaiTimer(); renderNavigator(); showFullscreenPrompt(); setInterval(updateTombolSelesai, 1000);
+    mulaiTimer(); renderNavigator(); showFullscreenPrompt();
+    updateTombolSelesai();
+    setInterval(updateTombolSelesai, 1000);
 }
 
 // ==================== LOAD JAWABAN ====================
@@ -629,7 +659,7 @@ function simpanKeLocalStorage() { if (idSesi) localStorage.setItem(`jawaban_${id
 
 function autoSavePG(id) { const s = document.querySelector('input[name="jwb"]:checked'); if (!s) return; jawabanLokal[id] = s.value; renderNavigator(); simpanKeLocalStorage(); const soal = dataSoal.find(q=>q.id===id); simpanJawabanKeFirebase(id, s.value, s.value === soal.kunci ? soal.bobot : 0); showToast('Tersimpan','success',800); }
 
-// ✅ PGK SISTEM 1: ALL-OR-NOTHING
+// PGK SISTEM 1: ALL-OR-NOTHING
 function autoSavePGK(id) {
     const a = Array.from(document.querySelectorAll('input[name="jwb"]:checked')).map(c=>c.value);
     if (!a.length) return;
@@ -764,13 +794,26 @@ function mulaiTimer() {
     timerInterval = setInterval(tick, 1000);
 }
 
+// ==================== KONFIRMASI SELESAI (MINIMAL WAKTU AKTIF) ====================
 function konfirmasiSelesai() {
     if (isFrozen) return;
+    
+    // Cek minimal waktu
+    if (!tombolSelesaiAktif) {
+        const s = Math.max(minimalMenit - Math.floor((new Date() - waktuMulaiServer) / 60000), 0);
+        showError(`⏰ Tunggu ${s} menit lagi sebelum bisa selesai!`);
+        return;
+    }
+    
     const b = dataSoal.filter(s => !jawabanLokal[s.id]).length;
     showModal({
-        iconType: "warning", title: "Akhiri Ujian?", message: `📝 ${dataSoal.length-b} dijawab\n⚠️ ${b} belum`,
+        iconType: "warning", title: "Akhiri Ujian?",
+        message: `📝 ${dataSoal.length-b} dijawab\n⚠️ ${b} belum`,
         showCheckbox: true, checkboxLabel: "Saya yakin",
-        buttons: [{ text: "Lanjutkan", type: "secondary" }, { text: "Ya, Selesai", type: "warning", onClick: c => { if (!c) showError("Centang!"); else selesaiUjian(); } }]
+        buttons: [
+            { text: "Lanjutkan", type: "secondary" },
+            { text: "Ya, Selesai", type: "warning", onClick: c => { if (!c) showError("Centang!"); else selesaiUjian(); } }
+        ]
     });
 }
 
