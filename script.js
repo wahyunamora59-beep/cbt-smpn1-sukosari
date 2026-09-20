@@ -18,6 +18,34 @@ window.hurufMapping = {};
 window.skorPerSoal = {};
 window.pelanggaranPerJenis = {};
 
+// ==================== ANTI HISTORY INPUT ====================
+function nonaktifkanAutocomplete() {
+    // Cegah autocomplete di semua input
+    const inputs = document.querySelectorAll('input[type="text"], input[type="password"], input[type="email"], textarea');
+    inputs.forEach((el, i) => {
+        el.setAttribute('autocomplete', 'off');
+        el.setAttribute('autocorrect', 'off');
+        el.setAttribute('autocapitalize', 'off');
+        el.setAttribute('spellcheck', 'false');
+        el.setAttribute('data-lpignore', 'true');
+        el.setAttribute('data-form-type', 'other');
+        // Name unik untuk cegah autofill berdasarkan nama
+        if (!el.name || el.name === 'isian') {
+            el.setAttribute('name', `input_${Date.now()}_${i}`);
+        }
+    });
+}
+
+// Observer untuk input baru (soal berganti)
+const inputObserver = new MutationObserver(() => {
+    nonaktifkanAutocomplete();
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    nonaktifkanAutocomplete();
+    inputObserver.observe(document.body, { childList: true, subtree: true });
+});
+
 // ==================== PENGATURAN PELANGGARAN ====================
 let pengaturanPelanggaran = {};
 let globalFreeze = 30;
@@ -134,7 +162,6 @@ document.addEventListener("keydown", e => {
 
 window.addEventListener("beforeunload", e => { if (currentUser && !ujianSelesai) { e.preventDefault(); e.returnValue = ""; } });
 
-// ==================== CATAT PELANGGARAN ====================
 function catatPelanggaran(j, d) {
     if (!currentUser || ujianSelesai) return;
     if (!isPelanggaranAktif(j)) { console.log(`⏭️ ${j} OFF, skip`); return; }
@@ -267,7 +294,6 @@ function updateTombolSelesai() {
     const b = document.querySelector(".btn-selesai-modern");
     if (!b || !waktuMulaiServer) return;
     
-    // Jika minimalMenit = 0, langsung aktif
     if (minimalMenit <= 0) {
         tombolSelesaiAktif = true;
         b.disabled = false;
@@ -275,7 +301,6 @@ function updateTombolSelesai() {
         return;
     }
     
-    // Hitung sisa waktu minimal
     const m = Math.floor((new Date() - waktuMulaiServer) / 60000);
     const r = Math.max(minimalMenit - m, 0);
     
@@ -293,7 +318,7 @@ function updateTombolSelesai() {
 // ==================== PARSE ISTILAH ====================
 function parseIstilahDariPertanyaan(teks) { const map = {}; let t = teks; ['BAGIAN B','Bagian B','Pilihan:','Pilihan Jawaban:','\nA.','\nA)','\nA ','A. if','A. '].forEach(m => { const i = teks.indexOf(m); if (i !== -1) t = teks.substring(0, i); }); const lines = t.split('\n'); let cur = null; lines.forEach(l => { l = l.trim(); if (!l) return; const m = l.match(/^(\d+)\.\s+(.+)$/); if (m) { cur = m[1]; map[cur] = m[2]; } else if (cur) map[cur] += ' ' + l; }); if (!Object.keys(map).length) { const r = /(\d+)\.\s*([^\n]+)/g; let m; while ((m = r.exec(t)) !== null) map[m[1]] = m[2].trim(); } return map; }
 
-// ==================== LOGIN (FIREBASE) ====================
+// ==================== LOGIN ====================
 async function handleLogin() {
     const u = document.getElementById("usernameInput").value.trim(), p = document.getElementById("passwordInput").value.trim();
     if (!u) { showError("Isi username!"); return; }
@@ -319,7 +344,7 @@ async function handleLogin() {
     } catch (e) { console.error(e); showError("Gagal terhubung."); }
 }
 
-// ==================== CEK RESET (FIREBASE) ====================
+// ==================== CEK RESET ====================
 async function cekResetUjian(u, m, j) {
     try {
         const snap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'cache_reset'));
@@ -331,7 +356,7 @@ async function cekResetUjian(u, m, j) {
     return false;
 }
 
-// ==================== LOAD UJIAN AKTIF (FIREBASE) ====================
+// ==================== LOAD UJIAN AKTIF ====================
 async function loadUjianAktif(siswa) {
     const container = document.getElementById("ujianAktifList");
     try {
@@ -630,10 +655,29 @@ function renderSoal(idx) {
         h += `</div></div>`;
         h += `<button class="btn-simpan" onclick="simpanJodohDropdown('${s.id}')" ${isFrozen?'disabled':''} style="margin-top:12px;"><i class="fas fa-save"></i> Simpan Jawaban</button>`;
     } else if (s.tipe === "Isian") {
-        h += `<input type="text" id="isian" value="${jaw||''}" placeholder="Ketik jawaban..." style="width:100%;padding:14px;border-radius:16px;border:1px solid #E2E8F0;" ${isFrozen?"disabled":""} oninput="debounceAutoSaveIsian('${s.id}')">`;
+        // ✅ INPUT DENGAN ANTI-HISTORY
+        const uniqueName = `isian_${s.id}_${Date.now()}`;
+        h += `<input type="text" 
+            id="isian" 
+            name="${uniqueName}" 
+            value="${jaw||''}" 
+            placeholder="Ketik jawaban..." 
+            autocomplete="off" 
+            autocorrect="off" 
+            autocapitalize="off" 
+            spellcheck="false" 
+            data-lpignore="true" 
+            data-form-type="other"
+            style="width:100%;padding:14px;border-radius:16px;border:1px solid #E2E8F0;" 
+            ${isFrozen?"disabled":""} 
+            oninput="debounceAutoSaveIsian('${s.id}')"
+        >`;
         h += `<button class="btn-simpan" onclick="simpanIsian('${s.id}')"><i class="fas fa-save"></i> Simpan</button>`;
     }
     document.getElementById("soalContainer").innerHTML = h;
+    
+    // ✅ Paksa nonaktifkan autocomplete setelah render
+    setTimeout(nonaktifkanAutocomplete, 50);
 }
 
 // ==================== SIMPAN JAWABAN ====================
@@ -794,17 +838,13 @@ function mulaiTimer() {
     timerInterval = setInterval(tick, 1000);
 }
 
-// ==================== KONFIRMASI SELESAI (MINIMAL WAKTU AKTIF) ====================
 function konfirmasiSelesai() {
     if (isFrozen) return;
-    
-    // Cek minimal waktu
     if (!tombolSelesaiAktif) {
         const s = Math.max(minimalMenit - Math.floor((new Date() - waktuMulaiServer) / 60000), 0);
         showError(`⏰ Tunggu ${s} menit lagi sebelum bisa selesai!`);
         return;
     }
-    
     const b = dataSoal.filter(s => !jawabanLokal[s.id]).length;
     showModal({
         iconType: "warning", title: "Akhiri Ujian?",
