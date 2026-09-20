@@ -36,8 +36,11 @@ body{background:#F1F5F9;display:flex;min-height:100vh}
 .btn-primary{background:#1E3A8A;color:white}
 .btn-primary:hover{background:#1E40AF}
 .btn-success{background:#22C55E;color:white}
+.btn-success:hover{background:#16A34A}
 .btn-danger{background:#EF4444;color:white}
+.btn-danger:hover{background:#DC2626}
 .btn-warning{background:#F59E0B;color:white}
+.btn-warning:hover{background:#D97706}
 .btn-secondary{background:#E2E8F0;color:#334155}
 .btn-sm{padding:6px 12px;font-size:12px}
 .toolbar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
@@ -99,6 +102,7 @@ table tr:hover{background:#F8FAFC}
         <div class="user"><i class="fas fa-user-shield"></i> Administrator</div>
     </div>
 
+    <!-- DASHBOARD -->
     <div id="tab-dashboard" class="tab-content active">
         <div class="stats">
             <div class="stat"><div class="icon blue"><i class="fas fa-users"></i></div><div class="value" id="statSiswa">0</div><div class="label">Total Siswa</div></div>
@@ -109,14 +113,15 @@ table tr:hover{background:#F8FAFC}
         <div class="card">
             <h3><i class="fas fa-info-circle"></i> Alur Kerja Admin Panel</h3>
             <div class="info-box">
-                <strong>📊 SISWA & BANK SOAL</strong> → Kelola dari <strong>Spreadsheet</strong>, lalu klik tombol <strong>🔄 SYNC</strong>.<br><br>
-                <strong>📅 JADWAL, TOKEN, RESET, PENGATURAN</strong> → Kelola langsung di panel ini (otomatis tersimpan).<br><br>
-                <strong>🛡️ PENGATURAN ANTI-CURANG</strong> → Atur ON/OFF & durasi per jenis pelanggaran.<br><br>
+                <strong>📊 SISWA & BANK SOAL</strong> → Kelola dari <strong>Spreadsheet</strong>, lalu klik <strong>🔄 SYNC</strong>.<br><br>
+                <strong>📅 JADWAL, TOKEN, RESET, PENGATURAN</strong> → Kelola langsung di panel ini.<br><br>
+                <strong>🛡️ PENGATURAN ANTI-CURANG</strong> → Atur ON/OFF & durasi per pelanggaran.<br><br>
                 <strong>📈 HASIL UJIAN</strong> → Lihat & export nilai siswa.
             </div>
         </div>
     </div>
 
+    <!-- SISWA -->
     <div id="tab-siswa" class="tab-content">
         <div class="card">
             <h3><i class="fas fa-users"></i> Data Siswa (dari Spreadsheet)</h3>
@@ -130,6 +135,7 @@ table tr:hover{background:#F8FAFC}
         </div>
     </div>
 
+    <!-- JADWAL -->
     <div id="tab-jadwal" class="tab-content">
         <div class="card">
             <h3><i class="fas fa-calendar-alt"></i> Kelola Jadwal Ujian</h3>
@@ -141,6 +147,7 @@ table tr:hover{background:#F8FAFC}
         </div>
     </div>
 
+    <!-- TOKEN -->
     <div id="tab-token" class="tab-content">
         <div class="card">
             <h3><i class="fas fa-key"></i> Kelola Token Ujian</h3>
@@ -152,6 +159,7 @@ table tr:hover{background:#F8FAFC}
         </div>
     </div>
 
+    <!-- SOAL -->
     <div id="tab-soal" class="tab-content">
         <div class="card">
             <h3><i class="fas fa-book"></i> Bank Soal (dari Spreadsheet)</h3>
@@ -165,17 +173,39 @@ table tr:hover{background:#F8FAFC}
         </div>
     </div>
 
+    <!-- RESET (BARU) -->
     <div id="tab-reset" class="tab-content">
         <div class="card">
-            <h3><i class="fas fa-redo"></i> Reset Ujian Siswa</h3>
+            <h3><i class="fas fa-user-clock"></i> Siswa Sedang Ujian</h3>
+            <div class="info-box">📌 Daftar siswa yang <strong>sedang mengerjakan ujian</strong>. Klik tombol reset untuk mengizinkan mereka ujian ulang.</div>
             <div class="toolbar">
-                <button class="btn btn-primary" onclick="openFormReset()"><i class="fas fa-plus"></i> Tambah Reset</button>
-                <button class="btn btn-danger" onclick="deleteAllReset()"><i class="fas fa-trash"></i> Hapus Semua</button>
+                <input type="text" id="searchAktif" placeholder="🔍 Cari nama/kelas/mapel..." oninput="renderSiswaAktif()">
+                <button class="btn btn-warning" onclick="renderSiswaAktif()"><i class="fas fa-sync"></i> Refresh</button>
+            </div>
+            <div id="listSiswaAktif" class="loading">Memuat...</div>
+        </div>
+
+        <div class="card">
+            <h3><i class="fas fa-check-circle"></i> Siswa Sudah Selesai Ujian</h3>
+            <div class="info-box">📌 Daftar siswa yang <strong>sudah menyelesaikan ujian</strong>. Klik tombol reset untuk mengizinkan mereka ujian ulang.</div>
+            <div class="toolbar">
+                <input type="text" id="searchSelesai" placeholder="🔍 Cari nama/kelas/mapel..." oninput="renderSiswaSelesai()">
+                <button class="btn btn-warning" onclick="renderSiswaSelesai()"><i class="fas fa-sync"></i> Refresh</button>
+            </div>
+            <div id="listSiswaSelesai" class="loading">Memuat...</div>
+        </div>
+
+        <div class="card">
+            <h3><i class="fas fa-redo"></i> Daftar Reset Aktif</h3>
+            <div class="info-box">📌 Daftar siswa yang <strong>sudah di-reset</strong>. Hapus jika sudah selesai ujian ulang.</div>
+            <div class="toolbar">
+                <button class="btn btn-danger" onclick="deleteAllReset()"><i class="fas fa-trash"></i> Hapus Semua Reset</button>
             </div>
             <div id="listReset" class="loading">Memuat...</div>
         </div>
     </div>
 
+    <!-- HASIL -->
     <div id="tab-hasil" class="tab-content">
         <div class="card">
             <h3><i class="fas fa-trophy"></i> Hasil Ujian Siswa</h3>
@@ -189,10 +219,11 @@ table tr:hover{background:#F8FAFC}
         </div>
     </div>
 
+    <!-- PENGATURAN -->
     <div id="tab-pengaturan" class="tab-content">
         <div class="card">
             <h3><i class="fas fa-shield-alt"></i> Pengaturan Anti-Curang</h3>
-            <div class="info-box">⚙️ Atur <strong>ON/OFF</strong>, <strong>durasi freeze</strong>, dan <strong>max pelanggaran</strong> untuk setiap jenis pelanggaran.<br>Jika pelanggaran <strong>OFF</strong>, sistem tidak akan mendeteksinya.</div>
+            <div class="info-box">⚙️ Atur <strong>ON/OFF</strong>, <strong>durasi freeze</strong>, dan <strong>max pelanggaran</strong> untuk setiap jenis pelanggaran.</div>
             <div class="form-row" style="margin-bottom:20px">
                 <div class="form-group"><label>⚙️ Global: Freeze Duration (detik)</label><input type="number" id="setGlobalFreeze" value="30" min="5"></div>
                 <div class="form-group"><label>⚙️ Global: Max Total Pelanggaran</label><input type="number" id="setGlobalMax" value="5" min="1"></div>
@@ -240,9 +271,11 @@ window.Firebase = { collection, addDoc, query, where, getDocs, updateDoc, delete
 </script>
 
 <script>
+// ==================== KONFIGURASI ====================
 const SPREADSHEET_ID = '1zc5lh-8XWEhGYJajqooWGK3Vo89kqob1iAaIdaIiXc0';
 const API_KEY = 'AIzaSyAG16CaL_CwY6Hktj6nNrxCoPjYXcJZHcE';
 
+// ==================== UTILS ====================
 function toast(msg, type='success') {
     const t = document.createElement('div');
     t.className = `toast ${type}`;
@@ -263,7 +296,7 @@ function switchTab(tab) {
     if (tab === 'jadwal') renderJadwal();
     if (tab === 'token') renderToken();
     if (tab === 'soal') renderSoal();
-    if (tab === 'reset') renderReset();
+    if (tab === 'reset') { renderSiswaAktif(); renderSiswaSelesai(); renderDaftarReset(); }
     if (tab === 'hasil') renderHasil();
     if (tab === 'pengaturan') loadPengaturan();
 }
@@ -290,6 +323,7 @@ async function clearCollection(name) {
     return snapshot.size;
 }
 
+// ==================== DASHBOARD ====================
 async function loadDashboard() {
     try {
         const [s1, s2, s3, s4] = await Promise.all([
@@ -358,9 +392,9 @@ async function renderJadwal() {
     allJadwal = [];
     snap.forEach(d => allJadwal.push({ _id: d.id, ...d.data() }));
     if (!allJadwal.length) { document.getElementById('listJadwal').innerHTML = '<div class="loading">Belum ada jadwal.</div>'; return; }
-    let html = '<table><thead><tr><th>Jenjang</th><th>Mapel</th><th>Jenis</th><th>Tanggal</th><th>Waktu</th><th>Token</th><th>Status</th><th>Aksi</th></tr></thead><tbody>';
+    let html = '<table><thead><tr><th>Jenjang</th><th>Mapel</th><th>Jenis</th><th>Tanggal</th><th>Waktu</th><th>Min</th><th>Token</th><th>Status</th><th>Aksi</th></tr></thead><tbody>';
     allJadwal.forEach(j => {
-        html += `<tr><td><span class="badge badge-blue">${j.jenjang||''}</span></td><td>${j.mapel||''}</td><td>${j.jenis||''}</td><td>${j.tanggal||''}</td><td>${j.waktuMulai||''} - ${j.waktuSelesai||''}</td><td><code>${j.token||''}</code></td><td><span class="badge ${j.status==='Aktif'?'badge-green':'badge-red'}">${j.status||''}</span></td><td><button class="btn btn-sm btn-warning" onclick="editJadwal('${j._id}')"><i class="fas fa-edit"></i></button> <button class="btn btn-sm btn-danger" onclick="deleteJadwal('${j._id}')"><i class="fas fa-trash"></i></button></td></tr>`;
+        html += `<tr><td><span class="badge badge-blue">${j.jenjang||''}</span></td><td>${j.mapel||''}</td><td>${j.jenis||''}</td><td>${j.tanggal||''}</td><td>${j.waktuMulai||''} - ${j.waktuSelesai||''}</td><td>${j.minimalMenit||0}m</td><td><code>${j.token||''}</code></td><td><span class="badge ${j.status==='Aktif'?'badge-green':'badge-red'}">${j.status||''}</span></td><td><button class="btn btn-sm btn-warning" onclick="editJadwal('${j._id}')"><i class="fas fa-edit"></i></button> <button class="btn btn-sm btn-danger" onclick="deleteJadwal('${j._id}')"><i class="fas fa-trash"></i></button></td></tr>`;
     });
     html += '</tbody></table>';
     document.getElementById('listJadwal').innerHTML = html;
@@ -501,41 +535,228 @@ async function renderSoal() {
     document.getElementById('listSoal').innerHTML = html;
 }
 
-// ==================== RESET ====================
+// ==================== RESET (DENGAN DAFTAR SISWA) ====================
 let allReset = [];
+let allSesiAktif = [];
+let allSiswaSelesai = [];
 
-async function renderReset() {
+async function renderSiswaAktif() {
+    const container = document.getElementById('listSiswaAktif');
+    if (!container) return;
+    container.innerHTML = '<div class="loading">Memuat...</div>';
+    
+    try {
+        const sesiSnap = await window.Firebase.getDocs(
+            window.Firebase.query(
+                window.Firebase.collection(window.db, 'sesi_ujian'),
+                window.Firebase.where('status', '==', 'Aktif')
+            )
+        );
+        
+        allSesiAktif = [];
+        sesiSnap.forEach(d => allSesiAktif.push({ _id: d.id, ...d.data() }));
+        
+        const search = (document.getElementById('searchAktif')?.value || '').toLowerCase();
+        let filtered = allSesiAktif;
+        if (search) filtered = filtered.filter(s => 
+            (s.nama||'').toLowerCase().includes(search) || 
+            (s.kelas||'').toLowerCase().includes(search) ||
+            (s.mapel||'').toLowerCase().includes(search)
+        );
+        
+        if (!filtered.length) {
+            container.innerHTML = '<div class="loading">✅ Tidak ada siswa yang sedang ujian.</div>';
+            return;
+        }
+        
+        let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">Total: <strong>${filtered.length}</strong> siswa sedang ujian</p>`;
+        html += '<table><thead><tr><th>Nama</th><th>Kelas</th><th>Mapel</th><th>Jenis</th><th>Mulai</th><th>Aksi</th></tr></thead><tbody>';
+        filtered.forEach(s => {
+            const waktuMulai = s.waktuMulai ? new Date(s.waktuMulai).toLocaleString('id-ID') : '-';
+            html += `<tr>
+                <td><strong>${s.nama||''}</strong></td>
+                <td>${s.kelas||''}</td>
+                <td>${s.mapel||''}</td>
+                <td>${s.jenisUjian||''}</td>
+                <td style="font-size:12px;color:#64748B">${waktuMulai}</td>
+                <td>
+                    <button class="btn btn-sm btn-warning" onclick="resetSiswaLangsung('${s.username}', '${s.mapel}', '${s.jenisUjian}')">
+                        <i class="fas fa-redo"></i> Reset
+                    </button>
+                </td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    } catch(e) { 
+        console.error(e);
+        container.innerHTML = '<div class="loading">Error: ' + e.message + '</div>'; 
+    }
+}
+
+async function renderSiswaSelesai() {
+    const container = document.getElementById('listSiswaSelesai');
+    if (!container) return;
+    container.innerHTML = '<div class="loading">Memuat...</div>';
+    
+    try {
+        const nilaiSnap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'nilai_akhir'));
+        allSiswaSelesai = [];
+        nilaiSnap.forEach(d => allSiswaSelesai.push({ _id: d.id, ...d.data() }));
+        
+        const search = (document.getElementById('searchSelesai')?.value || '').toLowerCase();
+        let filtered = allSiswaSelesai;
+        if (search) filtered = filtered.filter(s => 
+            (s.nama||'').toLowerCase().includes(search) || 
+            (s.kelas||'').toLowerCase().includes(search) ||
+            (s.mapel||'').toLowerCase().includes(search)
+        );
+        
+        filtered.sort((a,b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+        
+        if (!filtered.length) {
+            container.innerHTML = '<div class="loading">Belum ada siswa yang selesai ujian.</div>';
+            return;
+        }
+        
+        let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">Total: <strong>${filtered.length}</strong> siswa sudah selesai</p>`;
+        html += '<table><thead><tr><th>Nama</th><th>Kelas</th><th>Mapel</th><th>Jenis</th><th>Nilai</th><th>Waktu</th><th>Aksi</th></tr></thead><tbody>';
+        filtered.slice(0, 100).forEach(s => {
+            const p = parseInt(s.persentase) || 0;
+            const warna = p >= 75 ? 'badge-green' : p >= 60 ? 'badge-yellow' : 'badge-red';
+            const waktu = s.timestamp ? new Date(s.timestamp).toLocaleString('id-ID') : '-';
+            html += `<tr>
+                <td><strong>${s.nama||''}</strong></td>
+                <td>${s.kelas||''}</td>
+                <td>${s.mapel||''}</td>
+                <td>${s.jenisUjian||''}</td>
+                <td><span class="badge ${warna}">${s.totalSkor||0}/${s.totalBobot||0} (${s.persentase||'0%'})</span></td>
+                <td style="font-size:12px;color:#64748B">${waktu}</td>
+                <td>
+                    <button class="btn btn-sm btn-warning" onclick="resetSiswaLangsung('${s.username}', '${s.mapel}', '${s.jenisUjian}')">
+                        <i class="fas fa-redo"></i> Reset
+                    </button>
+                </td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+        if (filtered.length > 100) html += `<p style="color:#64748B;font-size:12px;margin-top:12px">Menampilkan 100 dari ${filtered.length}</p>`;
+        container.innerHTML = html;
+    } catch(e) { 
+        console.error(e);
+        container.innerHTML = '<div class="loading">Error: ' + e.message + '</div>'; 
+    }
+}
+
+async function renderDaftarReset() {
+    const container = document.getElementById('listReset');
+    if (!container) return;
+    
     const snap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'cache_reset'));
     allReset = [];
     snap.forEach(d => allReset.push({ _id: d.id, ...d.data() }));
-    if (!allReset.length) { document.getElementById('listReset').innerHTML = '<div class="loading">Belum ada reset.</div>'; return; }
-    let html = '<table><thead><tr><th>Username</th><th>Mapel</th><th>Jenis</th><th>Reset</th><th>Aksi</th></tr></thead><tbody>';
+    
+    if (!allReset.length) {
+        container.innerHTML = '<div class="loading">Tidak ada reset aktif.</div>';
+        return;
+    }
+    
+    let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">Total: <strong>${allReset.length}</strong> reset aktif</p>`;
+    html += '<table><thead><tr><th>Username</th><th>Mapel</th><th>Jenis</th><th>Reset</th><th>Aksi</th></tr></thead><tbody>';
     allReset.forEach(r => {
-        html += `<tr><td>${r.username||''}</td><td>${r.mapel||''}</td><td>${r.jenis||''}</td><td><span class="badge ${r.reset==='YA'?'badge-green':'badge-red'}">${r.reset}</span></td><td><button class="btn btn-sm btn-danger" onclick="deleteReset('${r._id}')"><i class="fas fa-trash"></i></button></td></tr>`;
+        html += `<tr>
+            <td><code>${r.username||''}</code></td>
+            <td>${r.mapel||''}</td>
+            <td>${r.jenis||''}</td>
+            <td><span class="badge ${r.reset==='YA'?'badge-green':'badge-red'}">${r.reset||''}</span></td>
+            <td><button class="btn btn-sm btn-danger" onclick="deleteReset('${r._id}')"><i class="fas fa-trash"></i> Hapus</button></td>
+        </tr>`;
     });
     html += '</tbody></table>';
-    document.getElementById('listReset').innerHTML = html;
+    container.innerHTML = html;
 }
 
-function openFormReset() {
-    openModal('Tambah Reset', `
-        <div class="form-group"><label>Username</label><input id="r_username" placeholder="budi.santoso"></div>
-        <div class="form-row">
-            <div class="form-group"><label>Mapel</label><input id="r_mapel" value="*"></div>
-            <div class="form-group"><label>Jenis</label><input id="r_jenis" value="*"></div>
-        </div>
-        <button class="btn btn-primary" onclick="saveReset()"><i class="fas fa-save"></i> Simpan</button>
-    `);
+async function resetSiswaLangsung(username, mapel, jenis) {
+    if (!confirm(`🔄 Reset ujian untuk:\n\nUsername: ${username}\nMapel: ${mapel}\nJenis: ${jenis}\n\nSiswa akan bisa mengerjakan ujian ini dari awal. Lanjutkan?`)) return;
+    
+    try {
+        // 1. Hapus nilai akhir
+        const nilaiSnap = await window.Firebase.getDocs(
+            window.Firebase.query(
+                window.Firebase.collection(window.db, 'nilai_akhir'),
+                window.Firebase.where('username', '==', username),
+                window.Firebase.where('mapel', '==', mapel),
+                window.Firebase.where('jenisUjian', '==', jenis)
+            )
+        );
+        const batch1 = window.Firebase.writeBatch(window.db);
+        let deletedNilai = 0;
+        nilaiSnap.forEach(d => { batch1.delete(d.ref); deletedNilai++; });
+        await batch1.commit();
+        
+        // 2. Update sesi aktif jadi "Dibatalkan"
+        const sesiSnap = await window.Firebase.getDocs(
+            window.Firebase.query(
+                window.Firebase.collection(window.db, 'sesi_ujian'),
+                window.Firebase.where('username', '==', username),
+                window.Firebase.where('mapel', '==', mapel),
+                window.Firebase.where('status', '==', 'Aktif')
+            )
+        );
+        const batch2 = window.Firebase.writeBatch(window.db);
+        let updatedSesi = 0;
+        sesiSnap.forEach(d => {
+            batch2.update(d.ref, { status: 'Dibatalkan', waktuBatal: new Date().toISOString() });
+            updatedSesi++;
+        });
+        await batch2.commit();
+        
+        // 3. Tambah ke cache_reset
+        await window.Firebase.addDoc(
+            window.Firebase.collection(window.db, 'cache_reset'),
+            {
+                username: username,
+                mapel: mapel,
+                jenis: jenis,
+                reset: 'YA',
+                timestamp: new Date().toISOString(),
+                resetBy: 'admin'
+            }
+        );
+        
+        toast(`✅ ${username} berhasil direset!`);
+        
+        await renderSiswaAktif();
+        await renderSiswaSelesai();
+        await renderDaftarReset();
+    } catch(e) {
+        console.error(e);
+        toast('❌ Error: ' + e.message, 'error');
+    }
 }
 
-async function saveReset() {
-    const data = { username: document.getElementById('r_username').value.trim(), mapel: document.getElementById('r_mapel').value.trim(), jenis: document.getElementById('r_jenis').value.trim(), reset: 'YA' };
-    if (!data.username) { toast('Username wajib!', 'error'); return; }
-    await window.Firebase.addDoc(window.Firebase.collection(window.db, 'cache_reset'), data);
-    toast('✅ Tersimpan!'); closeModal(); renderReset();
+async function deleteReset(id) {
+    if (!confirm('Hapus reset ini?\n\nSiswa tidak akan bisa ujian ulang setelah ini dihapus.')) return;
+    try {
+        await window.Firebase.deleteDoc(window.Firebase.doc(window.db, 'cache_reset', id));
+        toast('🗑️ Reset dihapus');
+        renderDaftarReset();
+    } catch(e) { toast('❌ ' + e.message, 'error'); }
 }
-async function deleteReset(id) { if (!confirm('Hapus?')) return; await window.Firebase.deleteDoc(window.Firebase.doc(window.db, 'cache_reset', id)); toast('🗑️'); renderReset(); }
-async function deleteAllReset() { if (!confirm('Hapus SEMUA reset?')) return; const b = window.Firebase.writeBatch(window.db); allReset.forEach(r => b.delete(window.Firebase.doc(window.db, 'cache_reset', r._id))); await b.commit(); toast('🗑️ Semua dihapus'); renderReset(); }
+
+async function deleteAllReset() {
+    if (!allReset.length) { toast('Tidak ada reset', 'error'); return; }
+    if (!confirm(`⚠️ HAPUS SEMUA RESET?\n\nTotal: ${allReset.length} reset akan dihapus.`)) return;
+    if (!confirm('Yakin? Ini tidak bisa dibatalkan!')) return;
+    
+    try {
+        const b = window.Firebase.writeBatch(window.db);
+        allReset.forEach(r => b.delete(window.Firebase.doc(window.db, 'cache_reset', r._id)));
+        await b.commit();
+        toast('🗑️ Semua reset dihapus');
+        renderDaftarReset();
+    } catch(e) { toast('❌ ' + e.message, 'error'); }
+}
 
 // ==================== HASIL ====================
 let allHasil = [];
@@ -634,7 +855,7 @@ function renderPengaturanPelanggaran() {
             </div>
             <div class="pelanggaran-grid">
                 <div>
-                    <label style="font-size:11px;color:#64748B;display:block;margin-bottom:4px">Freeze Duration (detik, 0=warning saja)</label>
+                    <label style="font-size:11px;color:#64748B;display:block;margin-bottom:4px">Freeze Duration (detik, 0=warning)</label>
                     <input type="number" id="freeze_${key}" value="${p.freeze}" min="0" onchange="updatePelanggaran('${key}')">
                 </div>
                 <div>
@@ -690,7 +911,8 @@ async function resetPengaturan() {
 Object.assign(window, {
     switchTab, syncSiswa, renderSiswa, openFormJadwal, editJadwal, deleteJadwal, deleteAllJadwal, saveJadwal,
     openFormToken, editToken, deleteToken, deleteAllToken, saveToken, syncSoal, renderSoal,
-    openFormReset, saveReset, deleteReset, deleteAllReset, renderHasil, exportHasil, deleteAllNilai,
+    renderSiswaAktif, renderSiswaSelesai, renderDaftarReset, resetSiswaLangsung, deleteReset, deleteAllReset,
+    renderHasil, exportHasil, deleteAllNilai,
     savePengaturan, closeModal, loadPengaturan, togglePelanggaran, updatePelanggaran, resetPengaturan
 });
 
