@@ -173,14 +173,15 @@ table tr:hover{background:#F8FAFC}
         </div>
     </div>
 
-    <!-- RESET (BARU) -->
+    <!-- RESET -->
     <div id="tab-reset" class="tab-content">
         <div class="card">
             <h3><i class="fas fa-user-clock"></i> Siswa Sedang Ujian</h3>
-            <div class="info-box">📌 Daftar siswa yang <strong>sedang mengerjakan ujian</strong>. Klik tombol reset untuk mengizinkan mereka ujian ulang.</div>
+            <div class="info-box">📌 Daftar siswa yang <strong>sedang mengerjakan ujian hari ini</strong>. Klik tombol reset untuk mengizinkan mereka ujian ulang.</div>
             <div class="toolbar">
                 <input type="text" id="searchAktif" placeholder="🔍 Cari nama/kelas/mapel..." oninput="renderSiswaAktif()">
                 <button class="btn btn-warning" onclick="renderSiswaAktif()"><i class="fas fa-sync"></i> Refresh</button>
+                <button class="btn btn-danger" onclick="bersihkanSesiLama()"><i class="fas fa-broom"></i> Bersihkan Sesi Lama</button>
             </div>
             <div id="listSiswaAktif" class="loading">Memuat...</div>
         </div>
@@ -271,11 +272,9 @@ window.Firebase = { collection, addDoc, query, where, getDocs, updateDoc, delete
 </script>
 
 <script>
-// ==================== KONFIGURASI ====================
 const SPREADSHEET_ID = '1zc5lh-8XWEhGYJajqooWGK3Vo89kqob1iAaIdaIiXc0';
 const API_KEY = 'AIzaSyAG16CaL_CwY6Hktj6nNrxCoPjYXcJZHcE';
 
-// ==================== UTILS ====================
 function toast(msg, type='success') {
     const t = document.createElement('div');
     t.className = `toast ${type}`;
@@ -307,6 +306,11 @@ function openModal(title, bodyHTML) {
     document.getElementById('modal').classList.add('active');
 }
 function closeModal() { document.getElementById('modal').classList.remove('active'); }
+
+function formatTanggalLocal(d) {
+    const t = new Date(d);
+    return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+}
 
 async function fetchSheet(sheetName, range) {
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${sheetName}!${range}?key=${API_KEY}`;
@@ -535,7 +539,7 @@ async function renderSoal() {
     document.getElementById('listSoal').innerHTML = html;
 }
 
-// ==================== RESET (DENGAN DAFTAR SISWA) ====================
+// ==================== RESET ====================
 let allReset = [];
 let allSesiAktif = [];
 let allSiswaSelesai = [];
@@ -554,7 +558,23 @@ async function renderSiswaAktif() {
         );
         
         allSesiAktif = [];
-        sesiSnap.forEach(d => allSesiAktif.push({ _id: d.id, ...d.data() }));
+        const now = new Date();
+        const hariIni = formatTanggalLocal(now);
+        
+        sesiSnap.forEach(d => {
+            const s = d.data();
+            const waktuMulai = s.waktuMulai ? new Date(s.waktuMulai) : null;
+            
+            let valid = false;
+            if (waktuMulai) {
+                const diffHours = (now - waktuMulai) / (1000 * 60 * 60);
+                if (formatTanggalLocal(waktuMulai) === hariIni && diffHours <= 3) {
+                    valid = true;
+                }
+            }
+            
+            if (valid) allSesiAktif.push({ _id: d.id, ...s });
+        });
         
         const search = (document.getElementById('searchAktif')?.value || '').toLowerCase();
         let filtered = allSesiAktif;
@@ -565,11 +585,11 @@ async function renderSiswaAktif() {
         );
         
         if (!filtered.length) {
-            container.innerHTML = '<div class="loading">✅ Tidak ada siswa yang sedang ujian.</div>';
+            container.innerHTML = '<div class="loading">✅ Tidak ada siswa yang sedang ujian hari ini.</div>';
             return;
         }
         
-        let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">Total: <strong>${filtered.length}</strong> siswa sedang ujian</p>`;
+        let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">Total: <strong>${filtered.length}</strong> siswa sedang ujian (hari ini)</p>`;
         html += '<table><thead><tr><th>Nama</th><th>Kelas</th><th>Mapel</th><th>Jenis</th><th>Mulai</th><th>Aksi</th></tr></thead><tbody>';
         filtered.forEach(s => {
             const waktuMulai = s.waktuMulai ? new Date(s.waktuMulai).toLocaleString('id-ID') : '-';
@@ -674,6 +694,55 @@ async function renderDaftarReset() {
     });
     html += '</tbody></table>';
     container.innerHTML = html;
+}
+
+// ✅ BERSIHKAN SESI LAMA
+async function bersihkanSesiLama() {
+    if (!confirm('🧹 Bersihkan sesi lama?\n\nSesi yang sudah melewati 3 jam atau beda hari akan diubah menjadi "Kedaluwarsa".\n\nLanjutkan?')) return;
+    
+    try {
+        const sesiSnap = await window.Firebase.getDocs(
+            window.Firebase.query(
+                window.Firebase.collection(window.db, 'sesi_ujian'),
+                window.Firebase.where('status', '==', 'Aktif')
+            )
+        );
+        
+        let count = 0;
+        let stillActive = 0;
+        const now = new Date();
+        const hariIni = formatTanggalLocal(now);
+        
+        for (const docSnap of sesiSnap.docs) {
+            const sesi = docSnap.data();
+            const waktuMulai = sesi.waktuMulai ? new Date(sesi.waktuMulai) : null;
+            
+            let isExpired = false;
+            if (waktuMulai) {
+                const diffHours = (now - waktuMulai) / (1000 * 60 * 60);
+                if (diffHours > 3) isExpired = true;
+                if (formatTanggalLocal(waktuMulai) !== hariIni) isExpired = true;
+            } else {
+                isExpired = true;
+            }
+            
+            if (isExpired) {
+                await window.Firebase.updateDoc(docSnap.ref, {
+                    status: 'Kedaluwarsa',
+                    waktuKedaluwarsa: new Date().toISOString()
+                });
+                count++;
+            } else {
+                stillActive++;
+            }
+        }
+        
+        toast(`🧹 ${count} sesi lama dibersihkan, ${stillActive} masih aktif`);
+        renderSiswaAktif();
+    } catch(e) {
+        console.error(e);
+        toast('❌ Error: ' + e.message, 'error');
+    }
 }
 
 async function resetSiswaLangsung(username, mapel, jenis) {
@@ -912,6 +981,7 @@ Object.assign(window, {
     switchTab, syncSiswa, renderSiswa, openFormJadwal, editJadwal, deleteJadwal, deleteAllJadwal, saveJadwal,
     openFormToken, editToken, deleteToken, deleteAllToken, saveToken, syncSoal, renderSoal,
     renderSiswaAktif, renderSiswaSelesai, renderDaftarReset, resetSiswaLangsung, deleteReset, deleteAllReset,
+    bersihkanSesiLama,
     renderHasil, exportHasil, deleteAllNilai,
     savePengaturan, closeModal, loadPengaturan, togglePelanggaran, updatePelanggaran, resetPengaturan
 });
