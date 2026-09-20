@@ -1,248 +1,858 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin CBT - Sync Data</title>
-    <style>
-        *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:'Segoe UI',sans-serif;background:linear-gradient(135deg,#1E3A8A,#3B82F6);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
-        .container{background:white;border-radius:20px;padding:40px;max-width:600px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3)}
-        h1{color:#1E3A8A;margin-bottom:10px;font-size:24px}
-        .subtitle{color:#64748B;margin-bottom:30px;font-size:14px}
-        button{width:100%;padding:16px;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;transition:0.3s;margin-bottom:12px}
-        .btn-sync{background:#F59E0B;color:white}
-        .btn-sync:hover{background:#D97706}
-        .btn-sync:disabled{background:#94A3B8;cursor:not-allowed}
-        .status{padding:16px;border-radius:12px;margin-top:20px;font-size:14px}
-        .status.loading{background:#FEF3C7;color:#92400E}
-        .status.success{background:#DCFCE7;color:#166534}
-        .status.error{background:#FEE2E2;color:#991B1B}
-        .log{margin-top:20px;padding:16px;background:#F8FAFC;border-radius:12px;font-family:monospace;font-size:12px;max-height:400px;overflow-y:auto}
-        .log div{padding:4px 0;border-bottom:1px solid #E2E8F0}
-        .log .ok{color:#16A34A}
-        .log .err{color:#DC2626}
-        .log .info{color:#1E40AF}
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin CBT - SMPN 1 Sukosari</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',sans-serif}
+body{background:#F1F5F9;display:flex;min-height:100vh}
+.sidebar{width:240px;background:#1E3A8A;color:white;padding:20px 0;position:fixed;height:100vh;overflow-y:auto}
+.sidebar h2{padding:0 20px 20px;font-size:18px;border-bottom:1px solid rgba(255,255,255,0.1);margin-bottom:10px}
+.sidebar h2 small{display:block;font-size:11px;opacity:0.7;font-weight:400;margin-top:4px}
+.sidebar a{display:flex;align-items:center;gap:12px;padding:12px 20px;color:rgba(255,255,255,0.8);text-decoration:none;cursor:pointer;border-left:3px solid transparent;transition:0.2s;font-size:14px}
+.sidebar a:hover{background:rgba(255,255,255,0.1);color:white}
+.sidebar a.active{background:rgba(255,255,255,0.15);color:white;border-left-color:#F59E0B}
+.sidebar a i{width:20px;text-align:center}
+.main{margin-left:240px;flex:1;padding:24px}
+.header{background:white;padding:20px 24px;border-radius:16px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,0.05)}
+.header h1{color:#1E3A8A;font-size:22px}
+.header .user{color:#64748B;font-size:14px}
+.tab-content{display:none}
+.tab-content.active{display:block}
+.card{background:white;border-radius:16px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,0.05);margin-bottom:20px}
+.card h3{color:#1E3A8A;font-size:18px;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px}
+.stat{background:white;border-radius:16px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.05)}
+.stat .icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;color:white;margin-bottom:12px}
+.stat .icon.blue{background:#3B82F6}
+.stat .icon.green{background:#22C55E}
+.stat .icon.orange{background:#F59E0B}
+.stat .icon.purple{background:#8B5CF6}
+.stat .value{font-size:28px;font-weight:700;color:#1E293B}
+.stat .label{font-size:13px;color:#64748B;margin-top:4px}
+.btn{padding:10px 18px;border:none;border-radius:10px;cursor:pointer;font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:6px;transition:0.2s}
+.btn-primary{background:#1E3A8A;color:white}
+.btn-primary:hover{background:#1E40AF}
+.btn-success{background:#22C55E;color:white}
+.btn-danger{background:#EF4444;color:white}
+.btn-warning{background:#F59E0B;color:white}
+.btn-secondary{background:#E2E8F0;color:#334155}
+.btn-sm{padding:6px 12px;font-size:12px}
+.btn:disabled{opacity:0.5;cursor:not-allowed}
+.toolbar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.toolbar input, .toolbar select{padding:10px 14px;border:1px solid #E2E8F0;border-radius:10px;font-size:14px}
+.toolbar input{flex:1;min-width:200px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+table th{background:#F8FAFC;padding:12px;text-align:left;color:#475569;font-weight:600;border-bottom:2px solid #E2E8F0}
+table td{padding:12px;border-bottom:1px solid #F1F5F9}
+table tr:hover{background:#F8FAFC}
+.modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;padding:20px}
+.modal.active{display:flex}
+.modal-content{background:white;border-radius:16px;padding:24px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.modal-header h3{color:#1E3A8A;font-size:18px}
+.modal-close{background:none;border:none;font-size:24px;cursor:pointer;color:#64748B}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:13px;font-weight:600;color:#475569;margin-bottom:6px}
+.form-group input, .form-group select, .form-group textarea{width:100%;padding:10px 14px;border:1px solid #E2E8F0;border-radius:10px;font-size:14px;font-family:inherit}
+.form-group textarea{min-height:100px;resize:vertical}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.toast{position:fixed;bottom:20px;right:20px;padding:14px 20px;border-radius:12px;color:white;font-weight:600;z-index:2000;animation:slideIn 0.3s;box-shadow:0 10px 30px rgba(0,0,0,0.2)}
+.toast.success{background:#22C55E}
+.toast.error{background:#EF4444}
+.toast.info{background:#3B82F6}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+.loading{text-align:center;padding:40px;color:#64748B}
+.badge{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-green{background:#DCFCE7;color:#166534}
+.badge-red{background:#FEE2E2;color:#991B1B}
+.badge-yellow{background:#FEF3C7;color:#92400E}
+.badge-blue{background:#DBEAFE;color:#1E40AF}
+.info-box{background:#E0F2FE;border-left:4px solid #0284C7;padding:14px 18px;border-radius:10px;margin-bottom:16px;color:#075985;font-size:13px;line-height:1.6}
+@media(max-width:768px){.sidebar{width:60px}.sidebar h2, .sidebar a span{display:none}.sidebar a{justify-content:center;padding:16px 0}.main{margin-left:60px}}
+</style>
 </head>
 <body>
-    <div class="container">
-        <h1>🔧 Admin CBT - Sync Data</h1>
-        <p class="subtitle">Sinkronisasi data dari Spreadsheet ke Firebase (Cache)</p>
-        <button class="btn-sync" id="btnSync" onclick="syncData()">🔄 SINKRONISASI SEKARANG</button>
-        <div id="status" style="display:none"></div>
-        <div class="log" id="log" style="display:none"></div>
+
+<div class="sidebar">
+    <h2>🎓 Admin CBT<small>SMPN 1 Sukosari</small></h2>
+    <a onclick="switchTab('dashboard')" class="active" data-tab="dashboard"><i class="fas fa-chart-line"></i> <span>Dashboard</span></a>
+    <a onclick="switchTab('siswa')" data-tab="siswa"><i class="fas fa-users"></i> <span>Siswa</span></a>
+    <a onclick="switchTab('jadwal')" data-tab="jadwal"><i class="fas fa-calendar-alt"></i> <span>Jadwal Ujian</span></a>
+    <a onclick="switchTab('token')" data-tab="token"><i class="fas fa-key"></i> <span>Token</span></a>
+    <a onclick="switchTab('soal')" data-tab="soal"><i class="fas fa-book"></i> <span>Bank Soal</span></a>
+    <a onclick="switchTab('reset')" data-tab="reset"><i class="fas fa-redo"></i> <span>Reset Ujian</span></a>
+    <a onclick="switchTab('hasil')" data-tab="hasil"><i class="fas fa-trophy"></i> <span>Hasil Ujian</span></a>
+    <a onclick="switchTab('pengaturan')" data-tab="pengaturan"><i class="fas fa-cog"></i> <span>Pengaturan</span></a>
+</div>
+
+<div class="main">
+    <div class="header">
+        <h1 id="pageTitle">Dashboard</h1>
+        <div class="user"><i class="fas fa-user-shield"></i> Administrator</div>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, where, getDocs, updateDoc, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-        
-        const firebaseConfig = {
-            apiKey: "AIzaSyDwCOj1XNidpPjrywlfIIpRBMkZE5492B4",
-            authDomain: "cbt-smpn1-sukosari-828be.firebaseapp.com",
-            projectId: "cbt-smpn1-sukosari-828be",
-            storageBucket: "cbt-smpn1-sukosari-828be.firebasestorage.app",
-            messagingSenderId: "796353182463",
-            appId: "1:796353182463:web:b655ddb7ea5ec4482ceaca"
-        };
-        
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        
-        window.db = db;
-        window.Firebase = { collection, addDoc, query, where, getDocs, updateDoc, doc, setDoc, deleteDoc };
-        window.SPREADSHEET_ID = '1zc5lh-8XWEhGYJajqooWGK3Vo89kqob1iAaIdaIiXc0';
-        window.API_KEY = 'AIzaSyAG16CaL_CwY6Hktj6nNrxCoPjYXcJZHcE';
-        
-        console.log('✅ Firebase siap!');
-    </script>
+    <!-- DASHBOARD -->
+    <div id="tab-dashboard" class="tab-content active">
+        <div class="stats">
+            <div class="stat"><div class="icon blue"><i class="fas fa-users"></i></div><div class="value" id="statSiswa">0</div><div class="label">Total Siswa</div></div>
+            <div class="stat"><div class="icon green"><i class="fas fa-book"></i></div><div class="value" id="statSoal">0</div><div class="label">Total Soal</div></div>
+            <div class="stat"><div class="icon orange"><i class="fas fa-calendar"></i></div><div class="value" id="statJadwal">0</div><div class="label">Jadwal Ujian</div></div>
+            <div class="stat"><div class="icon purple"><i class="fas fa-trophy"></i></div><div class="value" id="statNilai">0</div><div class="label">Nilai Tersimpan</div></div>
+        </div>
+        <div class="card">
+            <h3><i class="fas fa-info-circle"></i> Alur Kerja Admin Panel</h3>
+            <div class="info-box">
+                <strong>📊 SISWA & BANK SOAL</strong> → Kelola dari <strong>Spreadsheet</strong>, lalu klik tombol <strong>🔄 SYNC</strong> di menu terkait.<br><br>
+                <strong>📅 JADWAL, TOKEN, RESET, PENGATURAN</strong> → Kelola langsung di panel ini (otomatis tersimpan ke Firebase).<br><br>
+                <strong>📈 HASIL UJIAN</strong> → Lihat & export nilai siswa secara otomatis.
+            </div>
+        </div>
+    </div>
+
+    <!-- SISWA -->
+    <div id="tab-siswa" class="tab-content">
+        <div class="card">
+            <h3><i class="fas fa-users"></i> Data Siswa (dari Spreadsheet)</h3>
+            <div class="info-box">
+                📌 Data siswa dikelola melalui <strong>Google Spreadsheet</strong>.<br>
+                Setelah mengisi sheet <code>DATA_SISWA</code>, klik tombol <strong>🔄 SYNC</strong> di bawah.
+            </div>
+            <div class="toolbar">
+                <input type="text" id="searchSiswa" placeholder="🔍 Cari nama/username/NIS..." oninput="renderSiswa()">
+                <select id="filterJenjangSiswa" onchange="renderSiswa()">
+                    <option value="">Semua Jenjang</option>
+                    <option value="7">7</option>
+                    <option value="8">8</option>
+                    <option value="9">9</option>
+                </select>
+                <button class="btn btn-success" onclick="syncSiswa()"><i class="fas fa-sync"></i> SYNC dari Spreadsheet</button>
+            </div>
+            <div id="listSiswa" class="loading">Memuat...</div>
+        </div>
+    </div>
+
+    <!-- JADWAL -->
+    <div id="tab-jadwal" class="tab-content">
+        <div class="card">
+            <h3><i class="fas fa-calendar-alt"></i> Kelola Jadwal Ujian</h3>
+            <div class="toolbar">
+                <button class="btn btn-primary" onclick="openFormJadwal()"><i class="fas fa-plus"></i> Tambah Jadwal</button>
+                <button class="btn btn-danger" onclick="deleteAllJadwal()"><i class="fas fa-trash"></i> Hapus Semua</button>
+            </div>
+            <div id="listJadwal" class="loading">Memuat...</div>
+        </div>
+    </div>
+
+    <!-- TOKEN -->
+    <div id="tab-token" class="tab-content">
+        <div class="card">
+            <h3><i class="fas fa-key"></i> Kelola Token Ujian</h3>
+            <div class="toolbar">
+                <button class="btn btn-primary" onclick="openFormToken()"><i class="fas fa-plus"></i> Tambah Token</button>
+                <button class="btn btn-danger" onclick="deleteAllToken()"><i class="fas fa-trash"></i> Hapus Semua</button>
+            </div>
+            <div id="listToken" class="loading">Memuat...</div>
+        </div>
+    </div>
+
+    <!-- SOAL -->
+    <div id="tab-soal" class="tab-content">
+        <div class="card">
+            <h3><i class="fas fa-book"></i> Bank Soal (dari Spreadsheet)</h3>
+            <div class="info-box">
+                📌 Bank soal dikelola melalui <strong>Google Spreadsheet</strong>.<br>
+                Setelah mengisi sheet <code>BANK_SOAL</code>, klik tombol <strong>🔄 SYNC</strong> di bawah.
+            </div>
+            <div class="toolbar">
+                <input type="text" id="searchSoal" placeholder="🔍 Cari soal..." oninput="renderSoal()">
+                <select id="filterTipeSoal" onchange="renderSoal()">
+                    <option value="">Semua Tipe</option>
+                    <option value="PG">PG</option>
+                    <option value="PGK">PGK</option>
+                    <option value="B/S">B/S</option>
+                    <option value="Jodoh">Jodoh</option>
+                    <option value="Isian">Isian</option>
+                </select>
+                <button class="btn btn-success" onclick="syncSoal()"><i class="fas fa-sync"></i> SYNC dari Spreadsheet</button>
+            </div>
+            <div id="listSoal" class="loading">Memuat...</div>
+        </div>
+    </div>
+
+    <!-- RESET -->
+    <div id="tab-reset" class="tab-content">
+        <div class="card">
+            <h3><i class="fas fa-redo"></i> Reset Ujian Siswa</h3>
+            <div class="toolbar">
+                <button class="btn btn-primary" onclick="openFormReset()"><i class="fas fa-plus"></i> Tambah Reset</button>
+                <button class="btn btn-danger" onclick="deleteAllReset()"><i class="fas fa-trash"></i> Hapus Semua</button>
+            </div>
+            <div id="listReset" class="loading">Memuat...</div>
+        </div>
+    </div>
+
+    <!-- HASIL -->
+    <div id="tab-hasil" class="tab-content">
+        <div class="card">
+            <h3><i class="fas fa-trophy"></i> Hasil Ujian Siswa</h3>
+            <div class="toolbar">
+                <input type="text" id="searchHasil" placeholder="🔍 Cari nama/kelas..." oninput="renderHasil()">
+                <select id="filterMapel" onchange="renderHasil()">
+                    <option value="">Semua Mapel</option>
+                </select>
+                <button class="btn btn-success" onclick="exportHasil()"><i class="fas fa-file-csv"></i> Export CSV</button>
+                <button class="btn btn-danger" onclick="deleteAllNilai()"><i class="fas fa-trash"></i> Hapus Semua Nilai</button>
+            </div>
+            <div id="listHasil" class="loading">Memuat...</div>
+        </div>
+    </div>
+
+    <!-- PENGATURAN -->
+    <div id="tab-pengaturan" class="tab-content">
+        <div class="card">
+            <h3><i class="fas fa-cog"></i> Pengaturan Sistem</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Durasi Freeze (detik)</label>
+                    <input type="number" id="setFreezeDuration" value="30" min="5">
+                </div>
+                <div class="form-group">
+                    <label>Max Pelanggaran</label>
+                    <input type="number" id="setMaxPelanggaran" value="5" min="1">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Max WINDOW_BLUR (keluar aplikasi)</label>
+                <input type="number" id="setMaxBlur" value="3" min="1">
+            </div>
+            <button class="btn btn-primary" onclick="savePengaturan()"><i class="fas fa-save"></i> Simpan Pengaturan</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal" id="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modalTitle">Form</h3>
+            <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <div id="modalBody"></div>
+    </div>
+</div>
+
+<div id="toastContainer"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getFirestore, collection, addDoc, query, where, getDocs, updateDoc, deleteDoc, doc, setDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyDwCOj1XNidpPjrywlfIIpRBMkZE5492B4",
+    authDomain: "cbt-smpn1-sukosari-828be.firebaseapp.com",
+    projectId: "cbt-smpn1-sukosari-828be",
+    storageBucket: "cbt-smpn1-sukosari-828be.firebasestorage.app",
+    messagingSenderId: "796353182463",
+    appId: "1:796353182463:web:b655ddb7ea5ec4482ceaca"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+window.db = db;
+window.Firebase = { collection, addDoc, query, where, getDocs, updateDoc, deleteDoc, doc, setDoc, writeBatch };
+window.loaded = true;
+</script>
+
+<script>
+// ==================== KONFIGURASI ====================
+const SPREADSHEET_ID = '1zc5lh-8XWEhGYJajqooWGK3Vo89kqob1iAaIdaIiXc0';
+const API_KEY = 'AIzaSyAG16CaL_CwY6Hktj6nNrxCoPjYXcJZHcE';
+
+// ==================== UTILS ====================
+function toast(msg, type='success') {
+    const t = document.createElement('div');
+    t.className = `toast ${type}`;
+    t.textContent = msg;
+    document.getElementById('toastContainer').appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+}
+
+function switchTab(tab) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.sidebar a').forEach(el => el.classList.remove('active'));
+    document.getElementById(`tab-${tab}`).classList.add('active');
+    document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
     
-    <script>
-        const SPREADSHEET_ID = '1zc5lh-8XWEhGYJajqooWGK3Vo89kqob1iAaIdaIiXc0';
-        const API_KEY = 'AIzaSyAG16CaL_CwY6Hktj6nNrxCoPjYXcJZHcE';
+    const titles = { dashboard: 'Dashboard', siswa: 'Kelola Siswa', jadwal: 'Jadwal Ujian', token: 'Token Ujian', soal: 'Bank Soal', reset: 'Reset Ujian', hasil: 'Hasil Ujian', pengaturan: 'Pengaturan' };
+    document.getElementById('pageTitle').textContent = titles[tab];
+    
+    if (tab === 'dashboard') loadDashboard();
+    if (tab === 'siswa') renderSiswa();
+    if (tab === 'jadwal') renderJadwal();
+    if (tab === 'token') renderToken();
+    if (tab === 'soal') renderSoal();
+    if (tab === 'reset') renderReset();
+    if (tab === 'hasil') renderHasil();
+    if (tab === 'pengaturan') loadPengaturan();
+}
+
+function openModal(title, bodyHTML) {
+    document.getElementById('modalTitle').textContent = title;
+    document.getElementById('modalBody').innerHTML = bodyHTML;
+    document.getElementById('modal').classList.add('active');
+}
+function closeModal() { document.getElementById('modal').classList.remove('active'); }
+
+async function fetchSheet(sheetName, range) {
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${sheetName}!${range}?key=${API_KEY}`;
+    const r = await fetch(url);
+    const d = await r.json();
+    return d.values || [];
+}
+
+async function clearCollection(collectionName) {
+    const coll = window.Firebase.collection(window.db, collectionName);
+    const snapshot = await window.Firebase.getDocs(coll);
+    const batch = window.Firebase.writeBatch(window.db);
+    snapshot.forEach(docSnap => batch.delete(docSnap.ref));
+    await batch.commit();
+    return snapshot.size;
+}
+
+// ==================== DASHBOARD ====================
+async function loadDashboard() {
+    try {
+        const [siswaSnap, soalSnap, jadwalSnap, nilaiSnap] = await Promise.all([
+            window.Firebase.getDocs(window.Firebase.collection(window.db, 'cache_siswa')),
+            window.Firebase.getDocs(window.Firebase.collection(window.db, 'cache_soal')),
+            window.Firebase.getDocs(window.Firebase.collection(window.db, 'cache_jadwal')),
+            window.Firebase.getDocs(window.Firebase.collection(window.db, 'nilai_akhir'))
+        ]);
+        document.getElementById('statSiswa').textContent = siswaSnap.size;
+        document.getElementById('statSoal').textContent = soalSnap.size;
+        document.getElementById('statJadwal').textContent = jadwalSnap.size;
+        document.getElementById('statNilai').textContent = nilaiSnap.size;
+    } catch (e) { console.error(e); }
+}
+
+// ==================== SISWA (SYNC SAJA) ====================
+let allSiswa = [];
+
+async function syncSiswa() {
+    if (!confirm('🔄 Sync data siswa dari Spreadsheet ke Firebase?\n\nData lama akan diganti dengan data baru.')) return;
+    
+    toast('⏳ Mengambil data siswa...', 'info');
+    try {
+        const rows = await fetchSheet('DATA_SISWA', 'A:H');
+        console.log(`📊 Total baris: ${rows.length}`);
         
-        function addLog(msg, type = 'info') {
-            const log = document.getElementById('log');
-            log.style.display = 'block';
-            const div = document.createElement('div');
-            div.className = type;
-            div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
-            log.appendChild(div);
-            log.scrollTop = log.scrollHeight;
+        if (rows.length <= 1) { toast('❌ Tidak ada data di spreadsheet', 'error'); return; }
+        
+        const deleted = await clearCollection('cache_siswa');
+        console.log(`🗑️ Hapus ${deleted} data lama`);
+        
+        let count = 0;
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
+            if (!row[2]) continue;
+            await window.Firebase.addDoc(window.Firebase.collection(window.db, 'cache_siswa'), {
+                nis: String(row[0]||'').trim(),
+                nama: String(row[1]||'').trim(),
+                username: String(row[2]||'').trim(),
+                password: String(row[3]||'').trim(),
+                kelas: String(row[4]||'').trim(),
+                jenjang: String(row[5]||'').trim()
+            });
+            count++;
+        }
+        toast(`✅ ${count} siswa berhasil di-sync!`);
+        renderSiswa();
+    } catch(e) { 
+        console.error(e);
+        toast('❌ Error: ' + e.message, 'error'); 
+    }
+}
+
+async function renderSiswa() {
+    try {
+        const snap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'cache_siswa'));
+        allSiswa = [];
+        snap.forEach(d => allSiswa.push({ _id: d.id, ...d.data() }));
+        
+        const search = (document.getElementById('searchSiswa')?.value || '').toLowerCase();
+        const jenjang = document.getElementById('filterJenjangSiswa')?.value || '';
+        
+        let filtered = allSiswa;
+        if (search) filtered = filtered.filter(s => 
+            (s.nama||'').toLowerCase().includes(search) || 
+            (s.username||'').toLowerCase().includes(search) || 
+            (s.nis||'').includes(search)
+        );
+        if (jenjang) filtered = filtered.filter(s => s.jenjang === jenjang);
+        
+        if (!filtered.length) {
+            document.getElementById('listSiswa').innerHTML = '<div class="loading">Belum ada data siswa.<br>Klik <strong>🔄 SYNC dari Spreadsheet</strong>.</div>';
+            return;
         }
         
-        function setStatus(msg, type) {
-            const s = document.getElementById('status');
-            s.style.display = 'block';
-            s.className = `status ${type}`;
-            s.textContent = msg;
-        }
+        let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">Total: <strong>${filtered.length}</strong> siswa (dari Firebase)</p>`;
+        html += '<table><thead><tr><th>NIS</th><th>Nama</th><th>Username</th><th>Password</th><th>Kelas</th><th>Jenjang</th></tr></thead><tbody>';
+        filtered.slice(0, 100).forEach(s => {
+            html += `<tr>
+                <td>${s.nis||''}</td>
+                <td>${s.nama||''}</td>
+                <td><code>${s.username||''}</code></td>
+                <td><code>${s.password||''}</code></td>
+                <td>${s.kelas||''}</td>
+                <td><span class="badge badge-blue">${s.jenjang||''}</span></td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+        if (filtered.length > 100) html += `<p style="color:#64748B;font-size:12px;margin-top:12px">Menampilkan 100 dari ${filtered.length} siswa. Gunakan pencarian untuk memfilter.</p>`;
+        document.getElementById('listSiswa').innerHTML = html;
+    } catch(e) { console.error(e); document.getElementById('listSiswa').innerHTML = 'Error: '+e.message; }
+}
+
+// ==================== JADWAL (CRUD) ====================
+let allJadwal = [];
+
+async function renderJadwal() {
+    try {
+        const snap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'cache_jadwal'));
+        allJadwal = [];
+        snap.forEach(d => allJadwal.push({ _id: d.id, ...d.data() }));
+        if (!allJadwal.length) { document.getElementById('listJadwal').innerHTML = '<div class="loading">Belum ada jadwal.</div>'; return; }
         
-        async function fetchSheet(sheetName, range) {
-            const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${sheetName}!${range}?key=${API_KEY}`;
-            const r = await fetch(url);
-            const d = await r.json();
-            return d.values || [];
-        }
+        let html = '<table><thead><tr><th>Jenjang</th><th>Mapel</th><th>Jenis</th><th>Tanggal</th><th>Waktu</th><th>Min</th><th>Token</th><th>Password</th><th>Status</th><th>Aksi</th></tr></thead><tbody>';
+        allJadwal.forEach(j => {
+            html += `<tr>
+                <td><span class="badge badge-blue">${j.jenjang||''}</span></td>
+                <td>${j.mapel||''}</td>
+                <td>${j.jenis||''}</td>
+                <td>${j.tanggal||''}</td>
+                <td>${j.waktuMulai||''} - ${j.waktuSelesai||''}</td>
+                <td>${j.minimalMenit||0}m</td>
+                <td><code>${j.token||''}</code></td>
+                <td>${j.password ? '🔐' : '-'}</td>
+                <td><span class="badge ${j.status==='Aktif'?'badge-green':'badge-red'}">${j.status||''}</span></td>
+                <td>
+                    <button class="btn btn-sm btn-warning" onclick="editJadwal('${j._id}')"><i class="fas fa-edit"></i></button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteJadwal('${j._id}')"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+        document.getElementById('listJadwal').innerHTML = html;
+    } catch(e) { document.getElementById('listJadwal').innerHTML = 'Error: '+e.message; }
+}
+
+function openFormJadwal(id=null) {
+    const today = new Date().toISOString().split('T')[0];
+    const j = id ? allJadwal.find(x => x._id === id) : { jenjang:'9', mapel:'', jenis:'', tanggal:today, waktuMulai:'08:00', waktuSelesai:'10:00', minimalMenit:0, token:'', status:'Aktif', password:'' };
+    openModal(id ? 'Edit Jadwal' : 'Tambah Jadwal', `
+        <div class="form-row">
+            <div class="form-group"><label>Jenjang</label>
+                <select id="j_jenjang">
+                    <option value="7" ${j.jenjang==='7'?'selected':''}>7</option>
+                    <option value="8" ${j.jenjang==='8'?'selected':''}>8</option>
+                    <option value="9" ${j.jenjang==='9'?'selected':''}>9</option>
+                </select>
+            </div>
+            <div class="form-group"><label>Mapel</label><input id="j_mapel" value="${j.mapel}" placeholder="Informatika"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Jenis Ujian</label><input id="j_jenis" value="${j.jenis}" placeholder="KUIS / UH / UTS"></div>
+            <div class="form-group"><label>Tanggal</label><input type="date" id="j_tanggal" value="${j.tanggal}"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Waktu Mulai</label><input type="time" id="j_mulai" value="${j.waktuMulai}"></div>
+            <div class="form-group"><label>Waktu Selesai</label><input type="time" id="j_selesai" value="${j.waktuSelesai}"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Minimal Menit</label><input type="number" id="j_min" value="${j.minimalMenit||0}"></div>
+            <div class="form-group"><label>Token</label><input id="j_token" value="${j.token}" placeholder="TOKEN9"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Status</label>
+                <select id="j_status">
+                    <option value="Aktif" ${j.status==='Aktif'?'selected':''}>Aktif</option>
+                    <option value="Nonaktif" ${j.status==='Nonaktif'?'selected':''}>Nonaktif</option>
+                </select>
+            </div>
+            <div class="form-group"><label>Password (opsional)</label><input id="j_password" value="${j.password||''}" placeholder="Kosongkan jika tidak perlu"></div>
+        </div>
+        <button class="btn btn-primary" onclick="saveJadwal('${id||''}')"><i class="fas fa-save"></i> Simpan</button>
+    `);
+}
+
+async function saveJadwal(id) {
+    const data = {
+        idJadwal: 'JAD'+Date.now(),
+        jenjang: document.getElementById('j_jenjang').value,
+        mapel: document.getElementById('j_mapel').value.trim(),
+        jenis: document.getElementById('j_jenis').value.trim(),
+        tanggal: document.getElementById('j_tanggal').value,
+        waktuMulai: document.getElementById('j_mulai').value,
+        waktuSelesai: document.getElementById('j_selesai').value,
+        minimalMenit: parseInt(document.getElementById('j_min').value)||0,
+        token: document.getElementById('j_token').value.trim(),
+        status: document.getElementById('j_status').value,
+        password: document.getElementById('j_password').value.trim()
+    };
+    if (!data.mapel || !data.jenis || !data.tanggal) { toast('Lengkapi data!', 'error'); return; }
+    try {
+        if (id) { await window.Firebase.updateDoc(window.Firebase.doc(window.db, 'cache_jadwal', id), data); toast('✅ Jadwal diupdate!'); }
+        else { await window.Firebase.addDoc(window.Firebase.collection(window.db, 'cache_jadwal'), data); toast('✅ Jadwal ditambahkan!'); }
+        closeModal(); renderJadwal();
+    } catch(e) { toast('Error: '+e.message, 'error'); }
+}
+
+function editJadwal(id) { openFormJadwal(id); }
+async function deleteJadwal(id) {
+    if (!confirm('Hapus jadwal ini?')) return;
+    await window.Firebase.deleteDoc(window.Firebase.doc(window.db, 'cache_jadwal', id));
+    toast('🗑️ Jadwal dihapus'); renderJadwal();
+}
+async function deleteAllJadwal() {
+    if (!confirm('⚠️ Hapus SEMUA jadwal?')) return;
+    const batch = window.Firebase.writeBatch(window.db);
+    allJadwal.forEach(j => batch.delete(window.Firebase.doc(window.db, 'cache_jadwal', j._id)));
+    await batch.commit();
+    toast('🗑️ Semua jadwal dihapus'); renderJadwal();
+}
+
+// ==================== TOKEN (CRUD) ====================
+let allToken = [];
+
+async function renderToken() {
+    const snap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'cache_token'));
+    allToken = [];
+    snap.forEach(d => allToken.push({ _id: d.id, ...d.data() }));
+    if (!allToken.length) { document.getElementById('listToken').innerHTML = '<div class="loading">Belum ada token.</div>'; return; }
+    
+    let html = '<table><thead><tr><th>Token</th><th>Jenjang</th><th>Mapel</th><th>Jenis</th><th>Status</th><th>Aksi</th></tr></thead><tbody>';
+    allToken.forEach(t => {
+        html += `<tr>
+            <td><code>${t.token||''}</code></td>
+            <td><span class="badge badge-blue">${t.jenjang||''}</span></td>
+            <td>${t.mapel||''}</td>
+            <td>${t.jenis||''}</td>
+            <td><span class="badge ${t.status==='Aktif'?'badge-green':'badge-red'}">${t.status||''}</span></td>
+            <td>
+                <button class="btn btn-sm btn-warning" onclick="editToken('${t._id}')"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-sm btn-danger" onclick="deleteToken('${t._id}')"><i class="fas fa-trash"></i></button>
+            </td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    document.getElementById('listToken').innerHTML = html;
+}
+
+function openFormToken(id=null) {
+    const t = id ? allToken.find(x => x._id === id) : { token:'', jenjang:'9', mapel:'', jenis:'', status:'Aktif' };
+    openModal(id ? 'Edit Token' : 'Tambah Token', `
+        <div class="form-group"><label>Token</label><input id="t_token" value="${t.token}" placeholder="TOKEN9"></div>
+        <div class="form-row">
+            <div class="form-group"><label>Jenjang</label>
+                <select id="t_jenjang">
+                    <option value="7" ${t.jenjang==='7'?'selected':''}>7</option>
+                    <option value="8" ${t.jenjang==='8'?'selected':''}>8</option>
+                    <option value="9" ${t.jenjang==='9'?'selected':''}>9</option>
+                </select>
+            </div>
+            <div class="form-group"><label>Mapel</label><input id="t_mapel" value="${t.mapel}" placeholder="Informatika"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Jenis</label><input id="t_jenis" value="${t.jenis}" placeholder="KUIS"></div>
+            <div class="form-group"><label>Status</label>
+                <select id="t_status">
+                    <option value="Aktif" ${t.status==='Aktif'?'selected':''}>Aktif</option>
+                    <option value="Nonaktif" ${t.status==='Nonaktif'?'selected':''}>Nonaktif</option>
+                </select>
+            </div>
+        </div>
+        <button class="btn btn-primary" onclick="saveToken('${id||''}')"><i class="fas fa-save"></i> Simpan</button>
+    `);
+}
+
+async function saveToken(id) {
+    const data = { token: document.getElementById('t_token').value.trim(), jenjang: document.getElementById('t_jenjang').value, mapel: document.getElementById('t_mapel').value.trim(), jenis: document.getElementById('t_jenis').value.trim(), status: document.getElementById('t_status').value };
+    if (!data.token) { toast('Token wajib!', 'error'); return; }
+    try {
+        if (id) await window.Firebase.updateDoc(window.Firebase.doc(window.db, 'cache_token', id), data);
+        else await window.Firebase.addDoc(window.Firebase.collection(window.db, 'cache_token'), data);
+        toast('✅ Token disimpan!'); closeModal(); renderToken();
+    } catch(e) { toast('Error: '+e.message, 'error'); }
+}
+
+function editToken(id) { openFormToken(id); }
+async function deleteToken(id) {
+    if (!confirm('Hapus token ini?')) return;
+    await window.Firebase.deleteDoc(window.Firebase.doc(window.db, 'cache_token', id));
+    toast('🗑️ Token dihapus'); renderToken();
+}
+async function deleteAllToken() {
+    if (!confirm('⚠️ Hapus SEMUA token?')) return;
+    const batch = window.Firebase.writeBatch(window.db);
+    allToken.forEach(t => batch.delete(window.Firebase.doc(window.db, 'cache_token', t._id)));
+    await batch.commit();
+    toast('🗑️ Semua token dihapus'); renderToken();
+}
+
+// ==================== SOAL (SYNC SAJA) ====================
+let allSoal = [];
+
+async function syncSoal() {
+    if (!confirm('🔄 Sync bank soal dari Spreadsheet ke Firebase?\n\nData lama akan diganti dengan data baru.')) return;
+    
+    toast('⏳ Mengambil data soal...', 'info');
+    try {
+        const rows = await fetchSheet('BANK_SOAL', 'A:P');
+        console.log(`📊 Total baris: ${rows.length}`);
         
-        async function clearCollection(collectionName) {
-            const coll = window.Firebase.collection(window.db, collectionName);
-            const snapshot = await window.Firebase.getDocs(coll);
-            let deleted = 0;
-            for (const docSnap of snapshot.docs) {
-                await window.Firebase.deleteDoc(docSnap.ref);
-                deleted++;
-            }
-            return deleted;
-        }
+        if (rows.length <= 1) { toast('❌ Tidak ada data di spreadsheet', 'error'); return; }
         
-        async function syncData() {
-            const btn = document.getElementById('btnSync');
-            btn.disabled = true;
-            document.getElementById('log').innerHTML = '';
-            
-            try {
-                setStatus('⏳ Memulai sinkronisasi...', 'loading');
-                addLog('🚀 Mulai sync data...', 'info');
-                
-                // 1. SYNC DATA_SISWA
-                addLog('📊 Sync DATA_SISWA...', 'info');
-                const siswaRows = await fetchSheet('DATA_SISWA', 'A:H');
-                let deletedSiswa = await clearCollection('cache_siswa');
-                addLog(`   Hapus ${deletedSiswa} data lama`, 'info');
-                let countSiswa = 0;
-                for (let i = 1; i < siswaRows.length; i++) {
-                    const row = siswaRows[i];
-                    if (!row[2]) continue;
-                    await window.Firebase.addDoc(window.Firebase.collection(window.db, 'cache_siswa'), {
-                        nis: String(row[0] || '').trim(),
-                        nama: String(row[1] || '').trim(),
-                        username: String(row[2] || '').trim(),
-                        password: String(row[3] || '').trim(),
-                        kelas: String(row[4] || '').trim(),
-                        jenjang: String(row[5] || '').trim()
-                    });
-                    countSiswa++;
-                }
-                addLog(`   ✅ ${countSiswa} siswa disimpan`, 'ok');
-                
-                // 2. SYNC JADWAL_UJIAN
-                addLog('📅 Sync JADWAL_UJIAN...', 'info');
-                const jadwalRows = await fetchSheet('JADWAL_UJIAN', 'A:K');
-                let deletedJadwal = await clearCollection('cache_jadwal');
-                addLog(`   Hapus ${deletedJadwal} data lama`, 'info');
-                let countJadwal = 0;
-                for (let i = 1; i < jadwalRows.length; i++) {
-                    const row = jadwalRows[i];
-                    if (!row[1]) continue;
-                    await window.Firebase.addDoc(window.Firebase.collection(window.db, 'cache_jadwal'), {
-                        idJadwal: String(row[0] || '').trim(),
-                        jenjang: String(row[1] || '').trim(),
-                        mapel: String(row[2] || '').trim(),
-                        jenis: String(row[3] || '').trim(),
-                        tanggal: String(row[4] || '').trim(),
-                        waktuMulai: String(row[5] || '').trim(),
-                        waktuSelesai: String(row[6] || '').trim(),
-                        minimalMenit: parseInt(row[7]) || 0,
-                        token: String(row[8] || '').trim(),
-                        status: String(row[9] || '').trim(),
-                        password: String(row[10] || '').trim()
-                    });
-                    countJadwal++;
-                }
-                addLog(`   ✅ ${countJadwal} jadwal disimpan`, 'ok');
-                
-                // 3. SYNC TOKEN_UJIAN
-                addLog('🔑 Sync TOKEN_UJIAN...', 'info');
-                const tokenRows = await fetchSheet('TOKEN_UJIAN', 'A:H');
-                let deletedToken = await clearCollection('cache_token');
-                addLog(`   Hapus ${deletedToken} data lama`, 'info');
-                let countToken = 0;
-                for (let i = 1; i < tokenRows.length; i++) {
-                    const row = tokenRows[i];
-                    if (!row[0]) continue;
-                    await window.Firebase.addDoc(window.Firebase.collection(window.db, 'cache_token'), {
-                        token: String(row[0] || '').trim(),
-                        jenjang: String(row[1] || '').trim(),
-                        mapel: String(row[2] || '').trim(),
-                        jenis: String(row[3] || '').trim(),
-                        tanggal: String(row[4] || '').trim(),
-                        status: String(row[5] || '').trim()
-                    });
-                    countToken++;
-                }
-                addLog(`   ✅ ${countToken} token disimpan`, 'ok');
-                
-                // 4. SYNC BANK_SOAL
-                addLog('📝 Sync BANK_SOAL...', 'info');
-                const soalRows = await fetchSheet('BANK_SOAL', 'A:P');
-                let deletedSoal = await clearCollection('cache_soal');
-                addLog(`   Hapus ${deletedSoal} data lama`, 'info');
-                let countSoal = 0;
-                for (let i = 1; i < soalRows.length; i++) {
-                    const row = soalRows[i];
-                    if (!row[0]) continue;
-                    await window.Firebase.addDoc(window.Firebase.collection(window.db, 'cache_soal'), {
-                        id: String(row[0] || '').trim(),
-                        jenjang: String(row[1] || '').trim(),
-                        mapel: String(row[2] || '').trim(),
-                        jenis: String(row[3] || '').trim(),
-                        tipe: String(row[4] || '').trim(),
-                        pertanyaan: String(row[5] || ''),
-                        pilihanA: String(row[6] || ''),
-                        pilihanB: String(row[7] || ''),
-                        pilihanC: String(row[8] || ''),
-                        pilihanD: String(row[9] || ''),
-                        pilihanE: String(row[10] || ''),
-                        kunci: String(row[11] || ''),
-                        bobot: parseFloat(row[12]) || 1,
-                        status: String(row[13] || '').trim(),
-                        gambar: String(row[14] || ''),
-                        grupSoal: String(row[15] || '')
-                    });
-                    countSoal++;
-                }
-                addLog(`   ✅ ${countSoal} soal disimpan`, 'ok');
-                
-                // 5. SYNC RESET_UJIAN
-                addLog('🔄 Sync RESET_UJIAN...', 'info');
-                try {
-                    const resetRows = await fetchSheet('RESET_UJIAN', 'A:E');
-                    let deletedReset = await clearCollection('cache_reset');
-                    addLog(`   Hapus ${deletedReset} data lama`, 'info');
-                    let countReset = 0;
-                    for (let i = 1; i < resetRows.length; i++) {
-                        const row = resetRows[i];
-                        if (!row[0]) continue;
-                        await window.Firebase.addDoc(window.Firebase.collection(window.db, 'cache_reset'), {
-                            username: String(row[0] || '').trim(),
-                            mapel: String(row[1] || '').trim(),
-                            jenis: String(row[2] || '').trim(),
-                            reset: String(row[3] || '').trim()
-                        });
-                        countReset++;
-                    }
-                    addLog(`   ✅ ${countReset} reset disimpan`, 'ok');
-                } catch (e) {
-                    addLog(`   ⚠️ Reset kosong/skip`, 'err');
-                }
-                
-                addLog('═════════════════════════════', 'info');
-                addLog('🎉 SINKRONISASI SELESAI!', 'ok');
-                setStatus('✅ Sinkronisasi berhasil! Siswa sekarang bisa login dengan cepat.', 'success');
-                btn.disabled = false;
-                btn.textContent = '🔄 SINKRONISASI ULANG';
-                
-            } catch (e) {
-                console.error(e);
-                addLog(`❌ ERROR: ${e.message}`, 'err');
-                setStatus('❌ Gagal: ' + e.message, 'error');
-                btn.disabled = false;
-            }
-        }
+        const deleted = await clearCollection('cache_soal');
+        console.log(`🗑️ Hapus ${deleted} soal lama`);
         
-        window.syncData = syncData;
-    </script>
+        let count = 0;
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
+            if (!row[0]) continue;
+            await window.Firebase.addDoc(window.Firebase.collection(window.db, 'cache_soal'), {
+                id: String(row[0]||'').trim(),
+                jenjang: String(row[1]||'').trim(),
+                mapel: String(row[2]||'').trim(),
+                jenis: String(row[3]||'').trim(),
+                tipe: String(row[4]||'').trim(),
+                pertanyaan: String(row[5]||''),
+                pilihanA: String(row[6]||''),
+                pilihanB: String(row[7]||''),
+                pilihanC: String(row[8]||''),
+                pilihanD: String(row[9]||''),
+                pilihanE: String(row[10]||''),
+                kunci: String(row[11]||''),
+                bobot: parseFloat(row[12])||1,
+                status: String(row[13]||'').trim(),
+                gambar: String(row[14]||''),
+                grupSoal: String(row[15]||'')
+            });
+            count++;
+        }
+        toast(`✅ ${count} soal berhasil di-sync!`);
+        renderSoal();
+    } catch(e) { 
+        console.error(e);
+        toast('❌ Error: ' + e.message, 'error'); 
+    }
+}
+
+async function renderSoal() {
+    const snap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'cache_soal'));
+    allSoal = [];
+    snap.forEach(d => allSoal.push({ _id: d.id, ...d.data() }));
+    
+    const search = (document.getElementById('searchSoal')?.value || '').toLowerCase();
+    const tipe = document.getElementById('filterTipeSoal')?.value || '';
+    let filtered = allSoal;
+    if (search) filtered = filtered.filter(s => (s.pertanyaan||'').toLowerCase().includes(search));
+    if (tipe) filtered = filtered.filter(s => s.tipe === tipe);
+    
+    if (!filtered.length) { document.getElementById('listSoal').innerHTML = '<div class="loading">Belum ada soal.<br>Klik <strong>🔄 SYNC dari Spreadsheet</strong>.</div>'; return; }
+    
+    let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">Total: <strong>${filtered.length}</strong> soal (dari Firebase)</p>`;
+    html += '<table><thead><tr><th>ID</th><th>Jenjang</th><th>Mapel</th><th>Jenis</th><th>Tipe</th><th>Pertanyaan</th><th>Status</th></tr></thead><tbody>';
+    filtered.slice(0, 100).forEach(s => {
+        html += `<tr>
+            <td><code>${s.id||''}</code></td>
+            <td><span class="badge badge-blue">${s.jenjang||''}</span></td>
+            <td>${s.mapel||''}</td>
+            <td>${s.jenis||''}</td>
+            <td><span class="badge badge-yellow">${s.tipe||''}</span></td>
+            <td>${(s.pertanyaan||'').substring(0,60)}...</td>
+            <td><span class="badge ${s.status==='Aktif'?'badge-green':'badge-red'}">${s.status||''}</span></td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    if (filtered.length > 100) html += `<p style="color:#64748B;font-size:12px;margin-top:12px">Menampilkan 100 dari ${filtered.length} soal. Gunakan pencarian untuk memfilter.</p>`;
+    document.getElementById('listSoal').innerHTML = html;
+}
+
+// ==================== RESET (CRUD) ====================
+let allReset = [];
+
+async function renderReset() {
+    const snap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'cache_reset'));
+    allReset = [];
+    snap.forEach(d => allReset.push({ _id: d.id, ...d.data() }));
+    if (!allReset.length) { document.getElementById('listReset').innerHTML = '<div class="loading">Belum ada reset.</div>'; return; }
+    let html = '<table><thead><tr><th>Username</th><th>Mapel</th><th>Jenis</th><th>Reset</th><th>Aksi</th></tr></thead><tbody>';
+    allReset.forEach(r => {
+        html += `<tr><td>${r.username||''}</td><td>${r.mapel||''}</td><td>${r.jenis||''}</td><td><span class="badge ${r.reset==='YA'?'badge-green':'badge-red'}">${r.reset}</span></td>
+        <td><button class="btn btn-sm btn-danger" onclick="deleteReset('${r._id}')"><i class="fas fa-trash"></i></button></td></tr>`;
+    });
+    html += '</tbody></table>';
+    document.getElementById('listReset').innerHTML = html;
+}
+
+function openFormReset() {
+    openModal('Tambah Reset', `
+        <div class="form-group"><label>Username</label><input id="r_username" placeholder="budi.santoso"></div>
+        <div class="form-row">
+            <div class="form-group"><label>Mapel</label><input id="r_mapel" value="*" placeholder="* untuk semua"></div>
+            <div class="form-group"><label>Jenis</label><input id="r_jenis" value="*" placeholder="* untuk semua"></div>
+        </div>
+        <button class="btn btn-primary" onclick="saveReset()"><i class="fas fa-save"></i> Simpan</button>
+    `);
+}
+
+async function saveReset() {
+    const data = { username: document.getElementById('r_username').value.trim(), mapel: document.getElementById('r_mapel').value.trim(), jenis: document.getElementById('r_jenis').value.trim(), reset: 'YA' };
+    if (!data.username) { toast('Username wajib!', 'error'); return; }
+    await window.Firebase.addDoc(window.Firebase.collection(window.db, 'cache_reset'), data);
+    toast('✅ Reset ditambahkan!'); closeModal(); renderReset();
+}
+
+async function deleteReset(id) {
+    if (!confirm('Hapus reset ini?')) return;
+    await window.Firebase.deleteDoc(window.Firebase.doc(window.db, 'cache_reset', id));
+    toast('🗑️ Reset dihapus'); renderReset();
+}
+async function deleteAllReset() {
+    if (!confirm('Hapus semua reset?')) return;
+    const batch = window.Firebase.writeBatch(window.db);
+    allReset.forEach(r => batch.delete(window.Firebase.doc(window.db, 'cache_reset', r._id)));
+    await batch.commit();
+    toast('🗑️ Semua reset dihapus'); renderReset();
+}
+
+// ==================== HASIL ====================
+let allHasil = [];
+
+async function renderHasil() {
+    const snap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'nilai_akhir'));
+    allHasil = [];
+    snap.forEach(d => allHasil.push({ _id: d.id, ...d.data() }));
+    
+    const search = (document.getElementById('searchHasil')?.value || '').toLowerCase();
+    const mapelFilter = document.getElementById('filterMapel')?.value || '';
+    
+    const mapelSet = new Set(allHasil.map(h => h.mapel).filter(Boolean));
+    const sel = document.getElementById('filterMapel');
+    if (sel.options.length <= 1) {
+        mapelSet.forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = m; sel.appendChild(o); });
+    }
+    
+    let filtered = allHasil;
+    if (search) filtered = filtered.filter(h => (h.nama||'').toLowerCase().includes(search) || (h.kelas||'').toLowerCase().includes(search));
+    if (mapelFilter) filtered = filtered.filter(h => h.mapel === mapelFilter);
+    
+    if (!filtered.length) { document.getElementById('listHasil').innerHTML = '<div class="loading">Belum ada nilai.</div>'; return; }
+    
+    filtered.sort((a,b) => (a.kelas||'').localeCompare(b.kelas||'') || (a.nama||'').localeCompare(b.nama||''));
+    
+    let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">Total: <strong>${filtered.length}</strong> nilai</p>`;
+    html += '<table><thead><tr><th>Nama</th><th>Kelas</th><th>Mapel</th><th>Jenis</th><th>Skor</th><th>Nilai</th><th>Waktu</th></tr></thead><tbody>';
+    filtered.forEach(h => {
+        const p = parseInt(h.persentase) || 0;
+        const warna = p >= 75 ? 'badge-green' : p >= 60 ? 'badge-yellow' : 'badge-red';
+        html += `<tr>
+            <td>${h.nama||''}</td>
+            <td>${h.kelas||''}</td>
+            <td>${h.mapel||''}</td>
+            <td>${h.jenisUjian||''}</td>
+            <td><strong>${h.totalSkor}/${h.totalBobot}</strong></td>
+            <td><span class="badge ${warna}">${h.persentase||''}</span></td>
+            <td>${h.timestamp ? new Date(h.timestamp).toLocaleString('id-ID') : ''}</td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    document.getElementById('listHasil').innerHTML = html;
+}
+
+function exportHasil() {
+    if (!allHasil.length) { toast('Tidak ada data', 'error'); return; }
+    let csv = 'NIS,Nama,Kelas,Jenjang,Mapel,Jenis Ujian,Total Skor,Total Bobot,Persentase,Waktu\n';
+    allHasil.forEach(h => {
+        csv += `"${h.nis||''}","${h.nama||''}","${h.kelas||''}","${h.jenjang||''}","${h.mapel||''}","${h.jenisUjian||''}",${h.totalSkor||0},${h.totalBobot||0},"${h.persentase||''}","${h.timestamp||''}"\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'hasil_ujian_' + new Date().toISOString().split('T')[0] + '.csv';
+    link.click();
+}
+
+async function deleteAllNilai() {
+    if (!confirm('⚠️ HAPUS SEMUA NILAI?')) return;
+    if (!confirm('Yakin? Ini akan hapus ' + allHasil.length + ' nilai!')) return;
+    const batch = window.Firebase.writeBatch(window.db);
+    allHasil.forEach(h => batch.delete(window.Firebase.doc(window.db, 'nilai_akhir', h._id)));
+    await batch.commit();
+    toast('🗑️ Semua nilai dihapus'); renderHasil();
+}
+
+// ==================== PENGATURAN ====================
+async function loadPengaturan() {
+    try {
+        const snap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'pengaturan'));
+        snap.forEach(d => {
+            const p = d.data();
+            if (p.freezeDuration) document.getElementById('setFreezeDuration').value = p.freezeDuration;
+            if (p.maxPelanggaran) document.getElementById('setMaxPelanggaran').value = p.maxPelanggaran;
+            if (p.maxBlur) document.getElementById('setMaxBlur').value = p.maxBlur;
+        });
+    } catch(e) { console.error(e); }
+}
+
+async function savePengaturan() {
+    const data = {
+        freezeDuration: parseInt(document.getElementById('setFreezeDuration').value)||30,
+        maxPelanggaran: parseInt(document.getElementById('setMaxPelanggaran').value)||5,
+        maxBlur: parseInt(document.getElementById('setMaxBlur').value)||3,
+        updatedAt: new Date().toISOString()
+    };
+    await window.Firebase.setDoc(window.Firebase.doc(window.db, 'pengaturan', 'main'), data);
+    toast('✅ Pengaturan disimpan!');
+}
+
+// ==================== EXPORTS ====================
+window.switchTab = switchTab;
+window.syncSiswa = syncSiswa;
+window.renderSiswa = renderSiswa;
+window.openFormJadwal = openFormJadwal;
+window.editJadwal = editJadwal;
+window.deleteJadwal = deleteJadwal;
+window.deleteAllJadwal = deleteAllJadwal;
+window.saveJadwal = saveJadwal;
+window.openFormToken = openFormToken;
+window.editToken = editToken;
+window.deleteToken = deleteToken;
+window.deleteAllToken = deleteAllToken;
+window.saveToken = saveToken;
+window.syncSoal = syncSoal;
+window.renderSoal = renderSoal;
+window.openFormReset = openFormReset;
+window.saveReset = saveReset;
+window.deleteReset = deleteReset;
+window.deleteAllReset = deleteAllReset;
+window.renderHasil = renderHasil;
+window.exportHasil = exportHasil;
+window.deleteAllNilai = deleteAllNilai;
+window.savePengaturan = savePengaturan;
+window.closeModal = closeModal;
+
+// ==================== INIT ====================
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        if (window.db && window.Firebase) loadDashboard();
+        else setTimeout(() => loadDashboard(), 1000);
+    }, 500);
+});
+</script>
 </body>
 </html>
