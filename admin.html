@@ -8,7 +8,7 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',sans-serif}
 body{background:#F1F5F9;display:flex;min-height:100vh}
-.sidebar{width:240px;background:#1E3A8A;color:white;padding:20px 0;position:fixed;height:100vh;overflow-y:auto}
+.sidebar{width:240px;background:#1E3A8A;color:white;padding:20px 0;position:fixed;height:100vh;overflow-y:auto;z-index:100}
 .sidebar h2{padding:0 20px 20px;font-size:18px;border-bottom:1px solid rgba(255,255,255,0.1);margin-bottom:10px}
 .sidebar h2 small{display:block;font-size:11px;opacity:0.7;font-weight:400;margin-top:4px}
 .sidebar a{display:flex;align-items:center;gap:12px;padding:12px 20px;color:rgba(255,255,255,0.8);text-decoration:none;cursor:pointer;border-left:3px solid transparent;transition:0.2s;font-size:14px}
@@ -42,6 +42,7 @@ body{background:#F1F5F9;display:flex;min-height:100vh}
 .btn-warning{background:#F59E0B;color:white}
 .btn-warning:hover{background:#D97706}
 .btn-secondary{background:#E2E8F0;color:#334155}
+.btn-secondary:hover{background:#CBD5E1}
 .btn-sm{padding:6px 12px;font-size:12px}
 .toolbar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
 .toolbar input, .toolbar select{padding:10px 14px;border:1px solid #E2E8F0;border-radius:10px;font-size:14px}
@@ -116,7 +117,7 @@ table tr:hover{background:#F8FAFC}
                 <strong>📊 SISWA & BANK SOAL</strong> → Kelola dari <strong>Spreadsheet</strong>, lalu klik <strong>🔄 SYNC</strong>.<br><br>
                 <strong>📅 JADWAL, TOKEN, RESET, PENGATURAN</strong> → Kelola langsung di panel ini.<br><br>
                 <strong>🛡️ PENGATURAN ANTI-CURANG</strong> → Atur ON/OFF & durasi per pelanggaran.<br><br>
-                <strong>📈 HASIL UJIAN</strong> → Lihat & export nilai siswa.
+                <strong>📈 HASIL UJIAN</strong> → Lihat & export nilai siswa (CSV / Excel).
             </div>
         </div>
     </div>
@@ -213,7 +214,8 @@ table tr:hover{background:#F8FAFC}
             <div class="toolbar">
                 <input type="text" id="searchHasil" placeholder="🔍 Cari nama/kelas..." oninput="renderHasil()">
                 <select id="filterMapel" onchange="renderHasil()"><option value="">Semua Mapel</option></select>
-                <button class="btn btn-success" onclick="exportHasil()"><i class="fas fa-file-csv"></i> Export CSV</button>
+                <button class="btn btn-success" onclick="exportHasilXLS()"><i class="fas fa-file-excel"></i> Export Excel</button>
+                <button class="btn btn-primary" onclick="exportHasil()"><i class="fas fa-file-csv"></i> Export CSV</button>
                 <button class="btn btn-danger" onclick="deleteAllNilai()"><i class="fas fa-trash"></i> Hapus Semua Nilai</button>
             </div>
             <div id="listHasil" class="loading">Memuat...</div>
@@ -272,9 +274,11 @@ window.Firebase = { collection, addDoc, query, where, getDocs, updateDoc, delete
 </script>
 
 <script>
+// ==================== KONFIGURASI ====================
 const SPREADSHEET_ID = '1zc5lh-8XWEhGYJajqooWGK3Vo89kqob1iAaIdaIiXc0';
 const API_KEY = 'AIzaSyAG16CaL_CwY6Hktj6nNrxCoPjYXcJZHcE';
 
+// ==================== UTILS ====================
 function toast(msg, type='success') {
     const t = document.createElement('div');
     t.className = `toast ${type}`;
@@ -696,7 +700,6 @@ async function renderDaftarReset() {
     container.innerHTML = html;
 }
 
-// ✅ BERSIHKAN SESI LAMA
 async function bersihkanSesiLama() {
     if (!confirm('🧹 Bersihkan sesi lama?\n\nSesi yang sudah melewati 3 jam atau beda hari akan diubah menjadi "Kedaluwarsa".\n\nLanjutkan?')) return;
     
@@ -854,15 +857,127 @@ async function renderHasil() {
     document.getElementById('listHasil').innerHTML = html;
 }
 
+// ✅ EXPORT CSV RAPI (Semicolon + BOM UTF-8)
 function exportHasil() {
     if (!allHasil.length) { toast('Tidak ada data', 'error'); return; }
-    let csv = 'NIS,Nama,Kelas,Jenjang,Mapel,Jenis Ujian,Total Skor,Total Bobot,Persentase,Waktu\n';
-    allHasil.forEach(h => { csv += `"${h.nis||''}","${h.nama||''}","${h.kelas||''}","${h.jenjang||''}","${h.mapel||''}","${h.jenisUjian||''}",${h.totalSkor||0},${h.totalBobot||0},"${h.persentase||''}","${h.timestamp||''}"\n`; });
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    
+    const SEP = ';';
+    const headers = ['No', 'NIS', 'Nama', 'Kelas', 'Jenjang', 'Mapel', 'Jenis Ujian', 'Total Skor', 'Total Bobot', 'Persentase', 'Waktu'];
+    
+    const rows = allHasil.map((h, i) => {
+        const waktu = h.timestamp ? new Date(h.timestamp).toLocaleString('id-ID', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        }) : '';
+        const persen = parseInt(h.persentase) || 0;
+        
+        return [
+            i + 1, h.nis || '', h.nama || '', h.kelas || '', h.jenjang || '',
+            h.mapel || '', h.jenisUjian || '', h.totalSkor || 0, h.totalBobot || 0,
+            persen, waktu
+        ];
+    });
+    
+    function escapeCSV(val) {
+        if (val === null || val === undefined) return '';
+        const str = String(val);
+        if (str.includes(SEP) || str.includes('"') || str.includes('\n')) {
+            return '"' + str.replace(/"/g, '""') + '"';
+        }
+        return str;
+    }
+    
+    let csv = headers.map(escapeCSV).join(SEP) + '\r\n';
+    rows.forEach(row => { csv += row.map(escapeCSV).join(SEP) + '\r\n'; });
+    
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
+    
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = 'hasil_ujian_' + new Date().toISOString().split('T')[0] + '.csv';
     link.click();
+    
+    toast('✅ CSV berhasil di-export!');
+}
+
+// ✅ EXPORT EXCEL RAPI (HTML .xls dengan warna)
+function exportHasilXLS() {
+    if (!allHasil.length) { toast('Tidak ada data', 'error'); return; }
+    
+    const sorted = [...allHasil].sort((a,b) => (a.kelas||'').localeCompare(b.kelas||'') || (a.nama||'').localeCompare(b.nama||''));
+    
+    let html = `
+    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            table { border-collapse: collapse; font-family: Arial; font-size: 12px; }
+            th { background: #1E3A8A; color: white; padding: 10px; border: 1px solid #475569; text-align: center; font-weight: bold; }
+            td { padding: 8px; border: 1px solid #cbd5e1; }
+            tr:nth-child(even) { background: #F1F5F9; }
+            .green { background: #DCFCE7; color: #166534; text-align: center; font-weight: bold; }
+            .yellow { background: #FEF3C7; color: #92400E; text-align: center; font-weight: bold; }
+            .red { background: #FEE2E2; color: #991B1B; text-align: center; font-weight: bold; }
+            .center { text-align: center; }
+            h2 { color: #1E3A8A; font-family: Arial; }
+        </style>
+    </head>
+    <body>
+    <h2>📊 Hasil Ujian CBT - SMPN 1 Sukosari</h2>
+    <p style="font-family: Arial; font-size: 12px;">
+        Tanggal Export: <strong>${new Date().toLocaleString('id-ID')}</strong><br>
+        Total Data: <strong>${sorted.length}</strong> nilai
+    </p>
+    <table>
+        <thead>
+            <tr>
+                <th>No</th>
+                <th>NIS</th>
+                <th>Nama</th>
+                <th>Kelas</th>
+                <th>Jenjang</th>
+                <th>Mapel</th>
+                <th>Jenis Ujian</th>
+                <th>Skor</th>
+                <th>Total</th>
+                <th>Nilai</th>
+                <th>Waktu</th>
+            </tr>
+        </thead>
+        <tbody>`;
+    
+    sorted.forEach((h, i) => {
+        const p = parseInt(h.persentase) || 0;
+        const warna = p >= 75 ? 'green' : p >= 60 ? 'yellow' : 'red';
+        const waktu = h.timestamp ? new Date(h.timestamp).toLocaleString('id-ID') : '';
+        
+        html += `
+            <tr>
+                <td class="center">${i+1}</td>
+                <td>${h.nis||''}</td>
+                <td>${h.nama||''}</td>
+                <td class="center">${h.kelas||''}</td>
+                <td class="center">${h.jenjang||''}</td>
+                <td>${h.mapel||''}</td>
+                <td>${h.jenisUjian||''}</td>
+                <td class="center">${h.totalSkor||0}</td>
+                <td class="center">${h.totalBobot||0}</td>
+                <td class="${warna}">${p}%</td>
+                <td>${waktu}</td>
+            </tr>`;
+    });
+    
+    html += `</tbody></table></body></html>`;
+    
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'hasil_ujian_' + new Date().toISOString().split('T')[0] + '.xls';
+    link.click();
+    
+    toast('✅ Excel berhasil di-export!');
 }
 
 async function deleteAllNilai() {
@@ -982,7 +1097,7 @@ Object.assign(window, {
     openFormToken, editToken, deleteToken, deleteAllToken, saveToken, syncSoal, renderSoal,
     renderSiswaAktif, renderSiswaSelesai, renderDaftarReset, resetSiswaLangsung, deleteReset, deleteAllReset,
     bersihkanSesiLama,
-    renderHasil, exportHasil, deleteAllNilai,
+    renderHasil, exportHasil, exportHasilXLS, deleteAllNilai,
     savePengaturan, closeModal, loadPengaturan, togglePelanggaran, updatePelanggaran, resetPengaturan
 });
 
