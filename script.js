@@ -18,34 +18,6 @@ window.hurufMapping = {};
 window.skorPerSoal = {};
 window.pelanggaranPerJenis = {};
 
-// ==================== ANTI HISTORY INPUT ====================
-function nonaktifkanAutocomplete() {
-    // Cegah autocomplete di semua input
-    const inputs = document.querySelectorAll('input[type="text"], input[type="password"], input[type="email"], textarea');
-    inputs.forEach((el, i) => {
-        el.setAttribute('autocomplete', 'off');
-        el.setAttribute('autocorrect', 'off');
-        el.setAttribute('autocapitalize', 'off');
-        el.setAttribute('spellcheck', 'false');
-        el.setAttribute('data-lpignore', 'true');
-        el.setAttribute('data-form-type', 'other');
-        // Name unik untuk cegah autofill berdasarkan nama
-        if (!el.name || el.name === 'isian') {
-            el.setAttribute('name', `input_${Date.now()}_${i}`);
-        }
-    });
-}
-
-// Observer untuk input baru (soal berganti)
-const inputObserver = new MutationObserver(() => {
-    nonaktifkanAutocomplete();
-});
-
-document.addEventListener('DOMContentLoaded', () => {
-    nonaktifkanAutocomplete();
-    inputObserver.observe(document.body, { childList: true, subtree: true });
-});
-
 // ==================== PENGATURAN PELANGGARAN ====================
 let pengaturanPelanggaran = {};
 let globalFreeze = 30;
@@ -62,7 +34,6 @@ async function loadPengaturanPelanggaran() {
                 pengaturanPelanggaran = data.items || {};
                 freezeDuration = globalFreeze;
                 maxPelanggaran = globalMaxPelanggaran;
-                console.log('✅ Pengaturan pelanggaran dimuat:', Object.keys(pengaturanPelanggaran).length, 'item');
             }
         });
     } catch(e) { console.warn('⚠️ Gagal load pengaturan:', e); }
@@ -85,6 +56,29 @@ function getMaxPelanggaran(kode) {
     if (!p) return globalMaxPelanggaran;
     return p.max !== undefined ? p.max : globalMaxPelanggaran;
 }
+
+// ==================== ANTI HISTORY INPUT ====================
+function nonaktifkanAutocomplete() {
+    const inputs = document.querySelectorAll('input[type="text"], input[type="password"], input[type="email"], textarea');
+    inputs.forEach((el, i) => {
+        el.setAttribute('autocomplete', 'off');
+        el.setAttribute('autocorrect', 'off');
+        el.setAttribute('autocapitalize', 'off');
+        el.setAttribute('spellcheck', 'false');
+        el.setAttribute('data-lpignore', 'true');
+        el.setAttribute('data-form-type', 'other');
+        if (!el.name || el.name === 'isian') {
+            el.setAttribute('name', `input_${Date.now()}_${i}`);
+        }
+    });
+}
+
+const inputObserver = new MutationObserver(() => { nonaktifkanAutocomplete(); });
+
+document.addEventListener('DOMContentLoaded', () => {
+    nonaktifkanAutocomplete();
+    inputObserver.observe(document.body, { childList: true, subtree: true });
+});
 
 // ==================== TOAST & MODAL ====================
 function showToast(m, t = "info", d = 2000) { const c = document.getElementById("toastContainer"); if (!c) { alert(m); return; } const e = document.createElement("div"); e.className = `toast ${t}`; e.innerHTML = `<i class="fas fa-${t === "success" ? "check-circle" : t === "error" ? "times-circle" : t === "warning" ? "exclamation-triangle" : "info-circle"}"></i> ${m}`; c.appendChild(e); setTimeout(() => { e.classList.add("hide"); setTimeout(() => e.remove(), 300); }, d); }
@@ -130,11 +124,8 @@ document.addEventListener("fullscreenchange", () => { if (!document.fullscreenEl
 // ==================== ANTI-CURANG ====================
 window.addEventListener('pagehide', () => { isLocked = true; });
 window.addEventListener('pageshow', () => { if (isLocked) isLocked = false; });
-
 document.addEventListener("contextmenu", e => { e.preventDefault(); if (currentUser && !ujianSelesai && !isFrozen && isPelanggaranAktif('RIGHT_CLICK')) { catatPelanggaran("RIGHT_CLICK", "Klik kanan"); const dur = getFreezeDuration('RIGHT_CLICK'); if (dur > 0) freezeScreen(dur); } });
-
 document.addEventListener('selectstart', e => { if (currentUser && !ujianSelesai) e.preventDefault(); });
-
 document.addEventListener("keydown", e => {
     if (!currentUser || ujianSelesai || isFrozen) return;
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
@@ -159,28 +150,19 @@ document.addEventListener("keydown", e => {
         return false;
     }
 });
-
 window.addEventListener("beforeunload", e => { if (currentUser && !ujianSelesai) { e.preventDefault(); e.returnValue = ""; } });
 
 function catatPelanggaran(j, d) {
     if (!currentUser || ujianSelesai) return;
     if (!isPelanggaranAktif(j)) { console.log(`⏭️ ${j} OFF, skip`); return; }
-    
     pelanggaranCount++;
     totalPenalti++;
     if (!window.pelanggaranPerJenis) window.pelanggaranPerJenis = {};
     window.pelanggaranPerJenis[j] = (window.pelanggaranPerJenis[j] || 0) + 1;
-    
     const maxJenis = getMaxPelanggaran(j);
     console.warn(`⚠️ ${j} - ${d} (${window.pelanggaranPerJenis[j]}/${maxJenis})`);
-    
     if (window.pelanggaranPerJenis[j] >= maxJenis && maxJenis > 0) {
-        showModal({
-            iconType: 'error',
-            title: '⛔ UJIAN DIBATALKAN',
-            message: `${d} terdeteksi ${window.pelanggaranPerJenis[j]}x (maks: ${maxJenis}). Ujian diakhiri.`,
-            buttons: [{ text: 'OK', type: 'primary', onClick: () => selesaiUjian() }]
-        });
+        showModal({ iconType: 'error', title: '⛔ UJIAN DIBATALKAN', message: `${d} terdeteksi ${window.pelanggaranPerJenis[j]}x (maks: ${maxJenis}). Ujian diakhiri.`, buttons: [{ text: 'OK', type: 'primary', onClick: () => selesaiUjian() }] });
     }
 }
 
@@ -289,21 +271,18 @@ document.addEventListener('visibilitychange', () => {
     }
 });
 
-// ==================== UPDATE TOMBOL SELESAI (MINIMAL WAKTU AKTIF) ====================
+// ==================== UPDATE TOMBOL SELESAI ====================
 function updateTombolSelesai() {
     const b = document.querySelector(".btn-selesai-modern");
     if (!b || !waktuMulaiServer) return;
-    
     if (minimalMenit <= 0) {
         tombolSelesaiAktif = true;
         b.disabled = false;
         b.innerHTML = `<i class="fas fa-check-circle"></i> SELESAI`;
         return;
     }
-    
     const m = Math.floor((new Date() - waktuMulaiServer) / 60000);
     const r = Math.max(minimalMenit - m, 0);
-    
     if (r > 0 && !ujianSelesai) {
         tombolSelesaiAktif = false;
         b.disabled = true;
@@ -325,7 +304,6 @@ async function handleLogin() {
     if (!p) { showError("Isi password!"); return; }
     try {
         await loadPengaturanPelanggaran();
-        
         const coll = window.Firebase.collection(window.db, 'cache_siswa');
         const q = window.Firebase.query(coll, window.Firebase.where('username', '==', u));
         const snap = await window.Firebase.getDocs(q);
@@ -363,31 +341,25 @@ async function loadUjianAktif(siswa) {
         const jadwalColl = window.Firebase.collection(window.db, 'cache_jadwal');
         const jadwalQ = window.Firebase.query(jadwalColl, window.Firebase.where('jenjang', '==', siswa.jenjang), window.Firebase.where('status', '==', 'Aktif'));
         const jadwalSnap = await window.Firebase.getDocs(jadwalQ);
-        
         const tokenColl = window.Firebase.collection(window.db, 'cache_token');
         const tokenSnap = await window.Firebase.getDocs(tokenColl);
         const tokenMap = {};
         tokenSnap.forEach(d => { const t = d.data(); tokenMap[t.token] = t; });
-        
         const now = new Date(), hariIni = formatTanggal(now);
         daftarUjianAktif = [];
-        
         for (const docSnap of jadwalSnap.docs) {
             const row = docSnap.data();
             const tgl = parseTanggal(row.tanggal);
             if (!tgl || formatTanggal(tgl) !== hariIni) continue;
-            
             const tokenInfo = tokenMap[row.token];
             const mapelCek = tokenInfo?.mapel || row.mapel;
             const jenisCek = tokenInfo?.jenis || row.jenis;
-            
             let statusWaktu = 'tersedia', mulaiObj = null, selesaiObj = null;
             if (row.waktuMulai && row.waktuSelesai) {
                 mulaiObj = parseWaktu(row.waktuMulai, tgl);
                 selesaiObj = parseWaktu(row.waktuSelesai, tgl);
                 if (mulaiObj && selesaiObj) statusWaktu = now < mulaiObj ? 'belum_mulai' : (now > selesaiObj ? 'selesai' : 'berlangsung');
             }
-            
             let sudahSelesai = false, nilaiData = null;
             if (!(await cekResetUjian(siswa.username, mapelCek, jenisCek)) && window.db) {
                 try {
@@ -396,16 +368,8 @@ async function loadUjianAktif(siswa) {
                     if (!snap.empty) { sudahSelesai = true; nilaiData = snap.docs[0].data(); }
                 } catch(e) {}
             }
-            
-            daftarUjianAktif.push({
-                token: row.token, mapel: mapelCek, jenis: jenisCek, tanggal: hariIni,
-                waktuMulai: row.waktuMulai, waktuSelesai: row.waktuSelesai,
-                waktuMulaiObj: mulaiObj, waktuSelesaiObj: selesaiObj,
-                minimalMenit: row.minimalMenit || 0,
-                statusWaktu, sudahSelesai, nilaiData, password: row.password || ''
-            });
+            daftarUjianAktif.push({ token: row.token, mapel: mapelCek, jenis: jenisCek, tanggal: hariIni, waktuMulai: row.waktuMulai, waktuSelesai: row.waktuSelesai, waktuMulaiObj: mulaiObj, waktuSelesaiObj: selesaiObj, minimalMenit: row.minimalMenit || 0, statusWaktu, sudahSelesai, nilaiData, password: row.password || '' });
         }
-        
         daftarUjianAktif.sort((a,b) => a.statusWaktu === 'berlangsung' ? -1 : 1);
         renderUjianList(daftarUjianAktif);
         startCountdown();
@@ -480,21 +444,17 @@ async function prosesUjianDipilih(u) {
         if (tokenSnap.empty) { showError("Token tidak valid!"); return; }
         const info = tokenSnap.docs[0].data();
         if (info.jenjang !== siswa.jenjang) { showError(`Untuk kelas ${info.jenjang}!`); return; }
-        
         const jadwalColl = window.Firebase.collection(window.db, 'cache_jadwal');
         const jadwalQ = window.Firebase.query(jadwalColl, window.Firebase.where('jenjang', '==', info.jenjang), window.Firebase.where('mapel', '==', info.mapel), window.Firebase.where('jenis', '==', info.jenis), window.Firebase.where('status', '==', 'Aktif'));
         const jadwalSnap = await window.Firebase.getDocs(jadwalQ);
         if (jadwalSnap.empty) { showError("Jadwal tidak ditemukan!"); return; }
         const jadwal = jadwalSnap.docs[0].data();
-        
         const now = new Date(), tgl = parseTanggal(jadwal.tanggal);
         if (formatTanggal(tgl) !== formatTanggal(now)) { showError(`Jadwal tanggal ${formatTanggal(tgl)}`); return; }
         if (jadwal.waktuMulai) { const m = parseWaktu(jadwal.waktuMulai, tgl); if (m && now < m) { showError(`Belum mulai!`); return; } }
         if (jadwal.waktuSelesai) { const s = parseWaktu(jadwal.waktuSelesai, tgl); if (s && now > s) { showError(`Sudah berakhir!`); return; } }
-        
         const wS = parseWaktu(jadwal.waktuSelesai, tgl) || new Date();
         const jadwalLengkap = { ...info, ...jadwal, min: jadwal.minimalMenit || 0 };
-        
         if (!(await cekResetUjian(siswa.username, info.mapel, info.jenis)) && window.db) {
             const sesiSnap = await window.Firebase.getDocs(window.Firebase.query(window.Firebase.collection(window.db,'sesi_ujian'), window.Firebase.where('username','==',siswa.username), window.Firebase.where('status','==','Aktif'), window.Firebase.where('mapel','==',info.mapel)));
             if (!sesiSnap.empty) {
@@ -516,7 +476,6 @@ async function prosesUjianDipilih(u) {
                 return;
             }
         }
-        
         clearInterval(countdownInterval);
         document.getElementById("dashboardScreen").style.display = "none";
         document.getElementById("confirmScreen").style.display = "block";
@@ -594,11 +553,7 @@ async function ambilSoal(j, m, js) {
         let mentah = [];
         snap.forEach(d => {
             const row = d.data();
-            mentah.push({
-                id: row.id, tipe: row.tipe, pertanyaan: row.pertanyaan,
-                pilihan: [row.pilihanA, row.pilihanB, row.pilihanC, row.pilihanD, row.pilihanE].filter(p => p),
-                kunci: row.kunci, bobot: row.bobot, gambar: row.gambar, grupSoal: row.grupSoal
-            });
+            mentah.push({ id: row.id, tipe: row.tipe, pertanyaan: row.pertanyaan, pilihan: [row.pilihanA, row.pilihanB, row.pilihanC, row.pilihanD, row.pilihanE].filter(p => p), kunci: row.kunci, bobot: row.bobot, gambar: row.gambar, grupSoal: row.grupSoal });
         });
         if (!mentah.length) { document.getElementById("soalContainer").innerHTML = "<p>Belum ada soal.</p>"; return; }
         dataSoal = acakSoalDenganGrup(mentah);
@@ -608,7 +563,29 @@ async function ambilSoal(j, m, js) {
 
 // ==================== RENDER NAVIGASI ====================
 function renderNavigator() { let h = ""; for (let i = 0; i < dataSoal.length; i++) { const s = dataSoal[i], a = jawabanLokal[s.id] !== undefined, r = raguLokal[s.id], c = i === indexSoal; let cls = a ? "answered" : "unanswered"; if (r && !c) cls = "ragu"; if (c) cls = "current"; h += `<button class="nav-btn-num ${cls}" onclick="goToSoal(${i})">${i+1}</button>`; } document.getElementById("navGrid").innerHTML = h; updateNavInfo(); }
-function goToSoal(i) { if (isFrozen) return; renderSoal(i); renderNavigator(); if (window.innerWidth <= 500) document.getElementById("navPanel").classList.remove("show"); }
+
+// ✅ GO TO SOAL - Auto-save Isian saat pindah soal
+function goToSoal(i) {
+    if (isFrozen) return;
+    const soalSekarang = dataSoal[indexSoal];
+    if (soalSekarang && soalSekarang.tipe === "Isian") {
+        const inputIsian = document.getElementById('isian');
+        if (inputIsian && inputIsian.value.trim()) {
+            const jawabanBaru = inputIsian.value.trim();
+            if (jawabanLokal[soalSekarang.id] !== jawabanBaru) {
+                jawabanLokal[soalSekarang.id] = jawabanBaru;
+                simpanKeLocalStorage();
+                const soal = dataSoal.find(q=>q.id===soalSekarang.id);
+                let s = 0;
+                if (soal.kunci.toLowerCase().replace(/\s+/g,' ').trim() === jawabanBaru.toLowerCase().replace(/\s+/g,' ').trim()) s = soal.bobot;
+                simpanJawabanKeFirebase(soalSekarang.id, jawabanBaru, s);
+            }
+        }
+    }
+    renderSoal(i);
+    renderNavigator();
+    if (window.innerWidth <= 500) document.getElementById("navPanel").classList.remove("show");
+}
 
 // ==================== RENDER SOAL ====================
 function renderSoal(idx) {
@@ -655,105 +632,62 @@ function renderSoal(idx) {
         h += `</div></div>`;
         h += `<button class="btn-simpan" onclick="simpanJodohDropdown('${s.id}')" ${isFrozen?'disabled':''} style="margin-top:12px;"><i class="fas fa-save"></i> Simpan Jawaban</button>`;
     } else if (s.tipe === "Isian") {
-        // ✅ INPUT DENGAN ANTI-HISTORY
-        const uniqueName = `isian_${s.id}_${Date.now()}`;
-        h += `<input type="text" 
-            id="isian" 
-            name="${uniqueName}" 
-            value="${jaw||''}" 
-            placeholder="Ketik jawaban..." 
-            autocomplete="off" 
-            autocorrect="off" 
-            autocapitalize="off" 
-            spellcheck="false" 
-            data-lpignore="true" 
-            data-form-type="other"
-            style="width:100%;padding:14px;border-radius:16px;border:1px solid #E2E8F0;" 
-            ${isFrozen?"disabled":""} 
-            oninput="debounceAutoSaveIsian('${s.id}')"
-        >`;
+        h += `<div style="background:#FEF3C7;padding:10px;border-radius:8px;margin-bottom:12px;font-size:13px;color:#92400E;"><i class="fas fa-info-circle"></i> <strong>Penting:</strong> Klik tombol <strong>Simpan</strong> setelah mengetik jawaban!</div>`;
+        h += `<input type="text" id="isian" value="${jaw||''}" placeholder="Ketik jawaban..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" style="width:100%;padding:14px;border-radius:16px;border:1px solid #E2E8F0;" ${isFrozen?"disabled":""}>`;
         h += `<button class="btn-simpan" onclick="simpanIsian('${s.id}')"><i class="fas fa-save"></i> Simpan</button>`;
     }
     document.getElementById("soalContainer").innerHTML = h;
-    
-    // ✅ Paksa nonaktifkan autocomplete setelah render
     setTimeout(nonaktifkanAutocomplete, 50);
 }
 
-// ==================== SIMPAN JAWABAN ====================
+// ==================== SIMPAN JAWABAN KE FIREBASE (DENGAN SKIP DUPLIKAT) ====================
 async function simpanJawabanKeFirebase(idSoal, jawaban, skor) {
     if (!window.db || !idSesi) return;
     try {
         const coll = window.Firebase.collection(window.db, 'jawaban_siswa');
         const q = window.Firebase.query(coll, window.Firebase.where('idSesi','==',idSesi), window.Firebase.where('idSoal','==',idSoal));
         const snap = await window.Firebase.getDocs(q);
-        if (!snap.empty) await window.Firebase.updateDoc(snap.docs[0].ref, { jawaban, skor, timestamp: new Date().toISOString() });
-        else await window.Firebase.addDoc(coll, { idSesi, username: currentUser.username, nis: currentUser.nis, nama: currentUser.nama, jenjang: currentUser.jenjang, kelas: currentUser.kelas, mapel: currentUjian.mapel, jenisUjian: currentUjian.jenis, idSoal, jawaban, skor, timestamp: new Date().toISOString() });
+        
+        if (!snap.empty) {
+            const docLama = snap.docs[0];
+            const dataLama = docLama.data();
+            
+            // ✅ SKIP jika jawaban & skor SAMA
+            if (dataLama.jawaban === jawaban && dataLama.skor === skor) {
+                console.log(`⏭️ Soal ${idSoal} - Jawaban sama, skip write`);
+                return;
+            }
+            
+            await window.Firebase.updateDoc(docLama.ref, { jawaban, skor, timestamp: new Date().toISOString() });
+            console.log(`✅ Soal ${idSoal} di-update`);
+        } else {
+            await window.Firebase.addDoc(coll, { idSesi, username: currentUser.username, nis: currentUser.nis, nama: currentUser.nama, jenjang: currentUser.jenjang, kelas: currentUser.kelas, mapel: currentUjian.mapel, jenisUjian: currentUjian.jenis, idSoal, jawaban, skor, timestamp: new Date().toISOString() });
+            console.log(`✅ Soal ${idSoal} tersimpan`);
+        }
+        
         const skorPerSoal = JSON.parse(localStorage.getItem(`skor_${idSesi}`) || '{}');
         const skorLama = skorPerSoal[idSoal] || 0;
         skorPerSoal[idSoal] = skor;
         localStorage.setItem(`skor_${idSesi}`, JSON.stringify(skorPerSoal));
+        
         const sesiQ = window.Firebase.query(window.Firebase.collection(window.db,'sesi_ujian'), window.Firebase.where('idSesi','==',idSesi));
         const sesiSnap = await window.Firebase.getDocs(sesiQ);
-        if (!sesiSnap.empty) { const old = sesiSnap.docs[0].data().totalSkorSementara || 0; await window.Firebase.updateDoc(sesiSnap.docs[0].ref, { totalSkorSementara: old - skorLama + skor }); }
-    } catch (e) {}
+        if (!sesiSnap.empty) { 
+            const old = sesiSnap.docs[0].data().totalSkorSementara || 0; 
+            await window.Firebase.updateDoc(sesiSnap.docs[0].ref, { totalSkorSementara: old - skorLama + skor }); 
+        }
+    } catch (e) { console.error('❌ Firebase error:', e); }
 }
 
 function simpanKeLocalStorage() { if (idSesi) localStorage.setItem(`jawaban_${idSesi}`, JSON.stringify(jawabanLokal)); }
 
 function autoSavePG(id) { const s = document.querySelector('input[name="jwb"]:checked'); if (!s) return; jawabanLokal[id] = s.value; renderNavigator(); simpanKeLocalStorage(); const soal = dataSoal.find(q=>q.id===id); simpanJawabanKeFirebase(id, s.value, s.value === soal.kunci ? soal.bobot : 0); showToast('Tersimpan','success',800); }
-
-// PGK SISTEM 1: ALL-OR-NOTHING
-function autoSavePGK(id) {
-    const a = Array.from(document.querySelectorAll('input[name="jwb"]:checked')).map(c=>c.value);
-    if (!a.length) return;
-    jawabanLokal[id] = JSON.stringify(a);
-    renderNavigator();
-    simpanKeLocalStorage();
-    const soal = dataSoal.find(q=>q.id===id);
-    let s = 0;
-    try {
-        const ja = [...a].sort();
-        const ka = JSON.parse(soal.kunci).sort();
-        if (ja.length === ka.length && ja.every((v, i) => v === ka[i])) s = soal.bobot;
-    } catch(e){}
-    simpanJawabanKeFirebase(id, JSON.stringify(a), s);
-    showToast('Tersimpan','success',800);
-}
-
+function autoSavePGK(id) { const a = Array.from(document.querySelectorAll('input[name="jwb"]:checked')).map(c=>c.value); if (!a.length) return; jawabanLokal[id] = JSON.stringify(a); renderNavigator(); simpanKeLocalStorage(); const soal = dataSoal.find(q=>q.id===id); let s = 0; try { const ja = [...a].sort(); const ka = JSON.parse(soal.kunci).sort(); if (ja.length === ka.length && ja.every((v, i) => v === ka[i])) s = soal.bobot; } catch(e){} simpanJawabanKeFirebase(id, JSON.stringify(a), s); showToast('Tersimpan','success',800); }
 function autoSaveBSSingle(id) { const s = document.querySelector('input[name="bs_single"]:checked'); if (!s) return; jawabanLokal[id] = s.value; renderNavigator(); simpanKeLocalStorage(); const soal = dataSoal.find(q=>q.id===id); simpanJawabanKeFirebase(id, s.value, s.value === soal.kunci ? soal.bobot : 0); showToast('Tersimpan','success',800); }
+function autoSaveBS(id, n) { let semua = true; for (let i=0; i<n; i++) if (!document.querySelector(`input[name="bs_${i}"]:checked`)) { semua = false; break; } if (!semua) return; const a = []; for (let i=0; i<n; i++) a.push(document.querySelector(`input[name="bs_${i}"]:checked`).value); jawabanLokal[id] = JSON.stringify(a); renderNavigator(); simpanKeLocalStorage(); const soal = dataSoal.find(q=>q.id===id); let s = 0; try { const k = JSON.parse(soal.kunci); let b = 0; for (let i=0; i<k.length; i++) if (a[i] === k[i]) b++; s = (b/k.length) * soal.bobot; } catch(e){} simpanJawabanKeFirebase(id, JSON.stringify(a), s); showToast('Tersimpan','success',800); }
 
-function autoSaveBS(id, n) {
-    let semua = true;
-    for (let i=0; i<n; i++) if (!document.querySelector(`input[name="bs_${i}"]:checked`)) { semua = false; break; }
-    if (!semua) return;
-    const a = [];
-    for (let i=0; i<n; i++) a.push(document.querySelector(`input[name="bs_${i}"]:checked`).value);
-    jawabanLokal[id] = JSON.stringify(a);
-    renderNavigator();
-    simpanKeLocalStorage();
-    const soal = dataSoal.find(q=>q.id===id);
-    let s = 0;
-    try { const k = JSON.parse(soal.kunci); let b = 0; for (let i=0; i<k.length; i++) if (a[i] === k[i]) b++; s = (b/k.length) * soal.bobot; } catch(e){}
-    simpanJawabanKeFirebase(id, JSON.stringify(a), s);
-    showToast('Tersimpan','success',800);
-}
-
-function debounceAutoSaveIsian(id) {
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
-        const i = document.getElementById('isian');
-        if (!i?.value.trim()) return;
-        jawabanLokal[id] = i.value.trim();
-        renderNavigator();
-        simpanKeLocalStorage();
-        const soal = dataSoal.find(q=>q.id===id);
-        let s = 0;
-        if (soal.kunci.toLowerCase().replace(/\s+/g,' ').trim() === i.value.trim().toLowerCase().replace(/\s+/g,' ').trim()) s = soal.bobot;
-        simpanJawabanKeFirebase(id, i.value.trim(), s);
-        showToast('Tersimpan','success',800);
-    }, 1000);
-}
+// ✅ Auto-save Isian DIMATIKAN - siswa klik Simpan manual
+function debounceAutoSaveIsian(id) { return; }
 
 function simpanPG(id) { autoSavePG(id); }
 function simpanPGK(id) { autoSavePGK(id); }
@@ -767,10 +701,7 @@ function autoSaveJodohDropdown(id) {
     const o = {};
     let allFilled = true;
     const totalKey = Object.keys(k).length;
-    Object.keys(k).forEach(key => {
-        const select = document.getElementById(`jodoh_${id}_${key}`);
-        if (select && select.value) { o[key] = select.value; } else { allFilled = false; }
-    });
+    Object.keys(k).forEach(key => { const select = document.getElementById(`jodoh_${id}_${key}`); if (select && select.value) { o[key] = select.value; } else { allFilled = false; } });
     if (allFilled) {
         jawabanLokal[id] = JSON.stringify(o);
         renderNavigator();
@@ -790,10 +721,7 @@ function simpanJodohDropdown(id) {
     let k = {}; try { k = JSON.parse(soal.kunci); } catch(e) { showError('Format kunci salah!'); return; }
     const o = {};
     const totalKey = Object.keys(k).length;
-    Object.keys(k).forEach(key => {
-        const select = document.getElementById(`jodoh_${id}_${key}`);
-        if (select && select.value) o[key] = select.value;
-    });
+    Object.keys(k).forEach(key => { const select = document.getElementById(`jodoh_${id}_${key}`); if (select && select.value) o[key] = select.value; });
     const filledKey = Object.keys(o).length;
     if (filledKey < totalKey) { showError(`Baru ${filledKey} dari ${totalKey} yang dijawab!`); return; }
     jawabanLokal[id] = JSON.stringify(o);
@@ -815,7 +743,7 @@ function simpanIsian(id) {
     let s = 0;
     if (soal.kunci.toLowerCase().replace(/\s+/g,' ').trim() === i.value.trim().toLowerCase().replace(/\s+/g,' ').trim()) s = soal.bobot;
     simpanJawabanKeFirebase(id, i.value.trim(), s);
-    showSuccess("Tersimpan!");
+    showSuccess("✅ Jawaban tersimpan!");
 }
 
 function prevSoal() { if (isFrozen) return; if (indexSoal > 0) goToSoal(indexSoal-1); }
@@ -838,6 +766,7 @@ function mulaiTimer() {
     timerInterval = setInterval(tick, 1000);
 }
 
+// ✅ KONFIRMASI SELESAI - Auto-save Isian sebelum konfirmasi
 function konfirmasiSelesai() {
     if (isFrozen) return;
     if (!tombolSelesaiAktif) {
@@ -845,16 +774,26 @@ function konfirmasiSelesai() {
         showError(`⏰ Tunggu ${s} menit lagi sebelum bisa selesai!`);
         return;
     }
+    
+    // ✅ Auto-save Isian
+    const soalSekarang = dataSoal[indexSoal];
+    if (soalSekarang && soalSekarang.tipe === "Isian") {
+        const inputIsian = document.getElementById('isian');
+        if (inputIsian && inputIsian.value.trim()) {
+            const jawabanBaru = inputIsian.value.trim();
+            if (jawabanLokal[soalSekarang.id] !== jawabanBaru) {
+                jawabanLokal[soalSekarang.id] = jawabanBaru;
+                simpanKeLocalStorage();
+                const soal = dataSoal.find(q=>q.id===soalSekarang.id);
+                let s = 0;
+                if (soal.kunci.toLowerCase().replace(/\s+/g,' ').trim() === jawabanBaru.toLowerCase().replace(/\s+/g,' ').trim()) s = soal.bobot;
+                simpanJawabanKeFirebase(soalSekarang.id, jawabanBaru, s);
+            }
+        }
+    }
+    
     const b = dataSoal.filter(s => !jawabanLokal[s.id]).length;
-    showModal({
-        iconType: "warning", title: "Akhiri Ujian?",
-        message: `📝 ${dataSoal.length-b} dijawab\n⚠️ ${b} belum`,
-        showCheckbox: true, checkboxLabel: "Saya yakin",
-        buttons: [
-            { text: "Lanjutkan", type: "secondary" },
-            { text: "Ya, Selesai", type: "warning", onClick: c => { if (!c) showError("Centang!"); else selesaiUjian(); } }
-        ]
-    });
+    showModal({ iconType: "warning", title: "Akhiri Ujian?", message: `📝 ${dataSoal.length-b} dijawab\n⚠️ ${b} belum`, showCheckbox: true, checkboxLabel: "Saya yakin", buttons: [{ text: "Lanjutkan", type: "secondary" }, { text: "Ya, Selesai", type: "warning", onClick: c => { if (!c) showError("Centang!"); else selesaiUjian(); } }] });
 }
 
 // ==================== SELESAI UJIAN ====================
@@ -862,7 +801,6 @@ async function selesaiUjian() {
     clearInterval(timerInterval);
     if (freezeInterval) clearInterval(freezeInterval);
     ujianSelesai = true;
-    
     let totalSkor = 0, totalBobot = 0, jumlahBenar = 0;
     if (window.db && idSesi) {
         try {
@@ -870,68 +808,24 @@ async function selesaiUjian() {
             if (!snap.empty) totalSkor = snap.docs[0].data().totalSkorSementara || 0;
         } catch(e){}
     }
-    
     dataSoal.forEach(s => {
         const b = s.bobot || 1;
         totalBobot += b;
         const j = jawabanLokal[s.id];
         if (!j) return;
-        
         if (s.tipe === "PG" && j === s.kunci) { totalSkor += b; jumlahBenar++; }
-        else if (s.tipe === "PGK") {
-            try {
-                const ja = JSON.parse(j).sort();
-                const ka = JSON.parse(s.kunci).sort();
-                if (ja.length === ka.length && ja.every((v, i) => v === ka[i])) { totalSkor += b; jumlahBenar++; }
-            } catch(e){}
-        }
-        else if (s.tipe === "B/S") {
-            try {
-                if (j.startsWith('[')) {
-                    const ja = JSON.parse(j), ka = JSON.parse(s.kunci);
-                    let x = 0;
-                    for (let i = 0; i < ka.length; i++) if (ja[i] === ka[i]) x++;
-                    totalSkor += (x/ka.length)*b;
-                    if (x === ka.length) jumlahBenar++;
-                } else { if (j === s.kunci) { totalSkor += b; jumlahBenar++; } }
-            } catch(e) { if (j === s.kunci) { totalSkor += b; jumlahBenar++; } }
-        }
-        else if (s.tipe === "Jodoh") {
-            try {
-                const jo = JSON.parse(j), ko = JSON.parse(s.kunci);
-                let benar = 0;
-                const tt = Object.keys(ko).length;
-                for (let key in ko) if (jo[key] === ko[key]) benar++;
-                totalSkor += (benar/tt)*b;
-                if (benar === tt) jumlahBenar++;
-            } catch(e){}
-        }
-        else if (s.tipe === "Isian") {
-            const jn = String(j).toLowerCase().replace(/\s+/g,' ').trim();
-            const kn = String(s.kunci).toLowerCase().replace(/\s+/g,' ').trim();
-            if (kn === '*' || kn === 'semua' || kn === 'all') { totalSkor += b; jumlahBenar++; }
-            else if (kn.includes('|')) { if (kn.split('|').map(k=>k.trim()).includes(jn)) { totalSkor += b; jumlahBenar++; } }
-            else if (jn === kn) { totalSkor += b; jumlahBenar++; }
-        }
+        else if (s.tipe === "PGK") { try { const ja = JSON.parse(j).sort(); const ka = JSON.parse(s.kunci).sort(); if (ja.length === ka.length && ja.every((v, i) => v === ka[i])) { totalSkor += b; jumlahBenar++; } } catch(e){} }
+        else if (s.tipe === "B/S") { try { if (j.startsWith('[')) { const ja = JSON.parse(j), ka = JSON.parse(s.kunci); let x = 0; for (let i = 0; i < ka.length; i++) if (ja[i] === ka[i]) x++; totalSkor += (x/ka.length)*b; if (x === ka.length) jumlahBenar++; } else { if (j === s.kunci) { totalSkor += b; jumlahBenar++; } } } catch(e) { if (j === s.kunci) { totalSkor += b; jumlahBenar++; } } }
+        else if (s.tipe === "Jodoh") { try { const jo = JSON.parse(j), ko = JSON.parse(s.kunci); let benar = 0; const tt = Object.keys(ko).length; for (let key in ko) if (jo[key] === ko[key]) benar++; totalSkor += (benar/tt)*b; if (benar === tt) jumlahBenar++; } catch(e){} }
+        else if (s.tipe === "Isian") { const jn = String(j).toLowerCase().replace(/\s+/g,' ').trim(); const kn = String(s.kunci).toLowerCase().replace(/\s+/g,' ').trim(); if (kn === '*' || kn === 'semua' || kn === 'all') { totalSkor += b; jumlahBenar++; } else if (kn.includes('|')) { if (kn.split('|').map(k=>k.trim()).includes(jn)) { totalSkor += b; jumlahBenar++; } } else if (jn === kn) { totalSkor += b; jumlahBenar++; } }
     });
-    
     if (totalSkor > totalBobot) totalSkor = totalBobot;
     const persen = totalBobot > 0 ? Math.round((totalSkor / totalBobot) * 100) : 0;
-    
     if (document.exitFullscreen) document.exitFullscreen();
     document.getElementById("freezeOverlay").style.display = "none";
-    
     if (window.db) {
         try {
-            const nilaiData = {
-                idSesi, username: currentUser?.username || pendingUser?.username, nis: currentUser?.nis || pendingUser?.nis,
-                nama: currentUser?.nama || pendingUser?.nama, kelas: currentUser?.kelas || pendingUser?.kelas,
-                jenjang: currentUser?.jenjang || pendingUser?.jenjang, mapel: currentUjian?.mapel || pendingUjian?.mapel,
-                jenisUjian: currentUjian?.jenis || pendingUjian?.jenis, totalSkor, jumlahBenar,
-                jumlahSoal: dataSoal.length, totalBobot, persentase: persen+'%',
-                pelanggaran: window.pelanggaranPerJenis || {}, totalPelanggaran: pelanggaranCount,
-                timestamp: new Date().toISOString()
-            };
+            const nilaiData = { idSesi, username: currentUser?.username || pendingUser?.username, nis: currentUser?.nis || pendingUser?.nis, nama: currentUser?.nama || pendingUser?.nama, kelas: currentUser?.kelas || pendingUser?.kelas, jenjang: currentUser?.jenjang || pendingUser?.jenjang, mapel: currentUjian?.mapel || pendingUjian?.mapel, jenisUjian: currentUjian?.jenis || pendingUjian?.jenis, totalSkor, jumlahBenar, jumlahSoal: dataSoal.length, totalBobot, persentase: persen+'%', pelanggaran: window.pelanggaranPerJenis || {}, totalPelanggaran: pelanggaranCount, timestamp: new Date().toISOString() };
             const q = window.Firebase.query(window.Firebase.collection(window.db,'nilai_akhir'), window.Firebase.where('idSesi','==',idSesi));
             const snap = await window.Firebase.getDocs(q);
             if (!snap.empty) await window.Firebase.updateDoc(snap.docs[0].ref, nilaiData);
@@ -943,14 +837,10 @@ async function selesaiUjian() {
             snap.forEach(d => window.Firebase.updateDoc(d.ref, { status: 'Selesai', waktuSelesai: new Date().toISOString() }));
         } catch(e){}
     }
-    
     localStorage.removeItem(`jawaban_${idSesi}`);
     localStorage.removeItem(`skor_${idSesi}`);
-    
     showModal({ iconType: "success", title: "🎉 Ujian Selesai!", message: "", buttons: [{ text: "Tutup", type: "success", onClick: () => location.reload() }] });
-    setTimeout(() => {
-        document.querySelector(".modal-message").innerHTML = `<div style="text-align:center;"><div style="font-size:56px;font-weight:800;color:#1E3A8A;">${totalSkor}/${totalBobot}</div><div style="font-size:16px;color:#64748B;margin-top:8px;">Total Skor</div><div style="margin-top:20px;padding-top:16px;border-top:1px solid #E2E8F0;"><span style="font-size:14px;color:#94A3B8;">${persen}%</span></div></div>`;
-    }, 50);
+    setTimeout(() => { document.querySelector(".modal-message").innerHTML = `<div style="text-align:center;"><div style="font-size:56px;font-weight:800;color:#1E3A8A;">${totalSkor}/${totalBobot}</div><div style="font-size:16px;color:#64748B;margin-top:8px;">Total Skor</div><div style="margin-top:20px;padding-top:16px;border-top:1px solid #E2E8F0;"><span style="font-size:14px;color:#94A3B8;">${persen}%</span></div></div>`; }, 50);
 }
 
 // ==================== INISIALISASI ====================
