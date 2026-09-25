@@ -44,6 +44,7 @@ body{background:#F1F5F9;display:flex;min-height:100vh}
 .btn-secondary{background:#E2E8F0;color:#334155}
 .btn-secondary:hover{background:#CBD5E1}
 .btn-sm{padding:6px 12px;font-size:12px}
+.btn:disabled{opacity:0.45;cursor:not-allowed;pointer-events:none}
 .toolbar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
 .toolbar input, .toolbar select{padding:10px 14px;border:1px solid #E2E8F0;border-radius:10px;font-size:14px}
 .toolbar input{flex:1;min-width:200px}
@@ -80,6 +81,8 @@ table tr:hover{background:#F8FAFC}
 .pelanggaran-header code{font-size:11px;color:#64748B;background:#E2E8F0;padding:2px 8px;border-radius:6px}
 .pelanggaran-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .pelanggaran-grid input{padding:8px 10px;font-size:13px}
+.pagination{display:flex;gap:6px;justify-content:center;margin-top:16px;flex-wrap:wrap;align-items:center}
+.pagination-info{margin-left:8px;color:#64748B;font-size:12px}
 @media(max-width:768px){.sidebar{width:60px}.sidebar h2, .sidebar a span{display:none}.sidebar a{justify-content:center;padding:16px 0}.main{margin-left:60px}.form-row{grid-template-columns:1fr}.pelanggaran-grid{grid-template-columns:1fr}}
 </style>
 </head>
@@ -115,7 +118,7 @@ table tr:hover{background:#F8FAFC}
             <div class="info-box">
                 <strong>📊 SISWA & BANK SOAL</strong> → Kelola dari <strong>Spreadsheet</strong>, lalu klik <strong>🔄 SYNC</strong>.<br><br>
                 <strong>📅 JADWAL, TOKEN, RESET, PENGATURAN</strong> → Kelola langsung di panel ini.<br><br>
-                <strong>🧹 SYNC AMAN</strong> → Klik SYNC berkali-kali pun tidak akan dobel. Sistem update soal yang sama, tambah yang baru, nonaktifkan yang dihapus dari sheet.
+                <strong>🧹 SYNC AMAN</strong> → Klik SYNC berkali-kali pun tidak akan dobel.
             </div>
         </div>
     </div>
@@ -125,8 +128,13 @@ table tr:hover{background:#F8FAFC}
             <h3><i class="fas fa-users"></i> Data Siswa (dari Spreadsheet)</h3>
             <div class="info-box">📌 Data siswa dikelola melalui <strong>Google Spreadsheet</strong>.<br>Setelah mengisi sheet <code>DATA_SISWA</code>, klik <strong>🔄 SYNC</strong>.</div>
             <div class="toolbar">
-                <input type="text" id="searchSiswa" placeholder="🔍 Cari nama/username/NIS..." oninput="renderSiswa()">
-                <select id="filterJenjangSiswa" onchange="renderSiswa()"><option value="">Semua Jenjang</option><option value="7">7</option><option value="8">8</option><option value="9">9</option></select>
+                <input type="text" id="searchSiswa" placeholder="🔍 Cari nama/username/NIS..." oninput="pageSiswa=1;renderSiswa()">
+                <select id="filterJenjangSiswa" onchange="pageSiswa=1;renderSiswa()">
+                    <option value="">Semua Jenjang</option>
+                    <option value="7">7</option>
+                    <option value="8">8</option>
+                    <option value="9">9</option>
+                </select>
                 <button class="btn btn-success" onclick="syncSiswa()"><i class="fas fa-sync"></i> SYNC dari Spreadsheet</button>
             </div>
             <div id="listSiswa" class="loading">Memuat...</div>
@@ -164,8 +172,14 @@ table tr:hover{background:#F8FAFC}
                 <strong>Sync aman</strong>: klik berapa kali pun tidak akan dobel.
             </div>
             <div class="toolbar">
-                <input type="text" id="searchSoal" placeholder="🔍 Cari soal..." oninput="renderSoal()">
-                <select id="filterTipeSoal" onchange="renderSoal()">
+                <input type="text" id="searchSoal" placeholder="🔍 Cari soal..." oninput="pageSoal=1;renderSoal()">
+                <select id="filterJenjangSoal" onchange="pageSoal=1;renderSoal()">
+                    <option value="">Semua Jenjang</option>
+                    <option value="7">7</option>
+                    <option value="8">8</option>
+                    <option value="9">9</option>
+                </select>
+                <select id="filterTipeSoal" onchange="pageSoal=1;renderSoal()">
                     <option value="">Semua Tipe</option>
                     <option value="PG">PG</option>
                     <option value="PGK">PGK</option>
@@ -173,7 +187,7 @@ table tr:hover{background:#F8FAFC}
                     <option value="Jodoh">Jodoh</option>
                     <option value="Isian">Isian</option>
                 </select>
-                <select id="filterStatusSoal" onchange="renderSoal()">
+                <select id="filterStatusSoal" onchange="pageSoal=1;renderSoal()">
                     <option value="">Semua Status</option>
                     <option value="Aktif">Aktif</option>
                     <option value="Nonaktif">Nonaktif</option>
@@ -200,6 +214,7 @@ table tr:hover{background:#F8FAFC}
             <div class="toolbar">
                 <input type="text" id="searchSelesai" placeholder="🔍 Cari nama/kelas/mapel..." oninput="renderSiswaSelesai()">
                 <button class="btn btn-warning" onclick="renderSiswaSelesai()"><i class="fas fa-sync"></i> Refresh</button>
+                <button class="btn btn-danger" onclick="resetSemuaSiswaSelesai()"><i class="fas fa-redo"></i> Reset Semua</button>
             </div>
             <div id="listSiswaSelesai" class="loading">Memuat...</div>
         </div>
@@ -216,8 +231,9 @@ table tr:hover{background:#F8FAFC}
         <div class="card">
             <h3><i class="fas fa-trophy"></i> Hasil Ujian Siswa</h3>
             <div class="toolbar">
-                <input type="text" id="searchHasil" placeholder="🔍 Cari nama/kelas..." oninput="renderHasil()">
-                <select id="filterMapel" onchange="renderHasil()"><option value="">Semua Mapel</option></select>
+                <input type="text" id="searchHasil" placeholder="🔍 Cari nama/kelas..." oninput="pageHasil=1;renderHasil()">
+                <select id="filterKelas" onchange="pageHasil=1;renderHasil()"><option value="">Semua Kelas</option></select>
+                <select id="filterMapel" onchange="pageHasil=1;renderHasil()"><option value="">Semua Mapel</option></select>
                 <button class="btn btn-success" onclick="exportHasilXLS()"><i class="fas fa-file-excel"></i> Export Excel</button>
                 <button class="btn btn-primary" onclick="exportHasil()"><i class="fas fa-file-csv"></i> Export CSV</button>
                 <button class="btn btn-danger" onclick="deleteAllNilai()"><i class="fas fa-trash"></i> Hapus Semua Nilai</button>
@@ -281,6 +297,48 @@ window.Firebase = { collection, addDoc, query, where, getDocs, updateDoc, delete
 const SPREADSHEET_ID = '1zc5lh-8XWEhGYJajqooWGK3Vo89kqob1iAaIdaIiXc0';
 const API_KEY = 'AIzaSyAG16CaL_CwY6Hktj6nNrxCoPjYXcJZHcE';
 
+// ==================== PAGINATION ====================
+const PAGE_SIZE = 50;
+let pageSiswa = 1, pageSoal = 1, pageHasil = 1;
+
+function buildPaginationHTML(totalItems, currentPage, fnName) {
+    const totalPages = Math.ceil(totalItems / PAGE_SIZE) || 1;
+    if (totalPages <= 1) {
+        return `<p class="pagination-info" style="text-align:center;margin-top:12px">Total ${totalItems} data</p>`;
+    }
+    let html = '<div class="pagination">';
+    html += `<button class="btn btn-sm btn-secondary" onclick="${fnName}(${currentPage-1})" ${currentPage===1?'disabled':''}><i class="fas fa-chevron-left"></i></button>`;
+
+    const maxBtn = 5;
+    let start = Math.max(1, currentPage - Math.floor(maxBtn/2));
+    let end = Math.min(totalPages, start + maxBtn - 1);
+    if (end - start < maxBtn - 1) start = Math.max(1, end - maxBtn + 1);
+
+    if (start > 1) {
+        html += `<button class="btn btn-sm btn-secondary" onclick="${fnName}(1)">1</button>`;
+        if (start > 2) html += `<span style="color:#94A3B8">…</span>`;
+    }
+
+    for (let i = start; i <= end; i++) {
+        const cls = i === currentPage ? 'btn-primary' : 'btn-secondary';
+        html += `<button class="btn btn-sm ${cls}" onclick="${fnName}(${i})">${i}</button>`;
+    }
+
+    if (end < totalPages) {
+        if (end < totalPages - 1) html += `<span style="color:#94A3B8">…</span>`;
+        html += `<button class="btn btn-sm btn-secondary" onclick="${fnName}(${totalPages})">${totalPages}</button>`;
+    }
+
+    html += `<button class="btn btn-sm btn-secondary" onclick="${fnName}(${currentPage+1})" ${currentPage===totalPages?'disabled':''}><i class="fas fa-chevron-right"></i></button>`;
+    html += `<span class="pagination-info">Hal ${currentPage}/${totalPages} · ${totalItems} data</span>`;
+    html += '</div>';
+    return html;
+}
+
+function goPageSiswa(p) { pageSiswa = p; renderSiswa(); }
+function goPageSoal(p) { pageSoal = p; renderSoal(); }
+function goPageHasil(p) { pageHasil = p; renderHasil(); }
+
 // ==================== UTILS ====================
 function toast(msg, type='success') {
     const t = document.createElement('div');
@@ -298,12 +356,12 @@ function switchTab(tab) {
     const titles = { dashboard: 'Dashboard', siswa: 'Kelola Siswa', jadwal: 'Jadwal Ujian', token: 'Token Ujian', soal: 'Bank Soal', reset: 'Reset Ujian', hasil: 'Hasil Ujian', pengaturan: 'Pengaturan Anti-Curang' };
     document.getElementById('pageTitle').textContent = titles[tab];
     if (tab === 'dashboard') loadDashboard();
-    if (tab === 'siswa') renderSiswa();
+    if (tab === 'siswa') { pageSiswa = 1; renderSiswa(); }
     if (tab === 'jadwal') renderJadwal();
     if (tab === 'token') renderToken();
-    if (tab === 'soal') renderSoal();
+    if (tab === 'soal') { pageSoal = 1; renderSoal(); }
     if (tab === 'reset') { renderSiswaAktif(); renderSiswaSelesai(); renderDaftarReset(); }
-    if (tab === 'hasil') renderHasil();
+    if (tab === 'hasil') { pageHasil = 1; renderHasil(); }
     if (tab === 'pengaturan') loadPengaturan();
 }
 
@@ -373,6 +431,7 @@ async function syncSiswa() {
             count++;
         }
         toast(`✅ ${count} siswa di-sync!`);
+        pageSiswa = 1;
         renderSiswa();
         loadDashboard();
     } catch(e) { toast('❌ ' + e.message, 'error'); }
@@ -383,18 +442,41 @@ async function renderSiswa() {
         const snap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'cache_siswa'));
         allSiswa = [];
         snap.forEach(d => allSiswa.push({ _id: d.id, ...d.data() }));
+
         const search = (document.getElementById('searchSiswa')?.value || '').toLowerCase();
         const jenjang = document.getElementById('filterJenjangSiswa')?.value || '';
+
         let filtered = allSiswa;
-        if (search) filtered = filtered.filter(s => (s.nama||'').toLowerCase().includes(search) || (s.username||'').toLowerCase().includes(search) || (s.nis||'').includes(search));
+        if (search) filtered = filtered.filter(s =>
+            (s.nama||'').toLowerCase().includes(search) ||
+            (s.username||'').toLowerCase().includes(search) ||
+            (s.nis||'').includes(search)
+        );
         if (jenjang) filtered = filtered.filter(s => s.jenjang === jenjang);
-        if (!filtered.length) { document.getElementById('listSiswa').innerHTML = '<div class="loading">Belum ada data.<br>Klik <strong>🔄 SYNC</strong>.</div>'; return; }
-        let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">Total: <strong>${filtered.length}</strong> siswa</p><table><thead><tr><th>NIS</th><th>Nama</th><th>Username</th><th>Password</th><th>Kelas</th><th>Jenjang</th></tr></thead><tbody>`;
-        filtered.slice(0, 100).forEach(s => {
+
+        filtered.sort((a,b) =>
+            (a.kelas||'').localeCompare(b.kelas||'') ||
+            (a.nama||'').localeCompare(b.nama||'')
+        );
+
+        if (!filtered.length) {
+            document.getElementById('listSiswa').innerHTML = '<div class="loading">Belum ada data.<br>Klik <strong>🔄 SYNC</strong>.</div>';
+            return;
+        }
+
+        const totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
+        if (pageSiswa > totalPages) pageSiswa = 1;
+        const start = (pageSiswa - 1) * PAGE_SIZE;
+        const paginated = filtered.slice(start, start + PAGE_SIZE);
+
+        let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">Menampilkan <strong>${paginated.length}</strong> dari <strong>${filtered.length}</strong> siswa</p>`;
+        html += '<table><thead><tr><th>NIS</th><th>Nama</th><th>Username</th><th>Password</th><th>Kelas</th><th>Jenjang</th></tr></thead><tbody>';
+        paginated.forEach(s => {
             html += `<tr><td>${s.nis||''}</td><td>${s.nama||''}</td><td><code>${s.username||''}</code></td><td><code>${s.password||''}</code></td><td>${s.kelas||''}</td><td><span class="badge badge-blue">${s.jenjang||''}</span></td></tr>`;
         });
         html += '</tbody></table>';
-        if (filtered.length > 100) html += `<p style="color:#64748B;font-size:12px;margin-top:12px">Menampilkan 100 dari ${filtered.length}</p>`;
+        html += buildPaginationHTML(filtered.length, pageSiswa, 'goPageSiswa');
+
         document.getElementById('listSiswa').innerHTML = html;
     } catch(e) { document.getElementById('listSiswa').innerHTML = 'Error: '+e.message; }
 }
@@ -514,7 +596,6 @@ function normalisasiStatus(mentah) {
     return 'Nonaktif';
 }
 
-// ✅ SYNC FINAL: query by field "id" dulu, baru update atau add
 async function syncSoal() {
     if (!confirm('🔄 Sync bank soal dari Spreadsheet?\n\n• Soal baru → ditambah\n• Soal sama (ID sama) → diupdate\n• Soal dihapus dari sheet → dinonaktifkan\n\nAman diklik berkali-kali.')) return;
     toast('⏳ Mengambil data...', 'info');
@@ -525,19 +606,30 @@ async function syncSoal() {
 
         console.log('📊 Total baris dari sheet:', rows.length - 1);
 
-        // Build map dari sheet
+        // Build map dari sheet — AUTO-SUFFIX kalau ID duplikat
         const sheetMap = {};
-        let skipped = 0;
+        let skipped = 0, autoFixed = 0;
+        const dupLog = {};
+
         for (let i = 1; i < rows.length; i++) {
             const row = rows[i];
             if (!row[0]) { skipped++; continue; }
-            const soalId = String(row[0] || '').trim();
-            if (sheetMap[soalId]) {
-                console.warn(`⚠️ ID duplikat di sheet: ${soalId}`);
-                continue;
+
+            const rawId = String(row[0] || '').trim();
+            let soalId = rawId;
+            let counter = 1;
+
+            while (sheetMap[soalId]) {
+                soalId = `${rawId}-${counter}`;
+                counter++;
             }
+            if (soalId !== rawId) autoFixed++;
+            if (!dupLog[rawId]) dupLog[rawId] = 0;
+            dupLog[rawId]++;
+
             sheetMap[soalId] = {
                 id: soalId,
+                idAsli: rawId,
                 jenjang: String(row[1] || '').trim(),
                 mapel: String(row[2] || '').trim(),
                 jenis: String(row[3] || '').trim(),
@@ -556,14 +648,19 @@ async function syncSoal() {
             };
         }
 
-        console.log(`📋 Sheet berisi ${Object.keys(sheetMap).length} soal unik`);
+        console.log(`📋 Sheet berisi ${Object.keys(sheetMap).length} soal unik (auto-fix ${autoFixed} ID duplikat)`);
+        if (Object.keys(dupLog).length) {
+            console.log('⚠️ ID yang duplikat di sheet:');
+            for (const id in dupLog) {
+                if (dupLog[id] > 1) console.log(`   "${id}" muncul ${dupLog[id]}x → jadi ${id}-1 s/d ${id}-${dupLog[id]-1}`);
+            }
+        }
 
         // Ambil semua soal di Firebase
         const existingSnap = await window.Firebase.getDocs(
             window.Firebase.collection(window.db, 'cache_soal')
         );
 
-        // Group by field "id"
         const byId = {};
         existingSnap.forEach(d => {
             const data = d.data();
@@ -577,13 +674,11 @@ async function syncSoal() {
         const errors = [];
         const batch = window.Firebase.writeBatch(window.db);
 
-        // Proses setiap soal di sheet
         for (const soalId in sheetMap) {
             const dataBaru = sheetMap[soalId];
             const existing = byId[soalId];
 
             if (existing && existing.length > 0) {
-                // Update dokumen pertama, hapus sisanya (dobel)
                 try {
                     batch.update(existing[0].ref, dataBaru);
                     updated++;
@@ -596,7 +691,6 @@ async function syncSoal() {
                     errors.push(`Update ${soalId}: ${err.message}`);
                 }
             } else {
-                // Tambah baru — pakai addDoc (bukan setDoc, biar aman)
                 try {
                     await window.Firebase.addDoc(
                         window.Firebase.collection(window.db, 'cache_soal'),
@@ -610,15 +704,12 @@ async function syncSoal() {
             }
         }
 
-        // Soal sisa (tidak ada di sheet) → hapus yang legacy, nonaktifkan yang valid
         let orphaned = 0;
         for (const key in byId) {
             const arr = byId[key];
             if (key.startsWith('__legacy__')) {
-                // Dokumen tanpa field id → hapus semua
                 arr.forEach(x => { batch.delete(x.ref); legacyDeleted++; });
             } else {
-                // Ada id tapi tidak di sheet → nonaktifkan
                 arr.forEach(x => {
                     batch.update(x.ref, { status: 'Nonaktif' });
                     orphaned++;
@@ -626,11 +717,9 @@ async function syncSoal() {
             }
         }
 
-        // Commit batch
         await batch.commit();
 
         console.log('✅ Sync selesai:', { added, updated, legacyDeleted, orphaned, skipped });
-        console.log('⚠️ Errors:', errors);
 
         let msg = `✅ ${added} baru · ${updated} update`;
         if (legacyDeleted > 0) msg += ` · ${legacyDeleted} dobel dihapus`;
@@ -644,6 +733,7 @@ async function syncSoal() {
             toast(msg);
         }
 
+        pageSoal = 1;
         renderSoal();
         loadDashboard();
     } catch (e) {
@@ -652,7 +742,6 @@ async function syncSoal() {
     }
 }
 
-// 🧹 Bersihkan duplikat manual
 async function bersihkanDuplikatSoal() {
     if (!confirm('🧹 Bersihkan duplikat soal?\n\n• Dokumen dengan field "id" sama akan disisakan 1\n• Dokumen tanpa field "id" akan dihapus\n\n⚠️ Tidak bisa dikembalikan. Lanjutkan?')) return;
 
@@ -673,15 +762,11 @@ async function bersihkanDuplikatSoal() {
         });
 
         const refsToDelete = [...legacyRefs];
-        let totalDobel = legacyRefs.length;
-
         for (const id in byId) {
             const arr = byId[id];
             if (arr.length <= 1) continue;
-            // Simpan yang pertama, hapus sisanya
             for (let i = 1; i < arr.length; i++) {
                 refsToDelete.push(arr[i].ref);
-                totalDobel++;
             }
         }
 
@@ -696,7 +781,7 @@ async function bersihkanDuplikatSoal() {
             await batch.commit();
         }
 
-        toast(`✅ ${refsToDelete.length} dokumen duplikat dihapus. Silakan SYNC ulang.`);
+        toast(`✅ ${refsToDelete.length} dokumen duplikat dihapus.`);
         renderSoal();
         loadDashboard();
     } catch (e) {
@@ -713,11 +798,13 @@ async function renderSoal() {
     const search = (document.getElementById('searchSoal')?.value || '').toLowerCase();
     const tipe = document.getElementById('filterTipeSoal')?.value || '';
     const statusFilter = document.getElementById('filterStatusSoal')?.value || '';
+    const jenjangFilter = document.getElementById('filterJenjangSoal')?.value || '';
 
     let filtered = allSoal;
     if (search) filtered = filtered.filter(s => (s.pertanyaan||'').toLowerCase().includes(search));
     if (tipe) filtered = filtered.filter(s => s.tipe === tipe);
     if (statusFilter) filtered = filtered.filter(s => (s.status || 'Nonaktif') === statusFilter);
+    if (jenjangFilter) filtered = filtered.filter(s => s.jenjang === jenjangFilter);
 
     const totalAktif = allSoal.filter(s => s.status === 'Aktif').length;
     const totalNonaktif = allSoal.filter(s => s.status === 'Nonaktif' || !s.status).length;
@@ -727,24 +814,24 @@ async function renderSoal() {
         return;
     }
 
+    const totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
+    if (pageSoal > totalPages) pageSoal = 1;
+    const start = (pageSoal - 1) * PAGE_SIZE;
+    const paginated = filtered.slice(start, start + PAGE_SIZE);
+
     let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">
-        Menampilkan: <strong>${filtered.length}</strong> soal ·
+        Menampilkan: <strong>${paginated.length}</strong> dari <strong>${filtered.length}</strong> ·
         <span class="badge badge-green">${totalAktif} Aktif</span>
         <span class="badge badge-red">${totalNonaktif} Nonaktif</span>
-        <span class="badge badge-blue">${allSoal.length} total di Firebase</span>
+        <span class="badge badge-blue">${allSoal.length} total</span>
     </p>`;
 
-    html += `<table><thead><tr>
-        <th>ID</th><th>Jenjang</th><th>Mapel</th><th>Jenis</th><th>Tipe</th>
-        <th>Pertanyaan</th><th>Status</th>
-    </tr></thead><tbody>`;
-
-    filtered.slice(0, 100).forEach(s => {
+    html += '<table><thead><tr><th>ID</th><th>Jenjang</th><th>Mapel</th><th>Jenis</th><th>Tipe</th><th>Pertanyaan</th><th>Status</th></tr></thead><tbody>';
+    paginated.forEach(s => {
         const isAktif = s.status === 'Aktif';
         const badgeCls = isAktif ? 'badge-green' : 'badge-red';
         const badgeTxt = isAktif ? 'Aktif' : 'Nonaktif';
         const rowStyle = isAktif ? '' : 'style="opacity:0.55"';
-
         html += `<tr ${rowStyle}>
             <td><code>${s.id||''}</code></td>
             <td><span class="badge badge-blue">${s.jenjang||''}</span></td>
@@ -755,11 +842,8 @@ async function renderSoal() {
             <td><span class="badge ${badgeCls}">${badgeTxt}</span></td>
         </tr>`;
     });
-
     html += '</tbody></table>';
-    if (filtered.length > 100) {
-        html += `<p style="color:#64748B;font-size:12px;margin-top:12px">Menampilkan 100 dari ${filtered.length}</p>`;
-    }
+    html += buildPaginationHTML(filtered.length, pageSoal, 'goPageSoal');
 
     document.getElementById('listSoal').innerHTML = html;
 }
@@ -862,7 +946,7 @@ async function renderSiswaSelesai() {
 
         let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">Total: <strong>${filtered.length}</strong> siswa sudah selesai</p>`;
         html += '<table><thead><tr><th>Nama</th><th>Kelas</th><th>Mapel</th><th>Jenis</th><th>Nilai</th><th>Waktu</th><th>Aksi</th></tr></thead><tbody>';
-        filtered.slice(0, 100).forEach(s => {
+        filtered.slice(0, 200).forEach(s => {
             const p = parseInt(s.persentase) || 0;
             const warna = p >= 75 ? 'badge-green' : p >= 60 ? 'badge-yellow' : 'badge-red';
             const waktu = s.timestamp ? new Date(s.timestamp).toLocaleString('id-ID') : '-';
@@ -881,12 +965,89 @@ async function renderSiswaSelesai() {
             </tr>`;
         });
         html += '</tbody></table>';
-        if (filtered.length > 100) html += `<p style="color:#64748B;font-size:12px;margin-top:12px">Menampilkan 100 dari ${filtered.length}</p>`;
+        if (filtered.length > 200) {
+            html += `<p style="color:#64748B;font-size:12px;margin-top:12px">Menampilkan 200 dari ${filtered.length}</p>`;
+        }
         container.innerHTML = html;
     } catch(e) {
         console.error(e);
         container.innerHTML = '<div class="loading">Error: ' + e.message + '</div>';
     }
+}
+
+async function resetSemuaSiswaSelesai() {
+    if (!allSiswaSelesai.length) { toast('Tidak ada siswa selesai', 'error'); return; }
+    if (!confirm(`⚠️ RESET SEMUA SISWA YANG SELESAI?\n\nTotal: ${allSiswaSelesai.length} record akan direset.\n\n• Nilai dihapus\n• Sesi dibatalkan\n• Siswa bisa ujian ulang\n\nLanjutkan?`)) return;
+    if (!confirm('Yakin? Ini akan mengizinkan mereka mengerjakan ujian dari awal.')) return;
+
+    toast(`⏳ Memproses ${allSiswaSelesai.length} siswa...`, 'info');
+
+    let berhasil = 0, gagal = 0;
+    const errors = [];
+
+    for (const s of allSiswaSelesai) {
+        try {
+            const nilaiSnap = await window.Firebase.getDocs(
+                window.Firebase.query(
+                    window.Firebase.collection(window.db, 'nilai_akhir'),
+                    window.Firebase.where('username', '==', s.username),
+                    window.Firebase.where('mapel', '==', s.mapel),
+                    window.Firebase.where('jenisUjian', '==', s.jenisUjian)
+                )
+            );
+            const b1 = window.Firebase.writeBatch(window.db);
+            nilaiSnap.forEach(d => b1.delete(d.ref));
+            await b1.commit();
+
+            const sesiSnap = await window.Firebase.getDocs(
+                window.Firebase.query(
+                    window.Firebase.collection(window.db, 'sesi_ujian'),
+                    window.Firebase.where('username', '==', s.username),
+                    window.Firebase.where('mapel', '==', s.mapel)
+                )
+            );
+            const b2 = window.Firebase.writeBatch(window.db);
+            sesiSnap.forEach(d => {
+                const data = d.data();
+                if (data.status === 'Selesai' || data.status === 'Aktif') {
+                    b2.update(d.ref, { status: 'Dibatalkan', waktuBatal: new Date().toISOString() });
+                }
+            });
+            await b2.commit();
+
+            await window.Firebase.addDoc(
+                window.Firebase.collection(window.db, 'cache_reset'),
+                {
+                    username: s.username,
+                    mapel: s.mapel,
+                    jenis: s.jenisUjian,
+                    reset: 'YA',
+                    timestamp: new Date().toISOString(),
+                    resetBy: 'admin-bulk'
+                }
+            );
+
+            berhasil++;
+        } catch(e) {
+            console.error('Gagal reset', s.nama, e);
+            errors.push(`${s.nama} (${s.mapel}): ${e.message}`);
+            gagal++;
+        }
+    }
+
+    let msg = `✅ ${berhasil} berhasil`;
+    if (gagal > 0) msg += ` · ❌ ${gagal} gagal`;
+
+    if (gagal > 0) {
+        toast(msg, 'error');
+        alert('❌ Beberapa reset gagal:\n\n' + errors.slice(0, 10).join('\n'));
+    } else {
+        toast(msg);
+    }
+
+    await renderSiswaSelesai();
+    await renderDaftarReset();
+    await loadDashboard();
 }
 
 async function renderDaftarReset() {
@@ -1042,23 +1203,64 @@ async function renderHasil() {
     const snap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'nilai_akhir'));
     allHasil = [];
     snap.forEach(d => allHasil.push({ _id: d.id, ...d.data() }));
+
+    const kelasSet = new Set(allHasil.map(h => h.kelas).filter(Boolean));
+    const selKelas = document.getElementById('filterKelas');
+    if (selKelas && selKelas.options.length <= 1) {
+        [...kelasSet].sort().forEach(k => {
+            const o = document.createElement('option');
+            o.value = k; o.textContent = k;
+            selKelas.appendChild(o);
+        });
+    }
+
+    const mapelSet = new Set(allHasil.map(h => h.mapel).filter(Boolean));
+    const selMapel = document.getElementById('filterMapel');
+    if (selMapel && selMapel.options.length <= 1) {
+        [...mapelSet].sort().forEach(m => {
+            const o = document.createElement('option');
+            o.value = m; o.textContent = m;
+            selMapel.appendChild(o);
+        });
+    }
+
     const search = (document.getElementById('searchHasil')?.value || '').toLowerCase();
     const mapelFilter = document.getElementById('filterMapel')?.value || '';
-    const mapelSet = new Set(allHasil.map(h => h.mapel).filter(Boolean));
-    const sel = document.getElementById('filterMapel');
-    if (sel.options.length <= 1) mapelSet.forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = m; sel.appendChild(o); });
+    const kelasFilter = document.getElementById('filterKelas')?.value || '';
+
     let filtered = allHasil;
-    if (search) filtered = filtered.filter(h => (h.nama||'').toLowerCase().includes(search) || (h.kelas||'').toLowerCase().includes(search));
+    if (search) filtered = filtered.filter(h =>
+        (h.nama||'').toLowerCase().includes(search) ||
+        (h.kelas||'').toLowerCase().includes(search)
+    );
     if (mapelFilter) filtered = filtered.filter(h => h.mapel === mapelFilter);
-    if (!filtered.length) { document.getElementById('listHasil').innerHTML = '<div class="loading">Belum ada nilai.</div>'; return; }
-    filtered.sort((a,b) => (a.kelas||'').localeCompare(b.kelas||'') || (a.nama||'').localeCompare(b.nama||''));
-    let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">Total: <strong>${filtered.length}</strong> nilai</p><table><thead><tr><th>Nama</th><th>Kelas</th><th>Mapel</th><th>Jenis</th><th>Skor</th><th>Nilai</th><th>Waktu</th></tr></thead><tbody>`;
-    filtered.forEach(h => {
+    if (kelasFilter) filtered = filtered.filter(h => h.kelas === kelasFilter);
+
+    if (!filtered.length) {
+        document.getElementById('listHasil').innerHTML = '<div class="loading">Belum ada nilai.</div>';
+        return;
+    }
+
+    filtered.sort((a,b) =>
+        (a.kelas||'').localeCompare(b.kelas||'') ||
+        (a.nama||'').localeCompare(b.nama||'')
+    );
+
+    const totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
+    if (pageHasil > totalPages) pageHasil = 1;
+    const start = (pageHasil - 1) * PAGE_SIZE;
+    const paginated = filtered.slice(start, start + PAGE_SIZE);
+
+    let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">Menampilkan <strong>${paginated.length}</strong> dari <strong>${filtered.length}</strong> nilai</p>`;
+    html += '<table><thead><tr><th>Nama</th><th>Kelas</th><th>Mapel</th><th>Jenis</th><th>Skor</th><th>Nilai</th><th>Waktu</th></tr></thead><tbody>';
+    paginated.forEach(h => {
         const p = parseInt(h.persentase) || 0;
         const warna = p >= 75 ? 'badge-green' : p >= 60 ? 'badge-yellow' : 'badge-red';
         html += `<tr><td>${h.nama||''}</td><td>${h.kelas||''}</td><td>${h.mapel||''}</td><td>${h.jenisUjian||''}</td><td><strong>${h.totalSkor}/${h.totalBobot}</strong></td><td><span class="badge ${warna}">${h.persentase||''}</span></td><td>${h.timestamp ? new Date(h.timestamp).toLocaleString('id-ID') : ''}</td></tr>`;
     });
     html += '</tbody></table>';
+    html += buildPaginationHTML(filtered.length, pageHasil, 'goPageHasil');
+
     document.getElementById('listHasil').innerHTML = html;
 }
 
@@ -1234,13 +1436,15 @@ async function resetPengaturan() {
 
 // ==================== EXPORTS ====================
 Object.assign(window, {
-    switchTab, syncSiswa, renderSiswa, openFormJadwal, editJadwal, deleteJadwal, deleteAllJadwal, saveJadwal,
+    switchTab, syncSiswa, renderSiswa,
+    openFormJadwal, editJadwal, deleteJadwal, deleteAllJadwal, saveJadwal,
     openFormToken, editToken, deleteToken, deleteAllToken, saveToken,
     syncSoal, renderSoal, bersihkanDuplikatSoal,
     renderSiswaAktif, renderSiswaSelesai, renderDaftarReset, resetSiswaLangsung, deleteReset, deleteAllReset,
-    bersihkanSesiLama,
+    resetSemuaSiswaSelesai, bersihkanSesiLama,
     renderHasil, exportHasil, exportHasilXLS, deleteAllNilai,
-    savePengaturan, closeModal, loadPengaturan, togglePelanggaran, updatePelanggaran, resetPengaturan
+    savePengaturan, closeModal, loadPengaturan, togglePelanggaran, updatePelanggaran, resetPengaturan,
+    goPageSiswa, goPageSoal, goPageHasil
 });
 
 window.addEventListener('load', () => {
