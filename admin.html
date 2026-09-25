@@ -164,10 +164,26 @@ table tr:hover{background:#F8FAFC}
     <div id="tab-soal" class="tab-content">
         <div class="card">
             <h3><i class="fas fa-book"></i> Bank Soal (dari Spreadsheet)</h3>
-            <div class="info-box">📌 Bank soal dikelola melalui <strong>Google Spreadsheet</strong>.<br>Setelah mengisi sheet <code>BANK_SOAL</code>, klik <strong>🔄 SYNC</strong>.</div>
+            <div class="info-box">
+                📌 Bank soal dikelola melalui <strong>Google Spreadsheet</strong> (sheet <code>BANK_SOAL</code>).<br>
+                <strong>Kolom N (Status)</strong>: isi <code>Aktif</code> untuk memunculkan soal, <code>Nonaktif</code> untuk menyembunyikan.<br>
+                Klik <strong>🔄 SYNC</strong> setelah mengubah spreadsheet.
+            </div>
             <div class="toolbar">
                 <input type="text" id="searchSoal" placeholder="🔍 Cari soal..." oninput="renderSoal()">
-                <select id="filterTipeSoal" onchange="renderSoal()"><option value="">Semua Tipe</option><option value="PG">PG</option><option value="PGK">PGK</option><option value="B/S">B/S</option><option value="Jodoh">Jodoh</option><option value="Isian">Isian</option></select>
+                <select id="filterTipeSoal" onchange="renderSoal()">
+                    <option value="">Semua Tipe</option>
+                    <option value="PG">PG</option>
+                    <option value="PGK">PGK</option>
+                    <option value="B/S">B/S</option>
+                    <option value="Jodoh">Jodoh</option>
+                    <option value="Isian">Isian</option>
+                </select>
+                <select id="filterStatusSoal" onchange="renderSoal()">
+                    <option value="">Semua Status</option>
+                    <option value="Aktif">Aktif</option>
+                    <option value="Nonaktif">Nonaktif</option>
+                </select>
                 <button class="btn btn-success" onclick="syncSoal()"><i class="fas fa-sync"></i> SYNC dari Spreadsheet</button>
             </div>
             <div id="listSoal" class="loading">Memuat...</div>
@@ -284,7 +300,7 @@ function toast(msg, type='success') {
     t.className = `toast ${type}`;
     t.textContent = msg;
     document.getElementById('toastContainer').appendChild(t);
-    setTimeout(() => t.remove(), 3000);
+    setTimeout(() => t.remove(), 3500);
 }
 
 function switchTab(tab) {
@@ -320,6 +336,7 @@ async function fetchSheet(sheetName, range) {
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${sheetName}!${range}?key=${API_KEY}`;
     const r = await fetch(url);
     const d = await r.json();
+    if (d.error) throw new Error(d.error.message || 'Gagal baca Spreadsheet');
     return d.values || [];
 }
 
@@ -351,7 +368,7 @@ async function loadDashboard() {
 let allSiswa = [];
 
 async function syncSiswa() {
-    if (!confirm('🔄 Sync data siswa dari Spreadsheet?')) return;
+    if (!confirm('🔄 Sync data siswa dari Spreadsheet?\n\nData lama akan diganti dengan data terbaru.')) return;
     toast('⏳ Mengambil data...', 'info');
     try {
         const rows = await fetchSheet('DATA_SISWA', 'A:H');
@@ -362,12 +379,17 @@ async function syncSiswa() {
             const row = rows[i];
             if (!row[2]) continue;
             await window.Firebase.addDoc(window.Firebase.collection(window.db, 'cache_siswa'), {
-                nis: String(row[0]||'').trim(), nama: String(row[1]||'').trim(), username: String(row[2]||'').trim(),
-                password: String(row[3]||'').trim(), kelas: String(row[4]||'').trim(), jenjang: String(row[5]||'').trim()
+                nis: String(row[0]||'').trim(),
+                nama: String(row[1]||'').trim(),
+                username: String(row[2]||'').trim(),
+                password: String(row[3]||'').trim(),
+                kelas: String(row[4]||'').trim(),
+                jenjang: String(row[5]||'').trim()
             });
             count++;
         }
-        toast(`✅ ${count} siswa di-sync!`); renderSiswa();
+        toast(`✅ ${count} siswa di-sync!`);
+        renderSiswa();
     } catch(e) { toast('❌ ' + e.message, 'error'); }
 }
 
@@ -500,46 +522,182 @@ async function deleteAllToken() { if (!confirm('Hapus SEMUA token?')) return; co
 // ==================== SOAL ====================
 let allSoal = [];
 
+// Normalisasi status: "aktif", "AKTIF", "Non Aktif" → "Aktif" / "Nonaktif"
+function normalisasiStatus(mentah) {
+    const s = String(mentah || '').trim();
+    if (/^aktif$/i.test(s)) return 'Aktif';
+    if (/^non[\s-]?aktif$/i.test(s)) return 'Nonaktif';
+    return 'Nonaktif'; // default aman: kalau kosong/aneh → Nonaktif
+}
+
 async function syncSoal() {
-    if (!confirm('🔄 Sync bank soal dari Spreadsheet?')) return;
+    if (!confirm('🔄 Sync bank soal dari Spreadsheet?\n\n• Soal baru → ditambah\n• Soal lama (id sama) → diupdate\n• Status "Nonaktif" di sheet → dinonaktifkan di Firebase\n• Soal yang dihapus dari sheet → otomatis Nonaktif')) return;
     toast('⏳ Mengambil data...', 'info');
+
     try {
         const rows = await fetchSheet('BANK_SOAL', 'A:P');
         if (rows.length <= 1) { toast('❌ Tidak ada data', 'error'); return; }
-        await clearCollection('cache_soal');
-        let count = 0;
+
+        console.log('📊 Total baris dari sheet:', rows.length - 1);
+
+        // Ambil semua soal yang ada di Firebase
+        const existingSnap = await window.Firebase.getDocs(
+            window.Firebase.collection(window.db, 'cache_soal')
+        );
+        const existingMap = {};  // { id_soal: { docId, data } }
+        existingSnap.forEach(d => {
+            const data = d.data();
+            if (data.id) existingMap[data.id] = { docId: d.id, data };
+        });
+
+        let added = 0, updated = 0, deactivated = 0, skipped = 0;
+        const errors = [];
+
+        // Proses setiap baris spreadsheet
         for (let i = 1; i < rows.length; i++) {
             const row = rows[i];
-            if (!row[0]) continue;
-            await window.Firebase.addDoc(window.Firebase.collection(window.db, 'cache_soal'), {
-                id: String(row[0]||'').trim(), jenjang: String(row[1]||'').trim(), mapel: String(row[2]||'').trim(),
-                jenis: String(row[3]||'').trim(), tipe: String(row[4]||'').trim(), pertanyaan: String(row[5]||''),
-                pilihanA: String(row[6]||''), pilihanB: String(row[7]||''), pilihanC: String(row[8]||''),
-                pilihanD: String(row[9]||''), pilihanE: String(row[10]||''), kunci: String(row[11]||''),
-                bobot: parseFloat(row[12])||1, status: String(row[13]||'').trim(), gambar: String(row[14]||''), grupSoal: String(row[15]||'')
-            });
-            count++;
+            if (!row[0]) { skipped++; continue; }
+
+            const soalId = String(row[0] || '').trim();
+            const statusFinal = normalisasiStatus(row[13]);
+
+            try {
+                const data = {
+                    id: soalId,
+                    jenjang: String(row[1] || '').trim(),
+                    mapel: String(row[2] || '').trim(),
+                    jenis: String(row[3] || '').trim(),
+                    tipe: String(row[4] || '').trim(),
+                    pertanyaan: String(row[5] || ''),
+                    pilihanA: String(row[6] || ''),
+                    pilihanB: String(row[7] || ''),
+                    pilihanC: String(row[8] || ''),
+                    pilihanD: String(row[9] || ''),
+                    pilihanE: String(row[10] || ''),
+                    kunci: String(row[11] || ''),
+                    bobot: parseFloat(row[12]) || 1,
+                    status: statusFinal,
+                    gambar: String(row[14] || ''),
+                    grupSoal: String(row[15] || '')
+                };
+
+                if (existingMap[soalId]) {
+                    const before = existingMap[soalId].data.status;
+                    await window.Firebase.updateDoc(
+                        window.Firebase.doc(window.db, 'cache_soal', existingMap[soalId].docId),
+                        data
+                    );
+                    updated++;
+                    if (before === 'Aktif' && statusFinal === 'Nonaktif') deactivated++;
+                    delete existingMap[soalId]; // tandai sudah diproses
+                } else {
+                    await window.Firebase.addDoc(
+                        window.Firebase.collection(window.db, 'cache_soal'),
+                        data
+                    );
+                    added++;
+                }
+            } catch (err) {
+                errors.push(`Baris ${i + 1} (id: ${soalId}): ${err.message}`);
+                console.error(`❌ Baris ${i + 1}:`, err, row);
+            }
         }
-        toast(`✅ ${count} soal di-sync!`); renderSoal();
-    } catch(e) { toast('❌ ' + e.message, 'error'); }
+
+        // Soal yang ada di Firebase tapi TIDAK ADA di spreadsheet → nonaktifkan
+        let orphaned = 0;
+        for (const id in existingMap) {
+            try {
+                // Hanya nonaktifkan yang statusnya masih Aktif
+                if (existingMap[id].data.status === 'Aktif') {
+                    await window.Firebase.updateDoc(
+                        window.Firebase.doc(window.db, 'cache_soal', existingMap[id].docId),
+                        { status: 'Nonaktif' }
+                    );
+                    orphaned++;
+                }
+            } catch (err) {
+                errors.push(`Nonaktifkan ${id}: ${err.message}`);
+            }
+        }
+
+        console.log('✅ Sync selesai:', { added, updated, deactivated, orphaned, skipped });
+        console.log('⚠️ Errors:', errors);
+
+        let msg = `✅ ${added} baru · ${updated} update`;
+        if (deactivated > 0) msg += ` · ${deactivated} dinonaktifkan`;
+        if (orphaned > 0) msg += ` · ${orphaned} orphan → nonaktif`;
+        if (skipped > 0) msg += ` · ${skipped} baris kosong`;
+
+        if (errors.length) {
+            toast(`⚠️ ${msg} · ${errors.length} error`, 'error');
+            alert('❌ Error detail:\n\n' + errors.join('\n'));
+        } else {
+            toast(msg);
+        }
+
+        renderSoal();
+        loadDashboard();
+    } catch (e) {
+        console.error(e);
+        toast('❌ ' + e.message, 'error');
+    }
 }
 
 async function renderSoal() {
     const snap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'cache_soal'));
     allSoal = [];
     snap.forEach(d => allSoal.push({ _id: d.id, ...d.data() }));
+
     const search = (document.getElementById('searchSoal')?.value || '').toLowerCase();
     const tipe = document.getElementById('filterTipeSoal')?.value || '';
+    const statusFilter = document.getElementById('filterStatusSoal')?.value || '';
+
     let filtered = allSoal;
     if (search) filtered = filtered.filter(s => (s.pertanyaan||'').toLowerCase().includes(search));
     if (tipe) filtered = filtered.filter(s => s.tipe === tipe);
-    if (!filtered.length) { document.getElementById('listSoal').innerHTML = '<div class="loading">Belum ada soal.<br>Klik <strong>🔄 SYNC</strong>.</div>'; return; }
-    let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">Total: <strong>${filtered.length}</strong> soal</p><table><thead><tr><th>ID</th><th>Jenjang</th><th>Mapel</th><th>Jenis</th><th>Tipe</th><th>Pertanyaan</th><th>Status</th></tr></thead><tbody>`;
+    if (statusFilter) filtered = filtered.filter(s => (s.status || 'Nonaktif') === statusFilter);
+
+    const totalAktif = allSoal.filter(s => s.status === 'Aktif').length;
+    const totalNonaktif = allSoal.filter(s => s.status === 'Nonaktif' || !s.status).length;
+
+    if (!filtered.length) {
+        document.getElementById('listSoal').innerHTML = '<div class="loading">Belum ada soal.<br>Klik <strong>🔄 SYNC</strong>.</div>';
+        return;
+    }
+
+    let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">
+        Menampilkan: <strong>${filtered.length}</strong> soal ·
+        <span class="badge badge-green">${totalAktif} Aktif</span>
+        <span class="badge badge-red">${totalNonaktif} Nonaktif</span>
+    </p>`;
+
+    html += `<table><thead><tr>
+        <th>ID</th><th>Jenjang</th><th>Mapel</th><th>Jenis</th><th>Tipe</th>
+        <th>Pertanyaan</th><th>Status</th>
+    </tr></thead><tbody>`;
+
     filtered.slice(0, 100).forEach(s => {
-        html += `<tr><td><code>${s.id||''}</code></td><td><span class="badge badge-blue">${s.jenjang||''}</span></td><td>${s.mapel||''}</td><td>${s.jenis||''}</td><td><span class="badge badge-yellow">${s.tipe||''}</span></td><td>${(s.pertanyaan||'').substring(0,60)}...</td><td><span class="badge ${s.status==='Aktif'?'badge-green':'badge-red'}">${s.status||''}</span></td></tr>`;
+        const isAktif = s.status === 'Aktif';
+        const badgeCls = isAktif ? 'badge-green' : 'badge-red';
+        const badgeTxt = isAktif ? 'Aktif' : 'Nonaktif';
+        const rowStyle = isAktif ? '' : 'style="opacity:0.55"';
+
+        html += `<tr ${rowStyle}>
+            <td><code>${s.id||''}</code></td>
+            <td><span class="badge badge-blue">${s.jenjang||''}</span></td>
+            <td>${s.mapel||''}</td>
+            <td>${s.jenis||''}</td>
+            <td><span class="badge badge-yellow">${s.tipe||''}</span></td>
+            <td>${(s.pertanyaan||'').substring(0,60)}...</td>
+            <td><span class="badge ${badgeCls}">${badgeTxt}</span></td>
+        </tr>`;
     });
+
     html += '</tbody></table>';
-    if (filtered.length > 100) html += `<p style="color:#64748B;font-size:12px;margin-top:12px">Menampilkan 100 dari ${filtered.length}</p>`;
+    if (filtered.length > 100) {
+        html += `<p style="color:#64748B;font-size:12px;margin-top:12px">Menampilkan 100 dari ${filtered.length}</p>`;
+    }
+
     document.getElementById('listSoal').innerHTML = html;
 }
 
@@ -552,7 +710,7 @@ async function renderSiswaAktif() {
     const container = document.getElementById('listSiswaAktif');
     if (!container) return;
     container.innerHTML = '<div class="loading">Memuat...</div>';
-    
+
     try {
         const sesiSnap = await window.Firebase.getDocs(
             window.Firebase.query(
@@ -560,15 +718,15 @@ async function renderSiswaAktif() {
                 window.Firebase.where('status', '==', 'Aktif')
             )
         );
-        
+
         allSesiAktif = [];
         const now = new Date();
         const hariIni = formatTanggalLocal(now);
-        
+
         sesiSnap.forEach(d => {
             const s = d.data();
             const waktuMulai = s.waktuMulai ? new Date(s.waktuMulai) : null;
-            
+
             let valid = false;
             if (waktuMulai) {
                 const diffHours = (now - waktuMulai) / (1000 * 60 * 60);
@@ -576,23 +734,23 @@ async function renderSiswaAktif() {
                     valid = true;
                 }
             }
-            
+
             if (valid) allSesiAktif.push({ _id: d.id, ...s });
         });
-        
+
         const search = (document.getElementById('searchAktif')?.value || '').toLowerCase();
         let filtered = allSesiAktif;
-        if (search) filtered = filtered.filter(s => 
-            (s.nama||'').toLowerCase().includes(search) || 
+        if (search) filtered = filtered.filter(s =>
+            (s.nama||'').toLowerCase().includes(search) ||
             (s.kelas||'').toLowerCase().includes(search) ||
             (s.mapel||'').toLowerCase().includes(search)
         );
-        
+
         if (!filtered.length) {
             container.innerHTML = '<div class="loading">✅ Tidak ada siswa yang sedang ujian hari ini.</div>';
             return;
         }
-        
+
         let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">Total: <strong>${filtered.length}</strong> siswa sedang ujian (hari ini)</p>`;
         html += '<table><thead><tr><th>Nama</th><th>Kelas</th><th>Mapel</th><th>Jenis</th><th>Mulai</th><th>Aksi</th></tr></thead><tbody>';
         filtered.forEach(s => {
@@ -612,9 +770,9 @@ async function renderSiswaAktif() {
         });
         html += '</tbody></table>';
         container.innerHTML = html;
-    } catch(e) { 
+    } catch(e) {
         console.error(e);
-        container.innerHTML = '<div class="loading">Error: ' + e.message + '</div>'; 
+        container.innerHTML = '<div class="loading">Error: ' + e.message + '</div>';
     }
 }
 
@@ -622,27 +780,27 @@ async function renderSiswaSelesai() {
     const container = document.getElementById('listSiswaSelesai');
     if (!container) return;
     container.innerHTML = '<div class="loading">Memuat...</div>';
-    
+
     try {
         const nilaiSnap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'nilai_akhir'));
         allSiswaSelesai = [];
         nilaiSnap.forEach(d => allSiswaSelesai.push({ _id: d.id, ...d.data() }));
-        
+
         const search = (document.getElementById('searchSelesai')?.value || '').toLowerCase();
         let filtered = allSiswaSelesai;
-        if (search) filtered = filtered.filter(s => 
-            (s.nama||'').toLowerCase().includes(search) || 
+        if (search) filtered = filtered.filter(s =>
+            (s.nama||'').toLowerCase().includes(search) ||
             (s.kelas||'').toLowerCase().includes(search) ||
             (s.mapel||'').toLowerCase().includes(search)
         );
-        
+
         filtered.sort((a,b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
-        
+
         if (!filtered.length) {
             container.innerHTML = '<div class="loading">Belum ada siswa yang selesai ujian.</div>';
             return;
         }
-        
+
         let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">Total: <strong>${filtered.length}</strong> siswa sudah selesai</p>`;
         html += '<table><thead><tr><th>Nama</th><th>Kelas</th><th>Mapel</th><th>Jenis</th><th>Nilai</th><th>Waktu</th><th>Aksi</th></tr></thead><tbody>';
         filtered.slice(0, 100).forEach(s => {
@@ -666,25 +824,25 @@ async function renderSiswaSelesai() {
         html += '</tbody></table>';
         if (filtered.length > 100) html += `<p style="color:#64748B;font-size:12px;margin-top:12px">Menampilkan 100 dari ${filtered.length}</p>`;
         container.innerHTML = html;
-    } catch(e) { 
+    } catch(e) {
         console.error(e);
-        container.innerHTML = '<div class="loading">Error: ' + e.message + '</div>'; 
+        container.innerHTML = '<div class="loading">Error: ' + e.message + '</div>';
     }
 }
 
 async function renderDaftarReset() {
     const container = document.getElementById('listReset');
     if (!container) return;
-    
+
     const snap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'cache_reset'));
     allReset = [];
     snap.forEach(d => allReset.push({ _id: d.id, ...d.data() }));
-    
+
     if (!allReset.length) {
         container.innerHTML = '<div class="loading">Tidak ada reset aktif.</div>';
         return;
     }
-    
+
     let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">Total: <strong>${allReset.length}</strong> reset aktif</p>`;
     html += '<table><thead><tr><th>Username</th><th>Mapel</th><th>Jenis</th><th>Reset</th><th>Aksi</th></tr></thead><tbody>';
     allReset.forEach(r => {
@@ -702,7 +860,7 @@ async function renderDaftarReset() {
 
 async function bersihkanSesiLama() {
     if (!confirm('🧹 Bersihkan sesi lama?\n\nSesi yang sudah melewati 3 jam atau beda hari akan diubah menjadi "Kedaluwarsa".\n\nLanjutkan?')) return;
-    
+
     try {
         const sesiSnap = await window.Firebase.getDocs(
             window.Firebase.query(
@@ -710,16 +868,16 @@ async function bersihkanSesiLama() {
                 window.Firebase.where('status', '==', 'Aktif')
             )
         );
-        
+
         let count = 0;
         let stillActive = 0;
         const now = new Date();
         const hariIni = formatTanggalLocal(now);
-        
+
         for (const docSnap of sesiSnap.docs) {
             const sesi = docSnap.data();
             const waktuMulai = sesi.waktuMulai ? new Date(sesi.waktuMulai) : null;
-            
+
             let isExpired = false;
             if (waktuMulai) {
                 const diffHours = (now - waktuMulai) / (1000 * 60 * 60);
@@ -728,7 +886,7 @@ async function bersihkanSesiLama() {
             } else {
                 isExpired = true;
             }
-            
+
             if (isExpired) {
                 await window.Firebase.updateDoc(docSnap.ref, {
                     status: 'Kedaluwarsa',
@@ -739,7 +897,7 @@ async function bersihkanSesiLama() {
                 stillActive++;
             }
         }
-        
+
         toast(`🧹 ${count} sesi lama dibersihkan, ${stillActive} masih aktif`);
         renderSiswaAktif();
     } catch(e) {
@@ -750,7 +908,7 @@ async function bersihkanSesiLama() {
 
 async function resetSiswaLangsung(username, mapel, jenis) {
     if (!confirm(`🔄 Reset ujian untuk:\n\nUsername: ${username}\nMapel: ${mapel}\nJenis: ${jenis}\n\nSiswa akan bisa mengerjakan ujian ini dari awal. Lanjutkan?`)) return;
-    
+
     try {
         // 1. Hapus nilai akhir
         const nilaiSnap = await window.Firebase.getDocs(
@@ -762,10 +920,9 @@ async function resetSiswaLangsung(username, mapel, jenis) {
             )
         );
         const batch1 = window.Firebase.writeBatch(window.db);
-        let deletedNilai = 0;
-        nilaiSnap.forEach(d => { batch1.delete(d.ref); deletedNilai++; });
+        nilaiSnap.forEach(d => batch1.delete(d.ref));
         await batch1.commit();
-        
+
         // 2. Update sesi aktif jadi "Dibatalkan"
         const sesiSnap = await window.Firebase.getDocs(
             window.Firebase.query(
@@ -776,28 +933,23 @@ async function resetSiswaLangsung(username, mapel, jenis) {
             )
         );
         const batch2 = window.Firebase.writeBatch(window.db);
-        let updatedSesi = 0;
         sesiSnap.forEach(d => {
             batch2.update(d.ref, { status: 'Dibatalkan', waktuBatal: new Date().toISOString() });
-            updatedSesi++;
         });
         await batch2.commit();
-        
+
         // 3. Tambah ke cache_reset
         await window.Firebase.addDoc(
             window.Firebase.collection(window.db, 'cache_reset'),
             {
-                username: username,
-                mapel: mapel,
-                jenis: jenis,
+                username, mapel, jenis,
                 reset: 'YA',
                 timestamp: new Date().toISOString(),
                 resetBy: 'admin'
             }
         );
-        
+
         toast(`✅ ${username} berhasil direset!`);
-        
         await renderSiswaAktif();
         await renderSiswaSelesai();
         await renderDaftarReset();
@@ -820,7 +972,7 @@ async function deleteAllReset() {
     if (!allReset.length) { toast('Tidak ada reset', 'error'); return; }
     if (!confirm(`⚠️ HAPUS SEMUA RESET?\n\nTotal: ${allReset.length} reset akan dihapus.`)) return;
     if (!confirm('Yakin? Ini tidak bisa dibatalkan!')) return;
-    
+
     try {
         const b = window.Firebase.writeBatch(window.db);
         allReset.forEach(r => b.delete(window.Firebase.doc(window.db, 'cache_reset', r._id)));
@@ -857,27 +1009,18 @@ async function renderHasil() {
     document.getElementById('listHasil').innerHTML = html;
 }
 
-// ✅ EXPORT CSV RAPI (Semicolon + BOM UTF-8)
 function exportHasil() {
     if (!allHasil.length) { toast('Tidak ada data', 'error'); return; }
-    
     const SEP = ';';
     const headers = ['No', 'NIS', 'Nama', 'Kelas', 'Jenjang', 'Mapel', 'Jenis Ujian', 'Total Skor', 'Total Bobot', 'Persentase', 'Waktu'];
-    
     const rows = allHasil.map((h, i) => {
         const waktu = h.timestamp ? new Date(h.timestamp).toLocaleString('id-ID', {
             day: '2-digit', month: '2-digit', year: 'numeric',
             hour: '2-digit', minute: '2-digit'
         }) : '';
         const persen = parseInt(h.persentase) || 0;
-        
-        return [
-            i + 1, h.nis || '', h.nama || '', h.kelas || '', h.jenjang || '',
-            h.mapel || '', h.jenisUjian || '', h.totalSkor || 0, h.totalBobot || 0,
-            persen, waktu
-        ];
+        return [i + 1, h.nis || '', h.nama || '', h.kelas || '', h.jenjang || '', h.mapel || '', h.jenisUjian || '', h.totalSkor || 0, h.totalBobot || 0, persen, waktu];
     });
-    
     function escapeCSV(val) {
         if (val === null || val === undefined) return '';
         const str = String(val);
@@ -886,27 +1029,20 @@ function exportHasil() {
         }
         return str;
     }
-    
     let csv = headers.map(escapeCSV).join(SEP) + '\r\n';
     rows.forEach(row => { csv += row.map(escapeCSV).join(SEP) + '\r\n'; });
-    
     const BOM = '\uFEFF';
     const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
-    
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = 'hasil_ujian_' + new Date().toISOString().split('T')[0] + '.csv';
     link.click();
-    
     toast('✅ CSV berhasil di-export!');
 }
 
-// ✅ EXPORT EXCEL RAPI (HTML .xls dengan warna)
 function exportHasilXLS() {
     if (!allHasil.length) { toast('Tidak ada data', 'error'); return; }
-    
     const sorted = [...allHasil].sort((a,b) => (a.kelas||'').localeCompare(b.kelas||'') || (a.nama||'').localeCompare(b.nama||''));
-    
     let html = `
     <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
     <head>
@@ -932,26 +1068,15 @@ function exportHasilXLS() {
     <table>
         <thead>
             <tr>
-                <th>No</th>
-                <th>NIS</th>
-                <th>Nama</th>
-                <th>Kelas</th>
-                <th>Jenjang</th>
-                <th>Mapel</th>
-                <th>Jenis Ujian</th>
-                <th>Skor</th>
-                <th>Total</th>
-                <th>Nilai</th>
-                <th>Waktu</th>
+                <th>No</th><th>NIS</th><th>Nama</th><th>Kelas</th><th>Jenjang</th>
+                <th>Mapel</th><th>Jenis Ujian</th><th>Skor</th><th>Total</th><th>Nilai</th><th>Waktu</th>
             </tr>
         </thead>
         <tbody>`;
-    
     sorted.forEach((h, i) => {
         const p = parseInt(h.persentase) || 0;
         const warna = p >= 75 ? 'green' : p >= 60 ? 'yellow' : 'red';
         const waktu = h.timestamp ? new Date(h.timestamp).toLocaleString('id-ID') : '';
-        
         html += `
             <tr>
                 <td class="center">${i+1}</td>
@@ -967,16 +1092,13 @@ function exportHasilXLS() {
                 <td>${waktu}</td>
             </tr>`;
     });
-    
     html += `</tbody></table></body></html>`;
-    
     const BOM = '\uFEFF';
     const blob = new Blob([BOM + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = 'hasil_ujian_' + new Date().toISOString().split('T')[0] + '.xls';
     link.click();
-    
     toast('✅ Excel berhasil di-export!');
 }
 
@@ -1077,7 +1199,10 @@ async function savePengaturan() {
         if (e) pengaturanPelanggaran[key].enabled = e.checked;
     }
     try {
-        await window.Firebase.setDoc(window.Firebase.doc(window.db, 'pengaturan', 'pelanggaran'), { globalFreeze, globalMax, items: pengaturanPelanggaran, updatedAt: new Date().toISOString() });
+        await window.Firebase.setDoc(window.Firebase.doc(window.db, 'pengaturan', 'pelanggaran'), {
+            globalFreeze, globalMax, items: pengaturanPelanggaran,
+            updatedAt: new Date().toISOString()
+        });
         toast('✅ Pengaturan disimpan!');
     } catch(e) { toast('❌ ' + e.message, 'error'); }
 }
