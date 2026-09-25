@@ -115,7 +115,7 @@ table tr:hover{background:#F8FAFC}
             <div class="info-box">
                 <strong>📊 SISWA & BANK SOAL</strong> → Kelola dari <strong>Spreadsheet</strong>, lalu klik <strong>🔄 SYNC</strong>.<br><br>
                 <strong>📅 JADWAL, TOKEN, RESET, PENGATURAN</strong> → Kelola langsung di panel ini.<br><br>
-                <strong>🧹 SYNC AMAN</strong> → Klik SYNC berkali-kali pun tidak akan dobel. Sistem akan update soal yang sama, tambah yang baru, nonaktifkan yang dihapus dari sheet.
+                <strong>🧹 SYNC AMAN</strong> → Klik SYNC berkali-kali pun tidak akan dobel. Sistem update soal yang sama, tambah yang baru, nonaktifkan yang dihapus dari sheet.
             </div>
         </div>
     </div>
@@ -160,9 +160,8 @@ table tr:hover{background:#F8FAFC}
             <h3><i class="fas fa-book"></i> Bank Soal (dari Spreadsheet)</h3>
             <div class="info-box">
                 📌 Bank soal dikelola melalui <strong>Google Spreadsheet</strong> (sheet <code>BANK_SOAL</code>).<br>
-                <strong>Kolom N (Status)</strong>: isi <code>Aktif</code> / <code>Nonaktif</code>.<br>
-                <strong>Sync aman</strong>: klik berapa kali pun tidak akan dobel. Soal yang sama akan diupdate.<br>
-                <strong>Bersihkan Duplikat</strong>: hapus duplikat lama (dari versi sync sebelumnya).
+                <strong>Kolom A (ID)</strong> wajib diisi & unik. <strong>Kolom N (Status)</strong>: <code>Aktif</code> / <code>Nonaktif</code>.<br>
+                <strong>Sync aman</strong>: klik berapa kali pun tidak akan dobel.
             </div>
             <div class="toolbar">
                 <input type="text" id="searchSoal" placeholder="🔍 Cari soal..." oninput="renderSoal()">
@@ -189,7 +188,6 @@ table tr:hover{background:#F8FAFC}
     <div id="tab-reset" class="tab-content">
         <div class="card">
             <h3><i class="fas fa-user-clock"></i> Siswa Sedang Ujian</h3>
-            <div class="info-box">📌 Daftar siswa yang <strong>sedang mengerjakan ujian hari ini</strong>.</div>
             <div class="toolbar">
                 <input type="text" id="searchAktif" placeholder="🔍 Cari nama/kelas/mapel..." oninput="renderSiswaAktif()">
                 <button class="btn btn-warning" onclick="renderSiswaAktif()"><i class="fas fa-sync"></i> Refresh</button>
@@ -355,15 +353,11 @@ async function syncSiswa() {
         const rows = await fetchSheet('DATA_SISWA', 'A:H');
         if (rows.length <= 1) { toast('❌ Tidak ada data', 'error'); return; }
 
-        // Ambil semua siswa lama
         const snap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'cache_siswa'));
-
-        // Hapus semua siswa lama dalam batch
         const batch1 = window.Firebase.writeBatch(window.db);
         snap.forEach(d => batch1.delete(d.ref));
         if (snap.size) await batch1.commit();
 
-        // Tambah siswa baru
         let count = 0;
         for (let i = 1; i < rows.length; i++) {
             const row = rows[i];
@@ -513,7 +507,6 @@ async function deleteAllToken() { if (!confirm('Hapus SEMUA token?')) return; co
 // ==================== SOAL ====================
 let allSoal = [];
 
-// Normalisasi status
 function normalisasiStatus(mentah) {
     const s = String(mentah || '').trim();
     if (/^aktif$/i.test(s)) return 'Aktif';
@@ -521,10 +514,9 @@ function normalisasiStatus(mentah) {
     return 'Nonaktif';
 }
 
-// ✅ SYNC IDEMPOTENT — pakai setDoc dengan doc ID = soal ID
-// Klik SYNC berapa kali pun, tidak akan dobel.
+// ✅ SYNC FINAL: query by field "id" dulu, baru update atau add
 async function syncSoal() {
-    if (!confirm('🔄 Sync bank soal dari Spreadsheet?\n\n• Soal baru → ditambah\n• Soal sama (ID sama) → diupdate\n• Soal dihapus dari sheet → dinonaktifkan\n• Dokumen lama (dobel) → dibersihkan\n\nAman diklik berkali-kali.')) return;
+    if (!confirm('🔄 Sync bank soal dari Spreadsheet?\n\n• Soal baru → ditambah\n• Soal sama (ID sama) → diupdate\n• Soal dihapus dari sheet → dinonaktifkan\n\nAman diklik berkali-kali.')) return;
     toast('⏳ Mengambil data...', 'info');
 
     try {
@@ -533,7 +525,7 @@ async function syncSoal() {
 
         console.log('📊 Total baris dari sheet:', rows.length - 1);
 
-        // Build map dari sheet: { soalId: data }
+        // Build map dari sheet
         const sheetMap = {};
         let skipped = 0;
         for (let i = 1; i < rows.length; i++) {
@@ -541,7 +533,7 @@ async function syncSoal() {
             if (!row[0]) { skipped++; continue; }
             const soalId = String(row[0] || '').trim();
             if (sheetMap[soalId]) {
-                console.warn(`⚠️ ID duplikat di sheet: ${soalId} (baris ${i+1}), dilewati`);
+                console.warn(`⚠️ ID duplikat di sheet: ${soalId}`);
                 continue;
             }
             sheetMap[soalId] = {
@@ -564,72 +556,78 @@ async function syncSoal() {
             };
         }
 
-        // Ambil semua soal yang ada di Firebase
+        console.log(`📋 Sheet berisi ${Object.keys(sheetMap).length} soal unik`);
+
+        // Ambil semua soal di Firebase
         const existingSnap = await window.Firebase.getDocs(
             window.Firebase.collection(window.db, 'cache_soal')
         );
 
-        const existingIds = new Set();
-        const legacyDocRefs = [];  // dokumen lama: doc.id !== data.id
+        // Group by field "id"
+        const byId = {};
         existingSnap.forEach(d => {
             const data = d.data();
-            const correctId = (data.id || '').trim();
-            if (correctId) {
-                existingIds.add(correctId);
-                // Kalau doc.id beda dari data.id → ini dokumen legacy (dobel)
-                if (d.id !== correctId) {
-                    legacyDocRefs.push(d.ref);
-                }
-            } else {
-                // Tanpa id sama sekali → legacy, hapus
-                legacyDocRefs.push(d.ref);
-            }
+            const fid = (data.id || '').trim();
+            const key = fid || `__legacy__${d.id}`;
+            if (!byId[key]) byId[key] = [];
+            byId[key].push({ docId: d.id, ref: d.ref, data });
         });
 
-        console.log('📦 Soal di Firebase (uniques):', existingIds.size);
-        console.log('🗑️ Dokumen legacy (akan dibersihkan):', legacyDocRefs.length);
-
-        // 1. Tulis/overwrite semua soal dari sheet pakai setDoc (idempotent)
-        let added = 0, updated = 0;
+        let added = 0, updated = 0, legacyDeleted = 0;
         const errors = [];
+        const batch = window.Firebase.writeBatch(window.db);
 
+        // Proses setiap soal di sheet
         for (const soalId in sheetMap) {
-            try {
-                await window.Firebase.setDoc(
-                    window.Firebase.doc(window.db, 'cache_soal', soalId),
-                    sheetMap[soalId]
-                );
-                if (existingIds.has(soalId)) updated++;
-                else added++;
-            } catch (err) {
-                errors.push(`ID ${soalId}: ${err.message}`);
-                console.error(`❌ ${soalId}:`, err);
+            const dataBaru = sheetMap[soalId];
+            const existing = byId[soalId];
+
+            if (existing && existing.length > 0) {
+                // Update dokumen pertama, hapus sisanya (dobel)
+                try {
+                    batch.update(existing[0].ref, dataBaru);
+                    updated++;
+                    for (let i = 1; i < existing.length; i++) {
+                        batch.delete(existing[i].ref);
+                        legacyDeleted++;
+                    }
+                    delete byId[soalId];
+                } catch (err) {
+                    errors.push(`Update ${soalId}: ${err.message}`);
+                }
+            } else {
+                // Tambah baru — pakai addDoc (bukan setDoc, biar aman)
+                try {
+                    await window.Firebase.addDoc(
+                        window.Firebase.collection(window.db, 'cache_soal'),
+                        dataBaru
+                    );
+                    added++;
+                } catch (err) {
+                    errors.push(`Add ${soalId}: ${err.message}`);
+                    console.error(`❌ Add ${soalId}:`, err);
+                }
             }
         }
 
-        // 2. Hapus dokumen legacy (dobel dari versi sync sebelumnya)
-        let legacyDeleted = 0;
-        if (legacyDocRefs.length) {
-            // Firestore batch max 500, bagi jadi beberapa batch
-            for (let i = 0; i < legacyDocRefs.length; i += 500) {
-                const batch = window.Firebase.writeBatch(window.db);
-                legacyDocRefs.slice(i, i + 500).forEach(ref => batch.delete(ref));
-                await batch.commit();
-                legacyDeleted += Math.min(500, legacyDocRefs.length - i);
-            }
-        }
-
-        // 3. Nonaktifkan soal yang tidak ada di sheet
-        const orphanIds = [...existingIds].filter(id => !sheetMap[id]);
+        // Soal sisa (tidak ada di sheet) → hapus yang legacy, nonaktifkan yang valid
         let orphaned = 0;
-        for (let i = 0; i < orphanIds.length; i += 500) {
-            const batch = window.Firebase.writeBatch(window.db);
-            orphanIds.slice(i, i + 500).forEach(id => {
-                batch.update(window.Firebase.doc(window.db, 'cache_soal', id), { status: 'Nonaktif' });
-            });
-            await batch.commit();
-            orphaned += Math.min(500, orphanIds.length - i);
+        for (const key in byId) {
+            const arr = byId[key];
+            if (key.startsWith('__legacy__')) {
+                // Dokumen tanpa field id → hapus semua
+                arr.forEach(x => { batch.delete(x.ref); legacyDeleted++; });
+            } else {
+                // Ada id tapi tidak di sheet → nonaktifkan
+                arr.forEach(x => {
+                    batch.update(x.ref, { status: 'Nonaktif' });
+                    orphaned++;
+                });
+            }
         }
+
+        // Commit batch
+        await batch.commit();
 
         console.log('✅ Sync selesai:', { added, updated, legacyDeleted, orphaned, skipped });
         console.log('⚠️ Errors:', errors);
@@ -654,9 +652,9 @@ async function syncSoal() {
     }
 }
 
-// 🧹 Bersihkan duplikat manual (untuk data lama)
+// 🧹 Bersihkan duplikat manual
 async function bersihkanDuplikatSoal() {
-    if (!confirm('🧹 Bersihkan duplikat soal?\n\nDokumen dengan ID internal berbeda dari field "id" akan dihapus.\nDokumen tanpa field "id" juga akan dihapus.\n\n⚠️ Data tidak bisa dikembalikan. Lanjutkan?')) return;
+    if (!confirm('🧹 Bersihkan duplikat soal?\n\n• Dokumen dengan field "id" sama akan disisakan 1\n• Dokumen tanpa field "id" akan dihapus\n\n⚠️ Tidak bisa dikembalikan. Lanjutkan?')) return;
 
     try {
         const snap = await window.Firebase.getDocs(
@@ -664,54 +662,41 @@ async function bersihkanDuplikatSoal() {
         );
 
         const byId = {};
+        const legacyRefs = [];
+
         snap.forEach(d => {
             const data = d.data();
-            const correctId = (data.id || '').trim();
-            if (!correctId) return;
-            if (!byId[correctId]) byId[correctId] = [];
-            byId[correctId].push({ docId: d.id, ref: d.ref, data });
+            const fid = (data.id || '').trim();
+            if (!fid) { legacyRefs.push(d.ref); return; }
+            if (!byId[fid]) byId[fid] = [];
+            byId[fid].push({ ref: d.ref, docId: d.id });
         });
 
-        const refsToDelete = [];
-        let totalDobel = 0;
+        const refsToDelete = [...legacyRefs];
+        let totalDobel = legacyRefs.length;
 
         for (const id in byId) {
             const arr = byId[id];
-            // Simpan yang doc.id === id (dokumen bersih), hapus yang lain
-            const clean = arr.find(x => x.docId === id);
-            if (clean) {
-                arr.filter(x => x.docId !== id).forEach(x => refsToDelete.push(x.ref));
-                totalDobel += arr.length - 1;
-            } else {
-                // Tidak ada yang clean → rename salah satu jadi bersih, hapus sisanya
-                // Simpel: hapus semua, biar user sync ulang dari sheet
-                arr.forEach(x => refsToDelete.push(x.ref));
-                totalDobel += arr.length;
-            }
-        }
-
-        // Hapus dokumen tanpa id juga
-        snap.forEach(d => {
-            const data = d.data();
-            if (!data.id || !data.id.trim()) {
-                refsToDelete.push(d.ref);
+            if (arr.length <= 1) continue;
+            // Simpan yang pertama, hapus sisanya
+            for (let i = 1; i < arr.length; i++) {
+                refsToDelete.push(arr[i].ref);
                 totalDobel++;
             }
-        });
+        }
 
         if (!refsToDelete.length) {
             toast('✅ Tidak ada duplikat ditemukan');
             return;
         }
 
-        // Batch delete
         for (let i = 0; i < refsToDelete.length; i += 500) {
             const batch = window.Firebase.writeBatch(window.db);
             refsToDelete.slice(i, i + 500).forEach(ref => batch.delete(ref));
             await batch.commit();
         }
 
-        toast(`✅ ${refsToDelete.length} dokumen duplikat dihapus. Silakan SYNC ulang dari spreadsheet.`);
+        toast(`✅ ${refsToDelete.length} dokumen duplikat dihapus. Silakan SYNC ulang.`);
         renderSoal();
         loadDashboard();
     } catch (e) {
@@ -1082,18 +1067,13 @@ function exportHasil() {
     const SEP = ';';
     const headers = ['No', 'NIS', 'Nama', 'Kelas', 'Jenjang', 'Mapel', 'Jenis Ujian', 'Total Skor', 'Total Bobot', 'Persentase', 'Waktu'];
     const rows = allHasil.map((h, i) => {
-        const waktu = h.timestamp ? new Date(h.timestamp).toLocaleString('id-ID', {
-            day: '2-digit', month: '2-digit', year: 'numeric',
-            hour: '2-digit', minute: '2-digit'
-        }) : '';
+        const waktu = h.timestamp ? new Date(h.timestamp).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
         return [i + 1, h.nis || '', h.nama || '', h.kelas || '', h.jenjang || '', h.mapel || '', h.jenisUjian || '', h.totalSkor || 0, h.totalBobot || 0, parseInt(h.persentase) || 0, waktu];
     });
     function escapeCSV(val) {
         if (val === null || val === undefined) return '';
         const str = String(val);
-        if (str.includes(SEP) || str.includes('"') || str.includes('\n')) {
-            return '"' + str.replace(/"/g, '""') + '"';
-        }
+        if (str.includes(SEP) || str.includes('"') || str.includes('\n')) return '"' + str.replace(/"/g, '""') + '"';
         return str;
     }
     let csv = headers.map(escapeCSV).join(SEP) + '\r\n';
