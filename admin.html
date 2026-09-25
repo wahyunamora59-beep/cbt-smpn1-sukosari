@@ -103,7 +103,6 @@ table tr:hover{background:#F8FAFC}
         <div class="user"><i class="fas fa-user-shield"></i> Administrator</div>
     </div>
 
-    <!-- DASHBOARD -->
     <div id="tab-dashboard" class="tab-content active">
         <div class="stats">
             <div class="stat"><div class="icon blue"><i class="fas fa-users"></i></div><div class="value" id="statSiswa">0</div><div class="label">Total Siswa</div></div>
@@ -116,13 +115,11 @@ table tr:hover{background:#F8FAFC}
             <div class="info-box">
                 <strong>📊 SISWA & BANK SOAL</strong> → Kelola dari <strong>Spreadsheet</strong>, lalu klik <strong>🔄 SYNC</strong>.<br><br>
                 <strong>📅 JADWAL, TOKEN, RESET, PENGATURAN</strong> → Kelola langsung di panel ini.<br><br>
-                <strong>🛡️ PENGATURAN ANTI-CURANG</strong> → Atur ON/OFF & durasi per pelanggaran.<br><br>
-                <strong>📈 HASIL UJIAN</strong> → Lihat & export nilai siswa (CSV / Excel).
+                <strong>🧹 SYNC AMAN</strong> → Klik SYNC berkali-kali pun tidak akan dobel. Sistem akan update soal yang sama, tambah yang baru, nonaktifkan yang dihapus dari sheet.
             </div>
         </div>
     </div>
 
-    <!-- SISWA -->
     <div id="tab-siswa" class="tab-content">
         <div class="card">
             <h3><i class="fas fa-users"></i> Data Siswa (dari Spreadsheet)</h3>
@@ -136,7 +133,6 @@ table tr:hover{background:#F8FAFC}
         </div>
     </div>
 
-    <!-- JADWAL -->
     <div id="tab-jadwal" class="tab-content">
         <div class="card">
             <h3><i class="fas fa-calendar-alt"></i> Kelola Jadwal Ujian</h3>
@@ -148,7 +144,6 @@ table tr:hover{background:#F8FAFC}
         </div>
     </div>
 
-    <!-- TOKEN -->
     <div id="tab-token" class="tab-content">
         <div class="card">
             <h3><i class="fas fa-key"></i> Kelola Token Ujian</h3>
@@ -160,14 +155,14 @@ table tr:hover{background:#F8FAFC}
         </div>
     </div>
 
-    <!-- SOAL -->
     <div id="tab-soal" class="tab-content">
         <div class="card">
             <h3><i class="fas fa-book"></i> Bank Soal (dari Spreadsheet)</h3>
             <div class="info-box">
                 📌 Bank soal dikelola melalui <strong>Google Spreadsheet</strong> (sheet <code>BANK_SOAL</code>).<br>
-                <strong>Kolom N (Status)</strong>: isi <code>Aktif</code> untuk memunculkan soal, <code>Nonaktif</code> untuk menyembunyikan.<br>
-                Klik <strong>🔄 SYNC</strong> setelah mengubah spreadsheet.
+                <strong>Kolom N (Status)</strong>: isi <code>Aktif</code> / <code>Nonaktif</code>.<br>
+                <strong>Sync aman</strong>: klik berapa kali pun tidak akan dobel. Soal yang sama akan diupdate.<br>
+                <strong>Bersihkan Duplikat</strong>: hapus duplikat lama (dari versi sync sebelumnya).
             </div>
             <div class="toolbar">
                 <input type="text" id="searchSoal" placeholder="🔍 Cari soal..." oninput="renderSoal()">
@@ -185,16 +180,16 @@ table tr:hover{background:#F8FAFC}
                     <option value="Nonaktif">Nonaktif</option>
                 </select>
                 <button class="btn btn-success" onclick="syncSoal()"><i class="fas fa-sync"></i> SYNC dari Spreadsheet</button>
+                <button class="btn btn-warning" onclick="bersihkanDuplikatSoal()"><i class="fas fa-broom"></i> Bersihkan Duplikat</button>
             </div>
             <div id="listSoal" class="loading">Memuat...</div>
         </div>
     </div>
 
-    <!-- RESET -->
     <div id="tab-reset" class="tab-content">
         <div class="card">
             <h3><i class="fas fa-user-clock"></i> Siswa Sedang Ujian</h3>
-            <div class="info-box">📌 Daftar siswa yang <strong>sedang mengerjakan ujian hari ini</strong>. Klik tombol reset untuk mengizinkan mereka ujian ulang.</div>
+            <div class="info-box">📌 Daftar siswa yang <strong>sedang mengerjakan ujian hari ini</strong>.</div>
             <div class="toolbar">
                 <input type="text" id="searchAktif" placeholder="🔍 Cari nama/kelas/mapel..." oninput="renderSiswaAktif()">
                 <button class="btn btn-warning" onclick="renderSiswaAktif()"><i class="fas fa-sync"></i> Refresh</button>
@@ -202,20 +197,16 @@ table tr:hover{background:#F8FAFC}
             </div>
             <div id="listSiswaAktif" class="loading">Memuat...</div>
         </div>
-
         <div class="card">
             <h3><i class="fas fa-check-circle"></i> Siswa Sudah Selesai Ujian</h3>
-            <div class="info-box">📌 Daftar siswa yang <strong>sudah menyelesaikan ujian</strong>. Klik tombol reset untuk mengizinkan mereka ujian ulang.</div>
             <div class="toolbar">
                 <input type="text" id="searchSelesai" placeholder="🔍 Cari nama/kelas/mapel..." oninput="renderSiswaSelesai()">
                 <button class="btn btn-warning" onclick="renderSiswaSelesai()"><i class="fas fa-sync"></i> Refresh</button>
             </div>
             <div id="listSiswaSelesai" class="loading">Memuat...</div>
         </div>
-
         <div class="card">
             <h3><i class="fas fa-redo"></i> Daftar Reset Aktif</h3>
-            <div class="info-box">📌 Daftar siswa yang <strong>sudah di-reset</strong>. Hapus jika sudah selesai ujian ulang.</div>
             <div class="toolbar">
                 <button class="btn btn-danger" onclick="deleteAllReset()"><i class="fas fa-trash"></i> Hapus Semua Reset</button>
             </div>
@@ -223,7 +214,6 @@ table tr:hover{background:#F8FAFC}
         </div>
     </div>
 
-    <!-- HASIL -->
     <div id="tab-hasil" class="tab-content">
         <div class="card">
             <h3><i class="fas fa-trophy"></i> Hasil Ujian Siswa</h3>
@@ -238,11 +228,10 @@ table tr:hover{background:#F8FAFC}
         </div>
     </div>
 
-    <!-- PENGATURAN -->
     <div id="tab-pengaturan" class="tab-content">
         <div class="card">
             <h3><i class="fas fa-shield-alt"></i> Pengaturan Anti-Curang</h3>
-            <div class="info-box">⚙️ Atur <strong>ON/OFF</strong>, <strong>durasi freeze</strong>, dan <strong>max pelanggaran</strong> untuk setiap jenis pelanggaran.</div>
+            <div class="info-box">⚙️ Atur <strong>ON/OFF</strong>, <strong>durasi freeze</strong>, dan <strong>max pelanggaran</strong>.</div>
             <div class="form-row" style="margin-bottom:20px">
                 <div class="form-group"><label>⚙️ Global: Freeze Duration (detik)</label><input type="number" id="setGlobalFreeze" value="30" min="5"></div>
                 <div class="form-group"><label>⚙️ Global: Max Total Pelanggaran</label><input type="number" id="setGlobalMax" value="5" min="1"></div>
@@ -300,7 +289,7 @@ function toast(msg, type='success') {
     t.className = `toast ${type}`;
     t.textContent = msg;
     document.getElementById('toastContainer').appendChild(t);
-    setTimeout(() => t.remove(), 3500);
+    setTimeout(() => t.remove(), 4000);
 }
 
 function switchTab(tab) {
@@ -340,14 +329,6 @@ async function fetchSheet(sheetName, range) {
     return d.values || [];
 }
 
-async function clearCollection(name) {
-    const snapshot = await window.Firebase.getDocs(window.Firebase.collection(window.db, name));
-    const batch = window.Firebase.writeBatch(window.db);
-    snapshot.forEach(s => batch.delete(s.ref));
-    await batch.commit();
-    return snapshot.size;
-}
-
 // ==================== DASHBOARD ====================
 async function loadDashboard() {
     try {
@@ -373,7 +354,16 @@ async function syncSiswa() {
     try {
         const rows = await fetchSheet('DATA_SISWA', 'A:H');
         if (rows.length <= 1) { toast('❌ Tidak ada data', 'error'); return; }
-        await clearCollection('cache_siswa');
+
+        // Ambil semua siswa lama
+        const snap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'cache_siswa'));
+
+        // Hapus semua siswa lama dalam batch
+        const batch1 = window.Firebase.writeBatch(window.db);
+        snap.forEach(d => batch1.delete(d.ref));
+        if (snap.size) await batch1.commit();
+
+        // Tambah siswa baru
         let count = 0;
         for (let i = 1; i < rows.length; i++) {
             const row = rows[i];
@@ -390,6 +380,7 @@ async function syncSiswa() {
         }
         toast(`✅ ${count} siswa di-sync!`);
         renderSiswa();
+        loadDashboard();
     } catch(e) { toast('❌ ' + e.message, 'error'); }
 }
 
@@ -470,11 +461,11 @@ async function saveJadwal(id) {
     if (!data.mapel || !data.jenis || !data.tanggal) { toast('Lengkapi data!', 'error'); return; }
     if (id) await window.Firebase.updateDoc(window.Firebase.doc(window.db, 'cache_jadwal', id), data);
     else await window.Firebase.addDoc(window.Firebase.collection(window.db, 'cache_jadwal'), data);
-    toast('✅ Tersimpan!'); closeModal(); renderJadwal();
+    toast('✅ Tersimpan!'); closeModal(); renderJadwal(); loadDashboard();
 }
 function editJadwal(id) { openFormJadwal(id); }
-async function deleteJadwal(id) { if (!confirm('Hapus?')) return; await window.Firebase.deleteDoc(window.Firebase.doc(window.db, 'cache_jadwal', id)); toast('🗑️ Dihapus'); renderJadwal(); }
-async function deleteAllJadwal() { if (!confirm('Hapus SEMUA jadwal?')) return; const b = window.Firebase.writeBatch(window.db); allJadwal.forEach(j => b.delete(window.Firebase.doc(window.db, 'cache_jadwal', j._id))); await b.commit(); toast('🗑️ Semua dihapus'); renderJadwal(); }
+async function deleteJadwal(id) { if (!confirm('Hapus?')) return; await window.Firebase.deleteDoc(window.Firebase.doc(window.db, 'cache_jadwal', id)); toast('🗑️ Dihapus'); renderJadwal(); loadDashboard(); }
+async function deleteAllJadwal() { if (!confirm('Hapus SEMUA jadwal?')) return; const b = window.Firebase.writeBatch(window.db); allJadwal.forEach(j => b.delete(window.Firebase.doc(window.db, 'cache_jadwal', j._id))); await b.commit(); toast('🗑️ Semua dihapus'); renderJadwal(); loadDashboard(); }
 
 // ==================== TOKEN ====================
 let allToken = [];
@@ -522,16 +513,18 @@ async function deleteAllToken() { if (!confirm('Hapus SEMUA token?')) return; co
 // ==================== SOAL ====================
 let allSoal = [];
 
-// Normalisasi status: "aktif", "AKTIF", "Non Aktif" → "Aktif" / "Nonaktif"
+// Normalisasi status
 function normalisasiStatus(mentah) {
     const s = String(mentah || '').trim();
     if (/^aktif$/i.test(s)) return 'Aktif';
     if (/^non[\s-]?aktif$/i.test(s)) return 'Nonaktif';
-    return 'Nonaktif'; // default aman: kalau kosong/aneh → Nonaktif
+    return 'Nonaktif';
 }
 
+// ✅ SYNC IDEMPOTENT — pakai setDoc dengan doc ID = soal ID
+// Klik SYNC berapa kali pun, tidak akan dobel.
 async function syncSoal() {
-    if (!confirm('🔄 Sync bank soal dari Spreadsheet?\n\n• Soal baru → ditambah\n• Soal lama (id sama) → diupdate\n• Status "Nonaktif" di sheet → dinonaktifkan di Firebase\n• Soal yang dihapus dari sheet → otomatis Nonaktif')) return;
+    if (!confirm('🔄 Sync bank soal dari Spreadsheet?\n\n• Soal baru → ditambah\n• Soal sama (ID sama) → diupdate\n• Soal dihapus dari sheet → dinonaktifkan\n• Dokumen lama (dobel) → dibersihkan\n\nAman diklik berkali-kali.')) return;
     toast('⏳ Mengambil data...', 'info');
 
     try {
@@ -540,92 +533,110 @@ async function syncSoal() {
 
         console.log('📊 Total baris dari sheet:', rows.length - 1);
 
+        // Build map dari sheet: { soalId: data }
+        const sheetMap = {};
+        let skipped = 0;
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
+            if (!row[0]) { skipped++; continue; }
+            const soalId = String(row[0] || '').trim();
+            if (sheetMap[soalId]) {
+                console.warn(`⚠️ ID duplikat di sheet: ${soalId} (baris ${i+1}), dilewati`);
+                continue;
+            }
+            sheetMap[soalId] = {
+                id: soalId,
+                jenjang: String(row[1] || '').trim(),
+                mapel: String(row[2] || '').trim(),
+                jenis: String(row[3] || '').trim(),
+                tipe: String(row[4] || '').trim(),
+                pertanyaan: String(row[5] || ''),
+                pilihanA: String(row[6] || ''),
+                pilihanB: String(row[7] || ''),
+                pilihanC: String(row[8] || ''),
+                pilihanD: String(row[9] || ''),
+                pilihanE: String(row[10] || ''),
+                kunci: String(row[11] || ''),
+                bobot: parseFloat(row[12]) || 1,
+                status: normalisasiStatus(row[13]),
+                gambar: String(row[14] || ''),
+                grupSoal: String(row[15] || '')
+            };
+        }
+
         // Ambil semua soal yang ada di Firebase
         const existingSnap = await window.Firebase.getDocs(
             window.Firebase.collection(window.db, 'cache_soal')
         );
-        const existingMap = {};  // { id_soal: { docId, data } }
+
+        const existingIds = new Set();
+        const legacyDocRefs = [];  // dokumen lama: doc.id !== data.id
         existingSnap.forEach(d => {
             const data = d.data();
-            if (data.id) existingMap[data.id] = { docId: d.id, data };
+            const correctId = (data.id || '').trim();
+            if (correctId) {
+                existingIds.add(correctId);
+                // Kalau doc.id beda dari data.id → ini dokumen legacy (dobel)
+                if (d.id !== correctId) {
+                    legacyDocRefs.push(d.ref);
+                }
+            } else {
+                // Tanpa id sama sekali → legacy, hapus
+                legacyDocRefs.push(d.ref);
+            }
         });
 
-        let added = 0, updated = 0, deactivated = 0, skipped = 0;
+        console.log('📦 Soal di Firebase (uniques):', existingIds.size);
+        console.log('🗑️ Dokumen legacy (akan dibersihkan):', legacyDocRefs.length);
+
+        // 1. Tulis/overwrite semua soal dari sheet pakai setDoc (idempotent)
+        let added = 0, updated = 0;
         const errors = [];
 
-        // Proses setiap baris spreadsheet
-        for (let i = 1; i < rows.length; i++) {
-            const row = rows[i];
-            if (!row[0]) { skipped++; continue; }
-
-            const soalId = String(row[0] || '').trim();
-            const statusFinal = normalisasiStatus(row[13]);
-
+        for (const soalId in sheetMap) {
             try {
-                const data = {
-                    id: soalId,
-                    jenjang: String(row[1] || '').trim(),
-                    mapel: String(row[2] || '').trim(),
-                    jenis: String(row[3] || '').trim(),
-                    tipe: String(row[4] || '').trim(),
-                    pertanyaan: String(row[5] || ''),
-                    pilihanA: String(row[6] || ''),
-                    pilihanB: String(row[7] || ''),
-                    pilihanC: String(row[8] || ''),
-                    pilihanD: String(row[9] || ''),
-                    pilihanE: String(row[10] || ''),
-                    kunci: String(row[11] || ''),
-                    bobot: parseFloat(row[12]) || 1,
-                    status: statusFinal,
-                    gambar: String(row[14] || ''),
-                    grupSoal: String(row[15] || '')
-                };
-
-                if (existingMap[soalId]) {
-                    const before = existingMap[soalId].data.status;
-                    await window.Firebase.updateDoc(
-                        window.Firebase.doc(window.db, 'cache_soal', existingMap[soalId].docId),
-                        data
-                    );
-                    updated++;
-                    if (before === 'Aktif' && statusFinal === 'Nonaktif') deactivated++;
-                    delete existingMap[soalId]; // tandai sudah diproses
-                } else {
-                    await window.Firebase.addDoc(
-                        window.Firebase.collection(window.db, 'cache_soal'),
-                        data
-                    );
-                    added++;
-                }
+                await window.Firebase.setDoc(
+                    window.Firebase.doc(window.db, 'cache_soal', soalId),
+                    sheetMap[soalId]
+                );
+                if (existingIds.has(soalId)) updated++;
+                else added++;
             } catch (err) {
-                errors.push(`Baris ${i + 1} (id: ${soalId}): ${err.message}`);
-                console.error(`❌ Baris ${i + 1}:`, err, row);
+                errors.push(`ID ${soalId}: ${err.message}`);
+                console.error(`❌ ${soalId}:`, err);
             }
         }
 
-        // Soal yang ada di Firebase tapi TIDAK ADA di spreadsheet → nonaktifkan
+        // 2. Hapus dokumen legacy (dobel dari versi sync sebelumnya)
+        let legacyDeleted = 0;
+        if (legacyDocRefs.length) {
+            // Firestore batch max 500, bagi jadi beberapa batch
+            for (let i = 0; i < legacyDocRefs.length; i += 500) {
+                const batch = window.Firebase.writeBatch(window.db);
+                legacyDocRefs.slice(i, i + 500).forEach(ref => batch.delete(ref));
+                await batch.commit();
+                legacyDeleted += Math.min(500, legacyDocRefs.length - i);
+            }
+        }
+
+        // 3. Nonaktifkan soal yang tidak ada di sheet
+        const orphanIds = [...existingIds].filter(id => !sheetMap[id]);
         let orphaned = 0;
-        for (const id in existingMap) {
-            try {
-                // Hanya nonaktifkan yang statusnya masih Aktif
-                if (existingMap[id].data.status === 'Aktif') {
-                    await window.Firebase.updateDoc(
-                        window.Firebase.doc(window.db, 'cache_soal', existingMap[id].docId),
-                        { status: 'Nonaktif' }
-                    );
-                    orphaned++;
-                }
-            } catch (err) {
-                errors.push(`Nonaktifkan ${id}: ${err.message}`);
-            }
+        for (let i = 0; i < orphanIds.length; i += 500) {
+            const batch = window.Firebase.writeBatch(window.db);
+            orphanIds.slice(i, i + 500).forEach(id => {
+                batch.update(window.Firebase.doc(window.db, 'cache_soal', id), { status: 'Nonaktif' });
+            });
+            await batch.commit();
+            orphaned += Math.min(500, orphanIds.length - i);
         }
 
-        console.log('✅ Sync selesai:', { added, updated, deactivated, orphaned, skipped });
+        console.log('✅ Sync selesai:', { added, updated, legacyDeleted, orphaned, skipped });
         console.log('⚠️ Errors:', errors);
 
         let msg = `✅ ${added} baru · ${updated} update`;
-        if (deactivated > 0) msg += ` · ${deactivated} dinonaktifkan`;
-        if (orphaned > 0) msg += ` · ${orphaned} orphan → nonaktif`;
+        if (legacyDeleted > 0) msg += ` · ${legacyDeleted} dobel dihapus`;
+        if (orphaned > 0) msg += ` · ${orphaned} nonaktif`;
         if (skipped > 0) msg += ` · ${skipped} baris kosong`;
 
         if (errors.length) {
@@ -635,6 +646,72 @@ async function syncSoal() {
             toast(msg);
         }
 
+        renderSoal();
+        loadDashboard();
+    } catch (e) {
+        console.error(e);
+        toast('❌ ' + e.message, 'error');
+    }
+}
+
+// 🧹 Bersihkan duplikat manual (untuk data lama)
+async function bersihkanDuplikatSoal() {
+    if (!confirm('🧹 Bersihkan duplikat soal?\n\nDokumen dengan ID internal berbeda dari field "id" akan dihapus.\nDokumen tanpa field "id" juga akan dihapus.\n\n⚠️ Data tidak bisa dikembalikan. Lanjutkan?')) return;
+
+    try {
+        const snap = await window.Firebase.getDocs(
+            window.Firebase.collection(window.db, 'cache_soal')
+        );
+
+        const byId = {};
+        snap.forEach(d => {
+            const data = d.data();
+            const correctId = (data.id || '').trim();
+            if (!correctId) return;
+            if (!byId[correctId]) byId[correctId] = [];
+            byId[correctId].push({ docId: d.id, ref: d.ref, data });
+        });
+
+        const refsToDelete = [];
+        let totalDobel = 0;
+
+        for (const id in byId) {
+            const arr = byId[id];
+            // Simpan yang doc.id === id (dokumen bersih), hapus yang lain
+            const clean = arr.find(x => x.docId === id);
+            if (clean) {
+                arr.filter(x => x.docId !== id).forEach(x => refsToDelete.push(x.ref));
+                totalDobel += arr.length - 1;
+            } else {
+                // Tidak ada yang clean → rename salah satu jadi bersih, hapus sisanya
+                // Simpel: hapus semua, biar user sync ulang dari sheet
+                arr.forEach(x => refsToDelete.push(x.ref));
+                totalDobel += arr.length;
+            }
+        }
+
+        // Hapus dokumen tanpa id juga
+        snap.forEach(d => {
+            const data = d.data();
+            if (!data.id || !data.id.trim()) {
+                refsToDelete.push(d.ref);
+                totalDobel++;
+            }
+        });
+
+        if (!refsToDelete.length) {
+            toast('✅ Tidak ada duplikat ditemukan');
+            return;
+        }
+
+        // Batch delete
+        for (let i = 0; i < refsToDelete.length; i += 500) {
+            const batch = window.Firebase.writeBatch(window.db);
+            refsToDelete.slice(i, i + 500).forEach(ref => batch.delete(ref));
+            await batch.commit();
+        }
+
+        toast(`✅ ${refsToDelete.length} dokumen duplikat dihapus. Silakan SYNC ulang dari spreadsheet.`);
         renderSoal();
         loadDashboard();
     } catch (e) {
@@ -669,6 +746,7 @@ async function renderSoal() {
         Menampilkan: <strong>${filtered.length}</strong> soal ·
         <span class="badge badge-green">${totalAktif} Aktif</span>
         <span class="badge badge-red">${totalNonaktif} Nonaktif</span>
+        <span class="badge badge-blue">${allSoal.length} total di Firebase</span>
     </p>`;
 
     html += `<table><thead><tr>
@@ -726,15 +804,11 @@ async function renderSiswaAktif() {
         sesiSnap.forEach(d => {
             const s = d.data();
             const waktuMulai = s.waktuMulai ? new Date(s.waktuMulai) : null;
-
             let valid = false;
             if (waktuMulai) {
                 const diffHours = (now - waktuMulai) / (1000 * 60 * 60);
-                if (formatTanggalLocal(waktuMulai) === hariIni && diffHours <= 3) {
-                    valid = true;
-                }
+                if (formatTanggalLocal(waktuMulai) === hariIni && diffHours <= 3) valid = true;
             }
-
             if (valid) allSesiAktif.push({ _id: d.id, ...s });
         });
 
@@ -751,7 +825,7 @@ async function renderSiswaAktif() {
             return;
         }
 
-        let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">Total: <strong>${filtered.length}</strong> siswa sedang ujian (hari ini)</p>`;
+        let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">Total: <strong>${filtered.length}</strong> siswa sedang ujian</p>`;
         html += '<table><thead><tr><th>Nama</th><th>Kelas</th><th>Mapel</th><th>Jenis</th><th>Mulai</th><th>Aksi</th></tr></thead><tbody>';
         filtered.forEach(s => {
             const waktuMulai = s.waktuMulai ? new Date(s.waktuMulai).toLocaleString('id-ID') : '-';
@@ -859,7 +933,7 @@ async function renderDaftarReset() {
 }
 
 async function bersihkanSesiLama() {
-    if (!confirm('🧹 Bersihkan sesi lama?\n\nSesi yang sudah melewati 3 jam atau beda hari akan diubah menjadi "Kedaluwarsa".\n\nLanjutkan?')) return;
+    if (!confirm('🧹 Bersihkan sesi lama?\n\nSesi yang >3 jam atau beda hari akan jadi "Kedaluwarsa".')) return;
 
     try {
         const sesiSnap = await window.Firebase.getDocs(
@@ -877,7 +951,6 @@ async function bersihkanSesiLama() {
         for (const docSnap of sesiSnap.docs) {
             const sesi = docSnap.data();
             const waktuMulai = sesi.waktuMulai ? new Date(sesi.waktuMulai) : null;
-
             let isExpired = false;
             if (waktuMulai) {
                 const diffHours = (now - waktuMulai) / (1000 * 60 * 60);
@@ -886,7 +959,6 @@ async function bersihkanSesiLama() {
             } else {
                 isExpired = true;
             }
-
             if (isExpired) {
                 await window.Firebase.updateDoc(docSnap.ref, {
                     status: 'Kedaluwarsa',
@@ -897,7 +969,6 @@ async function bersihkanSesiLama() {
                 stillActive++;
             }
         }
-
         toast(`🧹 ${count} sesi lama dibersihkan, ${stillActive} masih aktif`);
         renderSiswaAktif();
     } catch(e) {
@@ -907,10 +978,9 @@ async function bersihkanSesiLama() {
 }
 
 async function resetSiswaLangsung(username, mapel, jenis) {
-    if (!confirm(`🔄 Reset ujian untuk:\n\nUsername: ${username}\nMapel: ${mapel}\nJenis: ${jenis}\n\nSiswa akan bisa mengerjakan ujian ini dari awal. Lanjutkan?`)) return;
+    if (!confirm(`🔄 Reset ujian untuk:\n\nUsername: ${username}\nMapel: ${mapel}\nJenis: ${jenis}\n\nLanjutkan?`)) return;
 
     try {
-        // 1. Hapus nilai akhir
         const nilaiSnap = await window.Firebase.getDocs(
             window.Firebase.query(
                 window.Firebase.collection(window.db, 'nilai_akhir'),
@@ -923,7 +993,6 @@ async function resetSiswaLangsung(username, mapel, jenis) {
         nilaiSnap.forEach(d => batch1.delete(d.ref));
         await batch1.commit();
 
-        // 2. Update sesi aktif jadi "Dibatalkan"
         const sesiSnap = await window.Firebase.getDocs(
             window.Firebase.query(
                 window.Firebase.collection(window.db, 'sesi_ujian'),
@@ -938,7 +1007,6 @@ async function resetSiswaLangsung(username, mapel, jenis) {
         });
         await batch2.commit();
 
-        // 3. Tambah ke cache_reset
         await window.Firebase.addDoc(
             window.Firebase.collection(window.db, 'cache_reset'),
             {
@@ -960,7 +1028,7 @@ async function resetSiswaLangsung(username, mapel, jenis) {
 }
 
 async function deleteReset(id) {
-    if (!confirm('Hapus reset ini?\n\nSiswa tidak akan bisa ujian ulang setelah ini dihapus.')) return;
+    if (!confirm('Hapus reset ini?')) return;
     try {
         await window.Firebase.deleteDoc(window.Firebase.doc(window.db, 'cache_reset', id));
         toast('🗑️ Reset dihapus');
@@ -1018,8 +1086,7 @@ function exportHasil() {
             day: '2-digit', month: '2-digit', year: 'numeric',
             hour: '2-digit', minute: '2-digit'
         }) : '';
-        const persen = parseInt(h.persentase) || 0;
-        return [i + 1, h.nis || '', h.nama || '', h.kelas || '', h.jenjang || '', h.mapel || '', h.jenisUjian || '', h.totalSkor || 0, h.totalBobot || 0, persen, waktu];
+        return [i + 1, h.nis || '', h.nama || '', h.kelas || '', h.jenjang || '', h.mapel || '', h.jenisUjian || '', h.totalSkor || 0, h.totalBobot || 0, parseInt(h.persentase) || 0, waktu];
     });
     function escapeCSV(val) {
         if (val === null || val === undefined) return '';
@@ -1031,8 +1098,7 @@ function exportHasil() {
     }
     let csv = headers.map(escapeCSV).join(SEP) + '\r\n';
     rows.forEach(row => { csv += row.map(escapeCSV).join(SEP) + '\r\n'; });
-    const BOM = '\uFEFF';
-    const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = 'hasil_ujian_' + new Date().toISOString().split('T')[0] + '.csv';
@@ -1043,58 +1109,28 @@ function exportHasil() {
 function exportHasilXLS() {
     if (!allHasil.length) { toast('Tidak ada data', 'error'); return; }
     const sorted = [...allHasil].sort((a,b) => (a.kelas||'').localeCompare(b.kelas||'') || (a.nama||'').localeCompare(b.nama||''));
-    let html = `
-    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
-    <head>
-        <meta charset="UTF-8">
-        <style>
-            table { border-collapse: collapse; font-family: Arial; font-size: 12px; }
-            th { background: #1E3A8A; color: white; padding: 10px; border: 1px solid #475569; text-align: center; font-weight: bold; }
-            td { padding: 8px; border: 1px solid #cbd5e1; }
-            tr:nth-child(even) { background: #F1F5F9; }
-            .green { background: #DCFCE7; color: #166534; text-align: center; font-weight: bold; }
-            .yellow { background: #FEF3C7; color: #92400E; text-align: center; font-weight: bold; }
-            .red { background: #FEE2E2; color: #991B1B; text-align: center; font-weight: bold; }
-            .center { text-align: center; }
-            h2 { color: #1E3A8A; font-family: Arial; }
-        </style>
-    </head>
-    <body>
+    let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><style>
+        table { border-collapse: collapse; font-family: Arial; font-size: 12px; }
+        th { background: #1E3A8A; color: white; padding: 10px; border: 1px solid #475569; text-align: center; font-weight: bold; }
+        td { padding: 8px; border: 1px solid #cbd5e1; }
+        tr:nth-child(even) { background: #F1F5F9; }
+        .green { background: #DCFCE7; color: #166534; text-align: center; font-weight: bold; }
+        .yellow { background: #FEF3C7; color: #92400E; text-align: center; font-weight: bold; }
+        .red { background: #FEE2E2; color: #991B1B; text-align: center; font-weight: bold; }
+        .center { text-align: center; }
+        h2 { color: #1E3A8A; font-family: Arial; }
+    </style></head><body>
     <h2>📊 Hasil Ujian CBT - SMPN 1 Sukosari</h2>
-    <p style="font-family: Arial; font-size: 12px;">
-        Tanggal Export: <strong>${new Date().toLocaleString('id-ID')}</strong><br>
-        Total Data: <strong>${sorted.length}</strong> nilai
-    </p>
-    <table>
-        <thead>
-            <tr>
-                <th>No</th><th>NIS</th><th>Nama</th><th>Kelas</th><th>Jenjang</th>
-                <th>Mapel</th><th>Jenis Ujian</th><th>Skor</th><th>Total</th><th>Nilai</th><th>Waktu</th>
-            </tr>
-        </thead>
-        <tbody>`;
+    <p style="font-family: Arial; font-size: 12px;">Tanggal Export: <strong>${new Date().toLocaleString('id-ID')}</strong><br>Total Data: <strong>${sorted.length}</strong> nilai</p>
+    <table><thead><tr><th>No</th><th>NIS</th><th>Nama</th><th>Kelas</th><th>Jenjang</th><th>Mapel</th><th>Jenis Ujian</th><th>Skor</th><th>Total</th><th>Nilai</th><th>Waktu</th></tr></thead><tbody>`;
     sorted.forEach((h, i) => {
         const p = parseInt(h.persentase) || 0;
         const warna = p >= 75 ? 'green' : p >= 60 ? 'yellow' : 'red';
         const waktu = h.timestamp ? new Date(h.timestamp).toLocaleString('id-ID') : '';
-        html += `
-            <tr>
-                <td class="center">${i+1}</td>
-                <td>${h.nis||''}</td>
-                <td>${h.nama||''}</td>
-                <td class="center">${h.kelas||''}</td>
-                <td class="center">${h.jenjang||''}</td>
-                <td>${h.mapel||''}</td>
-                <td>${h.jenisUjian||''}</td>
-                <td class="center">${h.totalSkor||0}</td>
-                <td class="center">${h.totalBobot||0}</td>
-                <td class="${warna}">${p}%</td>
-                <td>${waktu}</td>
-            </tr>`;
+        html += `<tr><td class="center">${i+1}</td><td>${h.nis||''}</td><td>${h.nama||''}</td><td class="center">${h.kelas||''}</td><td class="center">${h.jenjang||''}</td><td>${h.mapel||''}</td><td>${h.jenisUjian||''}</td><td class="center">${h.totalSkor||0}</td><td class="center">${h.totalBobot||0}</td><td class="${warna}">${p}%</td><td>${waktu}</td></tr>`;
     });
     html += `</tbody></table></body></html>`;
-    const BOM = '\uFEFF';
-    const blob = new Blob([BOM + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const blob = new Blob(['\uFEFF' + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = 'hasil_ujian_' + new Date().toISOString().split('T')[0] + '.xls';
@@ -1108,7 +1144,7 @@ async function deleteAllNilai() {
     const b = window.Firebase.writeBatch(window.db);
     allHasil.forEach(h => b.delete(window.Firebase.doc(window.db, 'nilai_akhir', h._id)));
     await b.commit();
-    toast('🗑️ Semua nilai dihapus'); renderHasil();
+    toast('🗑️ Semua nilai dihapus'); renderHasil(); loadDashboard();
 }
 
 // ==================== PENGATURAN PELANGGARAN ====================
@@ -1219,7 +1255,8 @@ async function resetPengaturan() {
 // ==================== EXPORTS ====================
 Object.assign(window, {
     switchTab, syncSiswa, renderSiswa, openFormJadwal, editJadwal, deleteJadwal, deleteAllJadwal, saveJadwal,
-    openFormToken, editToken, deleteToken, deleteAllToken, saveToken, syncSoal, renderSoal,
+    openFormToken, editToken, deleteToken, deleteAllToken, saveToken,
+    syncSoal, renderSoal, bersihkanDuplikatSoal,
     renderSiswaAktif, renderSiswaSelesai, renderDaftarReset, resetSiswaLangsung, deleteReset, deleteAllReset,
     bersihkanSesiLama,
     renderHasil, exportHasil, exportHasilXLS, deleteAllNilai,
