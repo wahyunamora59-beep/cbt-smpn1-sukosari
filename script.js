@@ -587,13 +587,78 @@ function goToSoal(i) {
     if (window.innerWidth <= 500) document.getElementById("navPanel").classList.remove("show");
 }
 
+// ==================== HELPER GAMBAR ====================
+function konversiUrlGambar(input) {
+    if (!input) return null;
+    let u = String(input).trim();
+    if (!u) return null;
+
+    // Kalau cuma ID (tanpa ://), anggap Google Drive ID
+    if (/^[a-zA-Z0-9_-]{20,}$/.test(u)) {
+        return `https://drive.google.com/thumbnail?id=${u}&sz=w1000`;
+    }
+
+    // Kalau URL Drive lengkap (file/d/xxx/view), ubah ke thumbnail
+    const m = u.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (m && m[1]) {
+        return `https://drive.google.com/thumbnail?id=${m[1]}&sz=w1000`;
+    }
+
+    // URL biasa (ImgBB, Cloudinary, dll)
+    return u;
+}
+
+function openLightbox(src) {
+    if (isFrozen) return;
+    const lb = document.getElementById('gambarLightbox');
+    const img = document.getElementById('gambarLightboxImg');
+    if (!lb || !img) return;
+    img.src = src;
+    lb.classList.add('show');
+}
+
+function closeLightbox() {
+    const lb = document.getElementById('gambarLightbox');
+    if (lb) lb.classList.remove('show');
+}
+
+function handleGambarError(imgEl, url) {
+    imgEl.outerHTML = `<div class="gambar-error">
+        <i class="fas fa-image"></i> Gambar gagal dimuat.<br>
+        <a href="${url}" target="_blank" rel="noopener">Buka di tab baru</a>
+    </div>`;
+}
+
+// Tutup lightbox dengan ESC
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeLightbox();
+});
+
+
+
 // ==================== RENDER SOAL ====================
 function renderSoal(idx) {
     indexSoal = idx; const s = dataSoal[idx];
     document.getElementById("progressFill").style.width = ((idx+1)/dataSoal.length*100)+"%";
-    let h = `<h3>Soal ${idx+1}/${dataSoal.length} [${s.tipe}]</h3>`;
-    if (s.gambar) { let u = s.gambar; if (u.match(/^[a-zA-Z0-9_-]{20,}$/)) u = `https://drive.google.com/uc?export=view&id=${u}`; h += `<img src="${u}" style="max-width:100%;">`; }
-    h += `<p><strong>${s.pertanyaan}</strong></p>`; const jaw = jawabanLokal[s.id];
+      let h = `<h3>Soal ${idx + 1}/${dataSoal.length} [${s.tipe}]</h3>`;
+  h += `<p><strong>${s.pertanyaan}</strong></p>`;
+
+  // GAMBAR: di bawah pertanyaan, di atas opsi jawaban
+  if (s.gambar) {
+    const urlGambar = konversiUrlGambar(s.gambar);
+    if (urlGambar) {
+      h += `<div class="gambar-soal-wrapper">
+          <img src="${urlGambar}"
+               class="gambar-soal"
+               alt="Gambar soal ${idx + 1}"
+               loading="lazy"
+               onclick="openLightbox(this.src)"
+               onload="this.classList.add('loaded')"
+               onerror="handleGambarError(this, '${urlGambar}')">
+          <span class="gambar-caption">Klik gambar untuk memperbesar</span>
+      </div>`;
+    }
+  } const jaw = jawabanLokal[s.id];
     
     if (s.tipe === "PG") {
         s.pilihan.forEach((o,i) => { const hu = String.fromCharCode(65+i); h += `<label class="option-label"><input type="radio" name="jwb" value="${hu}" ${jaw===hu?"checked":""} ${isFrozen?"disabled":""} onchange="autoSavePG('${s.id}')"> ${hu}. ${o}</label>`; });
