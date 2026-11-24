@@ -558,3 +558,24 @@ body {
 @media (max-width: 500px) {
   .gambar-soal { max-height: 240px; padding: 6px; }
 }
+
+/* ==================== REKAP JAWABAN ADMIN ==================== */
+#modalRekap, #modalDetail { display: none; }
+#modalRekap .badge-ok, #modalDetail .badge-ok {
+  background: #198754; color: #fff; padding: 2px 8px;
+  border-radius: 10px; font-size: 11px;
+}
+#modalRekap .badge-warn, #modalDetail .badge-warn {
+  background: #ffc107; color: #000; padding: 2px 8px;
+  border-radius: 10px; font-size: 11px;
+}
+#modalRekap .badge-err, #modalDetail .badge-err {
+  background: #dc3545; color: #fff; padding: 2px 8px;
+  border-radius: 10px; font-size: 11px;
+}
+#modalRekap tr.row-anomali { background: #fff3cd; }
+#modalDetail .detail-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; }
+#modalDetail .detail-table th, #modalDetail .detail-table td {
+  border: 1px solid #e2e8f0; padding: 6px; text-align: left; vertical-align: top;
+}
+#modalDetail .detail-table th { background: #f1f5f9; }
