@@ -260,6 +260,19 @@ table tr:hover{background:#F8FAFC}
     </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- TAMBAHAN: Modal Detail Rekap Jawaban Siswa                -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="modal" id="modalDetailRekap">
+    <div class="modal-content" style="max-width:1000px">
+        <div class="modal-header">
+            <h3 id="detailRekapTitle">Detail Jawaban</h3>
+            <button class="modal-close" onclick="tutupDetailRekap()">×</button>
+        </div>
+        <div id="detailRekapBody"></div>
+    </div>
+</div>
+
 <div class="modal" id="modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -606,7 +619,6 @@ async function syncSoal() {
 
         console.log('📊 Total baris dari sheet:', rows.length - 1);
 
-        // Build map dari sheet — AUTO-SUFFIX kalau ID duplikat
         const sheetMap = {};
         let skipped = 0, autoFixed = 0;
         const dupLog = {};
@@ -656,7 +668,6 @@ async function syncSoal() {
             }
         }
 
-        // Ambil semua soal di Firebase
         const existingSnap = await window.Firebase.getDocs(
             window.Firebase.collection(window.db, 'cache_soal')
         );
@@ -1252,17 +1263,177 @@ async function renderHasil() {
     const paginated = filtered.slice(start, start + PAGE_SIZE);
 
     let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">Menampilkan <strong>${paginated.length}</strong> dari <strong>${filtered.length}</strong> nilai</p>`;
-    html += '<table><thead><tr><th>Nama</th><th>Kelas</th><th>Mapel</th><th>Jenis</th><th>Skor</th><th>Nilai</th><th>Waktu</th></tr></thead><tbody>';
+    html += '<table><thead><tr><th>Nama</th><th>Kelas</th><th>Mapel</th><th>Jenis</th><th>Skor</th><th>Nilai</th><th>Waktu</th><th>Aksi</th></tr></thead><tbody>';
     paginated.forEach(h => {
         const p = parseInt(h.persentase) || 0;
         const warna = p >= 75 ? 'badge-green' : p >= 60 ? 'badge-yellow' : 'badge-red';
-        html += `<tr><td>${h.nama||''}</td><td>${h.kelas||''}</td><td>${h.mapel||''}</td><td>${h.jenisUjian||''}</td><td><strong>${h.totalSkor}/${h.totalBobot}</strong></td><td><span class="badge ${warna}">${h.persentase||''}</span></td><td>${h.timestamp ? new Date(h.timestamp).toLocaleString('id-ID') : ''}</td></tr>`;
+        const btnDetail = `<button class="btn btn-sm btn-primary" onclick="lihatDetailJawaban('${(h.username||'').replace(/'/g,"\\'")}','${(h.mapel||'').replace(/'/g,"\\'")}','${(h.jenisUjian||'').replace(/'/g,"\\'")}')" title="Lihat detail jawaban"><i class="fas fa-search"></i> Detail</button>`;
+        html += `<tr><td>${h.nama||''}</td><td>${h.kelas||''}</td><td>${h.mapel||''}</td><td>${h.jenisUjian||''}</td><td><strong>${h.totalSkor}/${h.totalBobot}</strong></td><td><span class="badge ${warna}">${h.persentase||''}</span></td><td>${h.timestamp ? new Date(h.timestamp).toLocaleString('id-ID') : ''}</td><td>${btnDetail}</td></tr>`;
     });
     html += '</tbody></table>';
     html += buildPaginationHTML(filtered.length, pageHasil, 'goPageHasil');
 
     document.getElementById('listHasil').innerHTML = html;
 }
+
+// ═══════════════════════════════════════════════════════════
+// TAMBAHAN: DETAIL JAWABAN SISWA (verifikasi & audit)
+// ═══════════════════════════════════════════════════════════
+async function lihatDetailJawaban(username, mapel, jenis) {
+    document.getElementById('detailRekapTitle').textContent = `Detail — ${username} (${mapel} - ${jenis})`;
+    document.getElementById('detailRekapBody').innerHTML = '<div class="loading">Memuat...</div>';
+    document.getElementById('modalDetailRekap').classList.add('active');
+
+    try {
+        // 1. Cari sesi terbaru siswa untuk ujian ini
+        const sesiSnap = await window.Firebase.getDocs(
+            window.Firebase.query(
+                window.Firebase.collection(window.db, 'sesi_ujian'),
+                window.Firebase.where('username', '==', username),
+                window.Firebase.where('mapel', '==', mapel),
+                window.Firebase.where('jenisUjian', '==', jenis)
+            )
+        );
+        if (sesiSnap.empty) {
+            document.getElementById('detailRekapBody').innerHTML =
+                '<p style="text-align:center;padding:20px;color:#64748B">Tidak ada sesi ujian ditemukan.</p>';
+            return;
+        }
+        const sesiList = sesiSnap.docs.map(d => ({ _id: d.id, ...d.data() }));
+        sesiList.sort((a, b) => {
+            const wa = a.waktuMulai?.toDate ? a.waktuMulai.toDate() : new Date(a.waktuMulai || 0);
+            const wb = b.waktuMulai?.toDate ? b.waktuMulai.toDate() : new Date(b.waktuMulai || 0);
+            return wb - wa;
+        });
+        const sesi = sesiList[0];
+
+        // 2. Ambil semua jawaban siswa untuk sesi ini
+        const jawabSnap = await window.Firebase.getDocs(
+            window.Firebase.query(
+                window.Firebase.collection(window.db, 'jawaban_siswa'),
+                window.Firebase.where('idSesi', '==', sesi.idSesi)
+            )
+        );
+        const jawabanMap = {};
+        jawabSnap.forEach(d => {
+            const r = d.data();
+            if (r.idSoal) jawabanMap[r.idSoal] = r;
+        });
+
+        // 3. Ambil soal (untuk pertanyaan & kunci)
+        const soalSnap = await window.Firebase.getDocs(
+            window.Firebase.query(
+                window.Firebase.collection(window.db, 'cache_soal'),
+                window.Firebase.where('jenjang', '==', sesi.jenjang || ''),
+                window.Firebase.where('mapel', '==', mapel),
+                window.Firebase.where('jenis', '==', jenis)
+            )
+        );
+        const soalList = [];
+        soalSnap.forEach(d => {
+            const s = d.data();
+            if (s.status === 'Aktif') soalList.push({ _id: d.id, ...s });
+        });
+
+        // 4. Statistik & durasi
+        const mulai = sesi.waktuMulai
+            ? (sesi.waktuMulai.toDate ? sesi.waktuMulai.toDate() : new Date(sesi.waktuMulai))
+            : null;
+        const submit = sesi.waktuSelesai
+            ? (sesi.waktuSelesai.toDate ? sesi.waktuSelesai.toDate() : new Date(sesi.waktuSelesai))
+            : null;
+        const durasi = (mulai && submit) ? submit.getTime() - mulai.getTime() : null;
+
+        const jmlSoal = soalList.length;
+        const jmlDijawab = soalList.filter(s => jawabanMap[s.id] && jawabanMap[s.id].jawaban != null && jawabanMap[s.id].jawaban !== '').length;
+        const jmlKosong = jmlSoal - jmlDijawab;
+
+        // 5. Deteksi anomali
+        const anomali = [];
+        if (!mulai) anomali.push('Waktu mulai tidak tercatat');
+        if (!submit) anomali.push('Waktu submit tidak tercatat (ujian mungkin belum selesai)');
+        if (durasi != null && durasi < 0) anomali.push('Durasi NEGATIF (submit < mulai — indikasi manipulasi jam)');
+        if (durasi != null && durasi > 24 * 3600 * 1000) anomali.push('Durasi > 24 jam (sesi mungkin tidak ditutup)');
+        if (jmlSoal > 0 && jmlDijawab < jmlSoal * 0.5) anomali.push(`Hanya ${jmlDijawab}/${jmlSoal} soal dijawab (< 50%)`);
+
+        // 6. Helper format
+        const fmtTgl = (d) => d ? d.toLocaleString('id-ID', { hour12: false }) : '-';
+        const fmtDur = (ms) => {
+            if (ms == null || ms < 0) return '-';
+            const s = Math.floor(ms / 1000);
+            return `${Math.floor(s/3600)}j ${Math.floor((s%3600)/60)}m ${s%60}d`;
+        };
+
+        // 7. Susun HTML
+        let html = `
+        <div class="info-box" style="margin-bottom:16px">
+            <strong>📋 Info Sesi</strong>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px;font-size:13px">
+                <div><strong>Nama:</strong> ${sesi.nama || username}</div>
+                <div><strong>Kelas:</strong> ${sesi.kelas || '-'}</div>
+                <div><strong>NIS:</strong> ${sesi.nis || '-'}</div>
+                <div><strong>Jenjang:</strong> ${sesi.jenjang || '-'}</div>
+                <div><strong>Mulai:</strong> ${fmtTgl(mulai)}</div>
+                <div><strong>Submit:</strong> ${fmtTgl(submit)}</div>
+                <div><strong>Durasi:</strong> ${fmtDur(durasi)}</div>
+                <div><strong>Status Sesi:</strong> <span class="badge ${sesi.status==='Selesai'?'badge-green':sesi.status==='Aktif'?'badge-blue':'badge-red'}">${sesi.status || '-'}</span></div>
+                <div><strong>Total Soal:</strong> ${jmlSoal}</div>
+                <div><strong>Dijawab:</strong> ${jmlDijawab} · <strong>Kosong:</strong> ${jmlKosong}</div>
+            </div>
+        </div>`;
+
+        if (anomali.length) {
+            html += `<div class="info-box" style="background:#FEF3C7;border-left-color:#F59E0B;color:#92400E">
+                <strong>⚠️ Anomali Terdeteksi:</strong>
+                <ul style="margin:8px 0 0 20px">${anomali.map(a => `<li>${a}</li>`).join('')}</ul>
+            </div>`;
+        } else {
+            html += `<div class="info-box" style="background:#DCFCE7;border-left-color:#22C55E;color:#166534">
+                <strong>✅ Tidak ada anomali terdeteksi.</strong>
+            </div>`;
+        }
+
+        // Tabel jawaban per soal
+        html += `<h4 style="margin:16px 0 8px;color:#1E3A8A">📝 Detail Jawaban per Soal</h4>`;
+        if (!soalList.length) {
+            html += `<p style="color:#64748B">Tidak ada soal aktif untuk ujian ini.</p>`;
+        } else {
+            html += '<table><thead><tr><th>No</th><th>Soal</th><th>Tipe</th><th>Jawaban Siswa</th><th>Kunci</th><th>Skor</th><th>Waktu Jawab</th></tr></thead><tbody>';
+            soalList.forEach((s, i) => {
+                const jw = jawabanMap[s.id];
+                const adaJawaban = jw && jw.jawaban != null && jw.jawaban !== '';
+                const jwText = adaJawaban ? String(jw.jawaban).substring(0, 100) : '<em style="color:#94A3B8">(kosong)</em>';
+                const waktuJawab = jw && jw.timestamp ? new Date(jw.timestamp).toLocaleString('id-ID', { hour12: false }) : '-';
+                const skor = jw && jw.skor != null ? jw.skor : '-';
+                const tanya = String(s.pertanyaan || '').replace(/"/g, '&quot;');
+                html += `<tr style="${!adaJawaban ? 'background:#FEF2F2' : ''}">
+                    <td>${i + 1}</td>
+                    <td title="${tanya}">${String(s.pertanyaan || '').substring(0, 60)}${String(s.pertanyaan || '').length > 60 ? '…' : ''}</td>
+                    <td><span class="badge badge-yellow">${s.tipe || '-'}</span></td>
+                    <td>${jwText}</td>
+                    <td><code>${s.kunci || '-'}</code></td>
+                    <td>${skor}</td>
+                    <td style="font-size:11px;color:#64748B">${waktuJawab}</td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+        }
+
+        document.getElementById('detailRekapBody').innerHTML = html;
+    } catch (e) {
+        console.error(e);
+        document.getElementById('detailRekapBody').innerHTML =
+            `<p style="color:#EF4444;padding:20px">Gagal memuat: ${e.message}</p>`;
+    }
+}
+
+function tutupDetailRekap() {
+    document.getElementById('modalDetailRekap').classList.remove('active');
+}
+
+window.lihatDetailJawaban = lihatDetailJawaban;
+window.tutupDetailRekap = tutupDetailRekap;
+// ═══════════════════════════════════════════════════════════
 
 function exportHasil() {
     if (!allHasil.length) { toast('Tidak ada data', 'error'); return; }
@@ -1444,7 +1615,8 @@ Object.assign(window, {
     resetSemuaSiswaSelesai, bersihkanSesiLama,
     renderHasil, exportHasil, exportHasilXLS, deleteAllNilai,
     savePengaturan, closeModal, loadPengaturan, togglePelanggaran, updatePelanggaran, resetPengaturan,
-    goPageSiswa, goPageSoal, goPageHasil
+    goPageSiswa, goPageSoal, goPageHasil,
+    lihatDetailJawaban, tutupDetailRekap
 });
 
 window.addEventListener('load', () => {
