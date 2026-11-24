@@ -1099,7 +1099,9 @@ async function lihatDetailJawaban(username, mapel, jenis) {
                 const adaJawaban = jw && jw.jawaban != null && jw.jawaban !== '';
                 const jwText = adaJawaban ? String(jw.jawaban).substring(0, 100) : '<em style="color:#94A3B8">(kosong)</em>';
                 const waktuJawab = jw && jw.timestamp ? new Date(jw.timestamp).toLocaleString('id-ID', { hour12: false }) : '-';
-                const skor = jw && jw.skor != null ? jw.skor : '-';
+                const skor = jw && jw.jawaban != null && jw.jawaban !== ''
+  ? hitungSkorParsial(s, jw.jawaban, Number(s.bobot) || 1)
+  : '-';
                 const tanya = String(s.pertanyaan || '').replace(/"/g, '&quot;');
                 html += `<tr style="${!adaJawaban ? 'background:#FEF2F2' : ''}">
                     <td>${i + 1}</td>
