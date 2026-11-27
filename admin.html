@@ -265,6 +265,7 @@ table tr:hover{background:#F8FAFC}
                 <input type="text" id="searchRangking" placeholder="🔍 Cari nama/kelas..." oninput="tampilkanRangking()">
                 <select id="filterMapelRangking" onchange="tampilkanRangking()"></select>
                 <select id="filterJenisRangking" onchange="tampilkanRangking()"></select>
+                <select id="filterKelasRangking" onchange="tampilkanRangking()"><option value="">Semua Kelas</option></select>
                 <button class="btn btn-primary" onclick="renderRangking()"><i class="fas fa-sync"></i> Refresh</button>
             </div>
             <div id="listRangking" class="loading">Memuat...</div>
@@ -1444,6 +1445,12 @@ async function renderRangking() {
         const terbaru = allRangking.reduce((a, b) => !a || waktuRangking(b) > waktuRangking(a) ? b : a, null) || {};
         isiPilihanRangking('filterMapelRangking', [...new Set(allRangking.map(h => h.mapel).filter(Boolean))].sort(), terbaru.mapel);
         isiPilihanRangking('filterJenisRangking', [...new Set(allRangking.map(h => h.jenisUjian).filter(Boolean))].sort(), terbaru.jenisUjian);
+        const selKelas = document.getElementById('filterKelasRangking');
+        const kelasLama = selKelas.value;
+        const daftarKelas = [...new Set(allRangking.map(h => h.kelas).filter(Boolean))].sort((a,b) => String(a).localeCompare(String(b), 'id', { numeric: true }));
+        selKelas.innerHTML = '<option value="">Semua Kelas</option>';
+        daftarKelas.forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = k; selKelas.appendChild(o); });
+        selKelas.value = daftarKelas.includes(kelasLama) ? kelasLama : '';
         tampilkanRangking();
     } catch(e) { console.error(e); container.innerHTML = `<div class="loading" style="color:#EF4444">Error: ${e.message}</div>`; }
 }
@@ -1454,6 +1461,7 @@ function tampilkanRangking() {
     const mapel = document.getElementById('filterMapelRangking').value;
     const jenis = document.getElementById('filterJenisRangking').value;
     const search = (document.getElementById('searchRangking').value || '').toLowerCase();
+    const kelas = document.getElementById('filterKelasRangking').value;
     // Satu siswa satu baris: jika ada data ganda, ambil yang terbaru
     const perSiswa = new Map();
     allRangking.filter(h => h.mapel === mapel && h.jenisUjian === jenis).forEach(h => {
@@ -1461,7 +1469,7 @@ function tampilkanRangking() {
         const lama = perSiswa.get(key);
         if (!lama || waktuRangking(h) > waktuRangking(lama)) perSiswa.set(key, h);
     });
-    const data = [...perSiswa.values()];
+    const data = [...perSiswa.values()].filter(h => !kelas || h.kelas === kelas);
     if (!data.length) { container.innerHTML = '<div class="loading">Belum ada siswa yang selesai ujian untuk pilihan ini.</div>'; return; }
     const groups = { '7': [], '8': [], '9': [], 'Lainnya': [] };
     data.forEach(h => {
@@ -1470,7 +1478,8 @@ function tampilkanRangking() {
     });
     let html = `<p style="color:#64748B;font-size:13px;margin-bottom:16px">🏅 <strong>${data.length}</strong> siswa sudah selesai · Data dimuat: <strong>${_waktuRangking.toLocaleTimeString('id-ID')}</strong></p>`;
     html += '<div class="live-grid">';
-    ['7','8','9'].forEach(jenjang => {
+    // Jika kelas dipilih, tampilkan hanya kolom jenjang kelas tersebut
+    ['7','8','9'].filter(j => !kelas || groups[j].length).forEach(jenjang => {
         const list = groups[jenjang].sort((a,b) => nilaiRangking(b) - nilaiRangking(a) || waktuRangking(a) - waktuRangking(b));
         const rata = list.length ? Math.round(list.reduce((s,h) => s + nilaiRangking(h), 0) / list.length) : 0;
         const warnaHead = jenjang === '7' ? '#3B82F6' : jenjang === '8' ? '#22C55E' : '#F59E0B';
