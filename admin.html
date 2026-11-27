@@ -83,6 +83,16 @@ table tr:hover{background:#F8FAFC}
 .pelanggaran-grid input{padding:8px 10px;font-size:13px}
 .pagination{display:flex;gap:6px;justify-content:center;margin-top:16px;flex-wrap:wrap;align-items:center}
 .pagination-info{margin-left:8px;color:#64748B;font-size:12px}
+/* ===== LIVE MONITOR 3-KOLOM ===== */
+.live-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.live-card{background:white;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.05);border:1px solid #E2E8F0;display:flex;flex-direction:column}
+.live-card-head{color:white;padding:14px 18px;display:flex;justify-content:space-between;align-items:center}
+.live-card-body{padding:0;max-height:600px;overflow-y:auto;flex:1}
+.live-table{width:100%;font-size:12px;border-collapse:collapse}
+.live-table th{background:#F8FAFC;padding:8px 10px;font-size:10px;color:#64748B;text-transform:uppercase;position:sticky;top:0;z-index:1;border-bottom:1px solid #E2E8F0;text-align:left}
+.live-table td{padding:8px 10px;border-bottom:1px solid #F1F5F9;vertical-align:middle}
+.live-table tr:hover{background:#F8FAFC}
+@media(max-width:1024px){.live-grid{grid-template-columns:1fr}}
 @media(max-width:768px){.sidebar{width:60px}.sidebar h2, .sidebar a span{display:none}.sidebar a{justify-content:center;padding:16px 0}.main{margin-left:60px}.form-row{grid-template-columns:1fr}.pelanggaran-grid{grid-template-columns:1fr}}
 </style>
 </head>
@@ -97,6 +107,7 @@ table tr:hover{background:#F8FAFC}
     <a onclick="switchTab('soal')" data-tab="soal"><i class="fas fa-book"></i> <span>Bank Soal</span></a>
     <a onclick="switchTab('reset')" data-tab="reset"><i class="fas fa-redo"></i> <span>Reset Ujian</span></a>
     <a onclick="switchTab('hasil')" data-tab="hasil"><i class="fas fa-trophy"></i> <span>Hasil Ujian</span></a>
+    <a onclick="switchTab('live')" data-tab="live"><i class="fas fa-bolt"></i> <span>Live Monitor</span></a>
     <a onclick="switchTab('pengaturan')" data-tab="pengaturan"><i class="fas fa-shield-alt"></i> <span>Pengaturan</span></a>
 </div>
 
@@ -118,7 +129,9 @@ table tr:hover{background:#F8FAFC}
             <div class="info-box">
                 <strong>📊 SISWA & BANK SOAL</strong> → Kelola dari <strong>Spreadsheet</strong>, lalu klik <strong>🔄 SYNC</strong>.<br><br>
                 <strong>📅 JADWAL, TOKEN, RESET, PENGATURAN</strong> → Kelola langsung di panel ini.<br><br>
-                <strong>🧹 SYNC AMAN</strong> → Klik SYNC berkali-kali pun tidak akan dobel.
+                <strong>🧹 SYNC AMAN</strong> → Klik SYNC berkali-kali pun tidak akan dobel.<br><br>
+                <strong>🎯 KATROL NILAI</strong> → Buka tab <strong>Hasil Ujian</strong>, klik tombol <strong>Katrol Nilai</strong> (pink) untuk menaikkan nilai massal atau per-siswa.<br><br>
+                <strong>⚡ LIVE MONITOR</strong> → Pantau skor real-time siswa (dibagi 3 kolom: Kelas 7 | 8 | 9) dengan auto-refresh 15 detik.
             </div>
         </div>
     </div>
@@ -237,9 +250,24 @@ table tr:hover{background:#F8FAFC}
                 <button class="btn btn-success" onclick="exportHasilXLS()"><i class="fas fa-file-excel"></i> Export Excel</button>
                 <button class="btn btn-primary" onclick="exportHasil()"><i class="fas fa-file-csv"></i> Export CSV</button>
                 <button class="btn btn-warning" onclick="hitungUlangSemuaNilai()" style="background:#8B5CF6"><i class="fas fa-calculator"></i> Hitung Ulang Nilai</button>
+                <button class="btn" onclick="openKatrolModal()" style="background:#EC4899;color:white"><i class="fas fa-arrow-up"></i> Katrol Nilai</button>
                 <button class="btn btn-danger" onclick="deleteAllNilai()"><i class="fas fa-trash"></i> Hapus Semua Nilai</button>
             </div>
             <div id="listHasil" class="loading">Memuat...</div>
+        </div>
+    </div>
+
+    <div id="tab-live" class="tab-content">
+        <div class="card">
+            <h3><i class="fas fa-bolt"></i> Live Monitor Ujian (Real-time)</h3>
+            <div class="info-box">🔴 Skor live 3 kolom: <strong>Kelas 7 | 8 | 9</strong>. Auto-refresh tiap 15 detik. Hanya menampilkan siswa yang sedang ujian hari ini (maks 3 jam terakhir).</div>
+            <div class="toolbar">
+                <input type="text" id="searchLive" placeholder="🔍 Cari nama/kelas/mapel..." oninput="renderLiveMonitor()">
+                <button class="btn btn-primary" onclick="renderLiveMonitor()"><i class="fas fa-sync"></i> Refresh</button>
+                <button class="btn btn-warning" id="liveToggleBtn" onclick="toggleLiveAutoRefresh(this)"><i class="fas fa-pause"></i> Pause Auto</button>
+                <span id="liveRefreshInfo" style="font-size:12px;color:#64748B"></span>
+            </div>
+            <div id="listLive" class="loading">Memuat...</div>
         </div>
     </div>
 
@@ -315,9 +343,7 @@ let pageSiswa = 1, pageSoal = 1, pageHasil = 1;
 
 function buildPaginationHTML(totalItems, currentPage, fnName) {
     const totalPages = Math.ceil(totalItems / PAGE_SIZE) || 1;
-    if (totalPages <= 1) {
-        return `<p class="pagination-info" style="text-align:center;margin-top:12px">Total ${totalItems} data</p>`;
-    }
+    if (totalPages <= 1) return `<p class="pagination-info" style="text-align:center;margin-top:12px">Total ${totalItems} data</p>`;
     let html = '<div class="pagination">';
     html += `<button class="btn btn-sm btn-secondary" onclick="${fnName}(${currentPage-1})" ${currentPage===1?'disabled':''}><i class="fas fa-chevron-left"></i></button>`;
     const maxBtn = 5;
@@ -341,7 +367,6 @@ function buildPaginationHTML(totalItems, currentPage, fnName) {
     html += '</div>';
     return html;
 }
-
 function goPageSiswa(p) { pageSiswa = p; renderSiswa(); }
 function goPageSoal(p) { pageSoal = p; renderSoal(); }
 function goPageHasil(p) { pageHasil = p; renderHasil(); }
@@ -360,8 +385,9 @@ function switchTab(tab) {
     document.querySelectorAll('.sidebar a').forEach(el => el.classList.remove('active'));
     document.getElementById(`tab-${tab}`).classList.add('active');
     document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
-    const titles = { dashboard: 'Dashboard', siswa: 'Kelola Siswa', jadwal: 'Jadwal Ujian', token: 'Token Ujian', soal: 'Bank Soal', reset: 'Reset Ujian', hasil: 'Hasil Ujian', pengaturan: 'Pengaturan Anti-Curang' };
+    const titles = { dashboard: 'Dashboard', siswa: 'Kelola Siswa', jadwal: 'Jadwal Ujian', token: 'Token Ujian', soal: 'Bank Soal', reset: 'Reset Ujian', hasil: 'Hasil Ujian', live: 'Live Monitor', pengaturan: 'Pengaturan Anti-Curang' };
     document.getElementById('pageTitle').textContent = titles[tab];
+    if (tab !== 'live') stopLiveRefresh();
     if (tab === 'dashboard') loadDashboard();
     if (tab === 'siswa') { pageSiswa = 1; renderSiswa(); }
     if (tab === 'jadwal') renderJadwal();
@@ -369,6 +395,7 @@ function switchTab(tab) {
     if (tab === 'soal') { pageSoal = 1; renderSoal(); }
     if (tab === 'reset') { renderSiswaAktif(); renderSiswaSelesai(); renderDaftarReset(); }
     if (tab === 'hasil') { pageHasil = 1; renderHasil(); }
+    if (tab === 'live') { renderLiveMonitor(); startLiveRefresh(); }
     if (tab === 'pengaturan') loadPengaturan();
 }
 
@@ -378,12 +405,10 @@ function openModal(title, bodyHTML) {
     document.getElementById('modal').classList.add('active');
 }
 function closeModal() { document.getElementById('modal').classList.remove('active'); }
-
 function formatTanggalLocal(d) {
     const t = new Date(d);
     return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
 }
-
 async function fetchSheet(sheetName, range) {
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${sheetName}!${range}?key=${API_KEY}`;
     const r = await fetch(url);
@@ -410,74 +435,50 @@ async function loadDashboard() {
 
 // ==================== SISWA ====================
 let allSiswa = [];
-
 async function syncSiswa() {
     if (!confirm('🔄 Sync data siswa dari Spreadsheet?\n\nData lama akan diganti dengan data terbaru.')) return;
     toast('⏳ Mengambil data...', 'info');
     try {
         const rows = await fetchSheet('DATA_SISWA', 'A:H');
         if (rows.length <= 1) { toast('❌ Tidak ada data', 'error'); return; }
-
         const snap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'cache_siswa'));
         const batch1 = window.Firebase.writeBatch(window.db);
         snap.forEach(d => batch1.delete(d.ref));
         if (snap.size) await batch1.commit();
-
         let count = 0;
         for (let i = 1; i < rows.length; i++) {
             const row = rows[i];
             if (!row[2]) continue;
             await window.Firebase.addDoc(window.Firebase.collection(window.db, 'cache_siswa'), {
-                nis: String(row[0]||'').trim(),
-                nama: String(row[1]||'').trim(),
-                username: String(row[2]||'').trim(),
-                password: String(row[3]||'').trim(),
-                kelas: String(row[4]||'').trim(),
-                jenjang: String(row[5]||'').trim()
+                nis: String(row[0]||'').trim(), nama: String(row[1]||'').trim(),
+                username: String(row[2]||'').trim(), password: String(row[3]||'').trim(),
+                kelas: String(row[4]||'').trim(), jenjang: String(row[5]||'').trim()
             });
             count++;
         }
         toast(`✅ ${count} siswa di-sync!`);
-        pageSiswa = 1;
-        renderSiswa();
-        loadDashboard();
+        pageSiswa = 1; renderSiswa(); loadDashboard();
     } catch(e) { toast('❌ ' + e.message, 'error'); }
 }
-
 async function renderSiswa() {
     try {
         const snap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'cache_siswa'));
         allSiswa = [];
         snap.forEach(d => allSiswa.push({ _id: d.id, ...d.data() }));
-
         const search = (document.getElementById('searchSiswa')?.value || '').toLowerCase();
         const jenjang = document.getElementById('filterJenjangSiswa')?.value || '';
-
         let filtered = allSiswa;
-        if (search) filtered = filtered.filter(s =>
-            (s.nama||'').toLowerCase().includes(search) ||
-            (s.username||'').toLowerCase().includes(search) ||
-            (s.nis||'').includes(search)
-        );
+        if (search) filtered = filtered.filter(s => (s.nama||'').toLowerCase().includes(search) || (s.username||'').toLowerCase().includes(search) || (s.nis||'').includes(search));
         if (jenjang) filtered = filtered.filter(s => s.jenjang === jenjang);
-
         filtered.sort((a,b) => (a.kelas||'').localeCompare(b.kelas||'') || (a.nama||'').localeCompare(b.nama||''));
-
-        if (!filtered.length) {
-            document.getElementById('listSiswa').innerHTML = '<div class="loading">Belum ada data.<br>Klik <strong>🔄 SYNC</strong>.</div>';
-            return;
-        }
-
+        if (!filtered.length) { document.getElementById('listSiswa').innerHTML = '<div class="loading">Belum ada data.<br>Klik <strong>🔄 SYNC</strong>.</div>'; return; }
         const totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
         if (pageSiswa > totalPages) pageSiswa = 1;
         const start = (pageSiswa - 1) * PAGE_SIZE;
         const paginated = filtered.slice(start, start + PAGE_SIZE);
-
         let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">Menampilkan <strong>${paginated.length}</strong> dari <strong>${filtered.length}</strong> siswa</p>`;
         html += '<table><thead><tr><th>NIS</th><th>Nama</th><th>Username</th><th>Password</th><th>Kelas</th><th>Jenjang</th></tr></thead><tbody>';
-        paginated.forEach(s => {
-            html += `<tr><td>${s.nis||''}</td><td>${s.nama||''}</td><td><code>${s.username||''}</code></td><td><code>${s.password||''}</code></td><td>${s.kelas||''}</td><td><span class="badge badge-blue">${s.jenjang||''}</span></td></tr>`;
-        });
+        paginated.forEach(s => { html += `<tr><td>${s.nis||''}</td><td>${s.nama||''}</td><td><code>${s.username||''}</code></td><td><code>${s.password||''}</code></td><td>${s.kelas||''}</td><td><span class="badge badge-blue">${s.jenjang||''}</span></td></tr>`; });
         html += '</tbody></table>';
         html += buildPaginationHTML(filtered.length, pageSiswa, 'goPageSiswa');
         document.getElementById('listSiswa').innerHTML = html;
@@ -486,7 +487,6 @@ async function renderSiswa() {
 
 // ==================== JADWAL ====================
 let allJadwal = [];
-
 async function renderJadwal() {
     const snap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'cache_jadwal'));
     allJadwal = [];
@@ -499,7 +499,6 @@ async function renderJadwal() {
     html += '</tbody></table>';
     document.getElementById('listJadwal').innerHTML = html;
 }
-
 function openFormJadwal(id=null) {
     const today = new Date().toISOString().split('T')[0];
     const j = id ? allJadwal.find(x => x._id === id) : { jenjang:'9', mapel:'', jenis:'', tanggal:today, waktuMulai:'08:00', waktuSelesai:'10:00', minimalMenit:0, token:'', status:'Aktif', password:'' };
@@ -527,7 +526,6 @@ function openFormJadwal(id=null) {
         <button class="btn btn-primary" onclick="saveJadwal('${id||''}')"><i class="fas fa-save"></i> Simpan</button>
     `);
 }
-
 async function saveJadwal(id) {
     const data = {
         idJadwal: 'JAD'+Date.now(), jenjang: document.getElementById('j_jenjang').value,
@@ -548,7 +546,6 @@ async function deleteAllJadwal() { if (!confirm('Hapus SEMUA jadwal?')) return; 
 
 // ==================== TOKEN ====================
 let allToken = [];
-
 async function renderToken() {
     const snap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'cache_token'));
     allToken = [];
@@ -561,7 +558,6 @@ async function renderToken() {
     html += '</tbody></table>';
     document.getElementById('listToken').innerHTML = html;
 }
-
 function openFormToken(id=null) {
     const t = id ? allToken.find(x => x._id === id) : { token:'', jenjang:'9', mapel:'', jenis:'', status:'Aktif' };
     openModal(id ? 'Edit Token' : 'Tambah Token', `
@@ -577,7 +573,6 @@ function openFormToken(id=null) {
         <button class="btn btn-primary" onclick="saveToken('${id||''}')"><i class="fas fa-save"></i> Simpan</button>
     `);
 }
-
 async function saveToken(id) {
     const data = { token: document.getElementById('t_token').value.trim(), jenjang: document.getElementById('t_jenjang').value, mapel: document.getElementById('t_mapel').value.trim(), jenis: document.getElementById('t_jenis').value.trim(), status: document.getElementById('t_status').value };
     if (!data.token) { toast('Token wajib!', 'error'); return; }
@@ -591,14 +586,12 @@ async function deleteAllToken() { if (!confirm('Hapus SEMUA token?')) return; co
 
 // ==================== SOAL ====================
 let allSoal = [];
-
 function normalisasiStatus(mentah) {
     const s = String(mentah || '').trim();
     if (/^aktif$/i.test(s)) return 'Aktif';
     if (/^non[\s-]?aktif$/i.test(s)) return 'Nonaktif';
     return 'Nonaktif';
 }
-
 async function syncSoal() {
     if (!confirm('🔄 Sync bank soal dari Spreadsheet?\n\n• Soal baru → ditambah\n• Soal sama (ID sama) → diupdate\n• Soal dihapus dari sheet → dinonaktifkan\n\nAman diklik berkali-kali.')) return;
     toast('⏳ Mengambil data...', 'info');
@@ -612,32 +605,20 @@ async function syncSoal() {
             const row = rows[i];
             if (!row[0]) { skipped++; continue; }
             const rawId = String(row[0] || '').trim();
-            let soalId = rawId;
-            let counter = 1;
-            while (sheetMap[soalId]) {
-                soalId = `${rawId}-${counter}`;
-                counter++;
-            }
+            let soalId = rawId; let counter = 1;
+            while (sheetMap[soalId]) { soalId = `${rawId}-${counter}`; counter++; }
             if (soalId !== rawId) autoFixed++;
             if (!dupLog[rawId]) dupLog[rawId] = 0;
             dupLog[rawId]++;
             sheetMap[soalId] = {
-                id: soalId, idAsli: rawId,
-                jenjang: String(row[1] || '').trim(),
-                mapel: String(row[2] || '').trim(),
-                jenis: String(row[3] || '').trim(),
-                tipe: String(row[4] || '').trim(),
-                pertanyaan: String(row[5] || ''),
-                pilihanA: String(row[6] || ''),
-                pilihanB: String(row[7] || ''),
-                pilihanC: String(row[8] || ''),
-                pilihanD: String(row[9] || ''),
-                pilihanE: String(row[10] || ''),
-                kunci: String(row[11] || ''),
-                bobot: parseFloat(row[12]) || 1,
-                status: normalisasiStatus(row[13]),
-                gambar: String(row[14] || ''),
-                grupSoal: String(row[15] || '')
+                id: soalId, idAsli: rawId, jenjang: String(row[1] || '').trim(),
+                mapel: String(row[2] || '').trim(), jenis: String(row[3] || '').trim(),
+                tipe: String(row[4] || '').trim(), pertanyaan: String(row[5] || ''),
+                pilihanA: String(row[6] || ''), pilihanB: String(row[7] || ''),
+                pilihanC: String(row[8] || ''), pilihanD: String(row[9] || ''),
+                pilihanE: String(row[10] || ''), kunci: String(row[11] || ''),
+                bobot: parseFloat(row[12]) || 1, status: normalisasiStatus(row[13]),
+                gambar: String(row[14] || ''), grupSoal: String(row[15] || '')
             };
         }
         const existingSnap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'cache_soal'));
@@ -657,29 +638,20 @@ async function syncSoal() {
             const existing = byId[soalId];
             if (existing && existing.length > 0) {
                 try {
-                    batch.update(existing[0].ref, dataBaru);
-                    updated++;
-                    for (let i = 1; i < existing.length; i++) {
-                        batch.delete(existing[i].ref);
-                        legacyDeleted++;
-                    }
+                    batch.update(existing[0].ref, dataBaru); updated++;
+                    for (let i = 1; i < existing.length; i++) { batch.delete(existing[i].ref); legacyDeleted++; }
                     delete byId[soalId];
                 } catch (err) { errors.push(`Update ${soalId}: ${err.message}`); }
             } else {
-                try {
-                    await window.Firebase.addDoc(window.Firebase.collection(window.db, 'cache_soal'), dataBaru);
-                    added++;
-                } catch (err) { errors.push(`Add ${soalId}: ${err.message}`); }
+                try { await window.Firebase.addDoc(window.Firebase.collection(window.db, 'cache_soal'), dataBaru); added++; }
+                catch (err) { errors.push(`Add ${soalId}: ${err.message}`); }
             }
         }
         let orphaned = 0;
         for (const key in byId) {
             const arr = byId[key];
-            if (key.startsWith('__legacy__')) {
-                arr.forEach(x => { batch.delete(x.ref); legacyDeleted++; });
-            } else {
-                arr.forEach(x => { batch.update(x.ref, { status: 'Nonaktif' }); orphaned++; });
-            }
+            if (key.startsWith('__legacy__')) arr.forEach(x => { batch.delete(x.ref); legacyDeleted++; });
+            else arr.forEach(x => { batch.update(x.ref, { status: 'Nonaktif' }); orphaned++; });
         }
         await batch.commit();
         let msg = `✅ ${added} baru · ${updated} update`;
@@ -687,13 +659,10 @@ async function syncSoal() {
         if (orphaned > 0) msg += ` · ${orphaned} nonaktif`;
         if (skipped > 0) msg += ` · ${skipped} baris kosong`;
         if (errors.length) { toast(`⚠️ ${msg} · ${errors.length} error`, 'error'); alert('❌ Error:\n\n' + errors.join('\n')); }
-        else { toast(msg); }
-        pageSoal = 1;
-        renderSoal();
-        loadDashboard();
+        else toast(msg);
+        pageSoal = 1; renderSoal(); loadDashboard();
     } catch (e) { toast('❌ ' + e.message, 'error'); }
 }
-
 async function bersihkanDuplikatSoal() {
     if (!confirm('🧹 Bersihkan duplikat soal?\n\n• Dokumen dengan field "id" sama akan disisakan 1\n• Dokumen tanpa field "id" akan dihapus\n\n⚠️ Tidak bisa dikembalikan.')) return;
     try {
@@ -708,11 +677,7 @@ async function bersihkanDuplikatSoal() {
             byId[fid].push({ ref: d.ref, docId: d.id });
         });
         const refsToDelete = [...legacyRefs];
-        for (const id in byId) {
-            const arr = byId[id];
-            if (arr.length <= 1) continue;
-            for (let i = 1; i < arr.length; i++) refsToDelete.push(arr[i].ref);
-        }
+        for (const id in byId) { const arr = byId[id]; if (arr.length <= 1) continue; for (let i = 1; i < arr.length; i++) refsToDelete.push(arr[i].ref); }
         if (!refsToDelete.length) { toast('✅ Tidak ada duplikat'); return; }
         for (let i = 0; i < refsToDelete.length; i += 500) {
             const batch = window.Firebase.writeBatch(window.db);
@@ -720,11 +685,9 @@ async function bersihkanDuplikatSoal() {
             await batch.commit();
         }
         toast(`✅ ${refsToDelete.length} dokumen duplikat dihapus.`);
-        renderSoal();
-        loadDashboard();
+        renderSoal(); loadDashboard();
     } catch (e) { toast('❌ ' + e.message, 'error'); }
 }
-
 async function renderSoal() {
     const snap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'cache_soal'));
     allSoal = [];
@@ -740,10 +703,7 @@ async function renderSoal() {
     if (jenjangFilter) filtered = filtered.filter(s => s.jenjang === jenjangFilter);
     const totalAktif = allSoal.filter(s => s.status === 'Aktif').length;
     const totalNonaktif = allSoal.filter(s => s.status === 'Nonaktif' || !s.status).length;
-    if (!filtered.length) {
-        document.getElementById('listSoal').innerHTML = '<div class="loading">Belum ada soal.</div>';
-        return;
-    }
+    if (!filtered.length) { document.getElementById('listSoal').innerHTML = '<div class="loading">Belum ada soal.</div>'; return; }
     const totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
     if (pageSoal > totalPages) pageSoal = 1;
     const start = (pageSoal - 1) * PAGE_SIZE;
@@ -753,11 +713,8 @@ async function renderSoal() {
     paginated.forEach(s => {
         const isAktif = s.status === 'Aktif';
         html += `<tr ${isAktif ? '' : 'style="opacity:0.55"'}>
-            <td><code>${s.id||''}</code></td>
-            <td><span class="badge badge-blue">${s.jenjang||''}</span></td>
-            <td>${s.mapel||''}</td>
-            <td>${s.jenis||''}</td>
-            <td><span class="badge badge-yellow">${s.tipe||''}</span></td>
+            <td><code>${s.id||''}</code></td><td><span class="badge badge-blue">${s.jenjang||''}</span></td>
+            <td>${s.mapel||''}</td><td>${s.jenis||''}</td><td><span class="badge badge-yellow">${s.tipe||''}</span></td>
             <td>${(s.pertanyaan||'').substring(0,60)}...</td>
             <td><span class="badge ${isAktif?'badge-green':'badge-red'}">${isAktif?'Aktif':'Nonaktif'}</span></td>
         </tr>`;
@@ -771,7 +728,6 @@ async function renderSoal() {
 let allReset = [];
 let allSesiAktif = [];
 let allSiswaSelesai = [];
-
 async function renderSiswaAktif() {
     const container = document.getElementById('listSiswaAktif');
     if (!container) return;
@@ -779,8 +735,7 @@ async function renderSiswaAktif() {
     try {
         const sesiSnap = await window.Firebase.getDocs(window.Firebase.query(window.Firebase.collection(window.db, 'sesi_ujian'), window.Firebase.where('status', '==', 'Aktif')));
         allSesiAktif = [];
-        const now = new Date();
-        const hariIni = formatTanggalLocal(now);
+        const now = new Date(); const hariIni = formatTanggalLocal(now);
         sesiSnap.forEach(d => {
             const s = d.data();
             const waktuMulai = s.waktuMulai ? new Date(s.waktuMulai) : null;
@@ -793,11 +748,7 @@ async function renderSiswaAktif() {
         });
         const search = (document.getElementById('searchAktif')?.value || '').toLowerCase();
         let filtered = allSesiAktif;
-        if (search) filtered = filtered.filter(s =>
-            (s.nama||'').toLowerCase().includes(search) ||
-            (s.kelas||'').toLowerCase().includes(search) ||
-            (s.mapel||'').toLowerCase().includes(search)
-        );
+        if (search) filtered = filtered.filter(s => (s.nama||'').toLowerCase().includes(search) || (s.kelas||'').toLowerCase().includes(search) || (s.mapel||'').toLowerCase().includes(search));
         if (!filtered.length) { container.innerHTML = '<div class="loading">✅ Tidak ada siswa yang sedang ujian hari ini.</div>'; return; }
         let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">Total: <strong>${filtered.length}</strong> siswa sedang ujian</p>`;
         html += '<table><thead><tr><th>Nama</th><th>Kelas</th><th>Mapel</th><th>Jenis</th><th>Mulai</th><th>Aksi</th></tr></thead><tbody>';
@@ -809,7 +760,6 @@ async function renderSiswaAktif() {
         container.innerHTML = html;
     } catch(e) { container.innerHTML = '<div class="loading">Error: ' + e.message + '</div>'; }
 }
-
 async function renderSiswaSelesai() {
     const container = document.getElementById('listSiswaSelesai');
     if (!container) return;
@@ -820,59 +770,45 @@ async function renderSiswaSelesai() {
         nilaiSnap.forEach(d => allSiswaSelesai.push({ _id: d.id, ...d.data() }));
         const search = (document.getElementById('searchSelesai')?.value || '').toLowerCase();
         let filtered = allSiswaSelesai;
-        if (search) filtered = filtered.filter(s =>
-            (s.nama||'').toLowerCase().includes(search) ||
-            (s.kelas||'').toLowerCase().includes(search) ||
-            (s.mapel||'').toLowerCase().includes(search)
-        );
+        if (search) filtered = filtered.filter(s => (s.nama||'').toLowerCase().includes(search) || (s.kelas||'').toLowerCase().includes(search) || (s.mapel||'').toLowerCase().includes(search));
         filtered.sort((a,b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
         if (!filtered.length) { container.innerHTML = '<div class="loading">Belum ada siswa yang selesai ujian.</div>'; return; }
         let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">Total: <strong>${filtered.length}</strong> siswa sudah selesai</p>`;
         html += '<table><thead><tr><th>Nama</th><th>Kelas</th><th>Mapel</th><th>Jenis</th><th>Nilai</th><th>Waktu</th><th>Aksi</th></tr></thead><tbody>';
         filtered.slice(0, 200).forEach(s => {
-            const p = parseInt(s.persentase) || 0;
-            const warna = p >= 75 ? 'badge-green' : p >= 60 ? 'badge-yellow' : 'badge-red';
+            const nilaiAkhir = s.nilaiKatrol != null ? Number(s.nilaiKatrol) : (parseInt(s.persentase) || 0);
+            const warna = nilaiAkhir >= 75 ? 'badge-green' : nilaiAkhir >= 60 ? 'badge-yellow' : 'badge-red';
             const waktu = s.timestamp ? new Date(s.timestamp).toLocaleString('id-ID') : '-';
-            html += `<tr><td><strong>${s.nama||''}</strong></td><td>${s.kelas||''}</td><td>${s.mapel||''}</td><td>${s.jenisUjian||''}</td><td><span class="badge ${warna}">${s.totalSkor||0}/${s.totalBobot||0} (${s.persentase||'0%'})</span></td><td style="font-size:12px;color:#64748B">${waktu}</td><td><button class="btn btn-sm btn-warning" onclick="resetSiswaLangsung('${s.username}', '${s.mapel}', '${s.jenisUjian}')"><i class="fas fa-redo"></i> Reset</button></td></tr>`;
+            const katrolBadge = s.nilaiKatrol != null ? ` <span class="badge" style="background:#FCE7F3;color:#BE185D;font-size:10px">↑</span>` : '';
+            html += `<tr><td><strong>${s.nama||''}</strong></td><td>${s.kelas||''}</td><td>${s.mapel||''}</td><td>${s.jenisUjian||''}</td><td><span class="badge ${warna}">${s.totalSkor||0}/${s.totalBobot||0} (${nilaiAkhir})</span>${katrolBadge}</td><td style="font-size:12px;color:#64748B">${waktu}</td><td><button class="btn btn-sm btn-warning" onclick="resetSiswaLangsung('${s.username}', '${s.mapel}', '${s.jenisUjian}')"><i class="fas fa-redo"></i> Reset</button></td></tr>`;
         });
         html += '</tbody></table>';
         if (filtered.length > 200) html += `<p style="color:#64748B;font-size:12px;margin-top:12px">Menampilkan 200 dari ${filtered.length}</p>`;
         container.innerHTML = html;
     } catch(e) { container.innerHTML = '<div class="loading">Error: ' + e.message + '</div>'; }
 }
-
 async function resetSemuaSiswaSelesai() {
     if (!allSiswaSelesai.length) { toast('Tidak ada siswa selesai', 'error'); return; }
     if (!confirm(`⚠️ RESET SEMUA SISWA YANG SELESAI?\n\nTotal: ${allSiswaSelesai.length} record akan direset.`)) return;
     if (!confirm('Yakin? Ini akan mengizinkan mereka mengerjakan ujian dari awal.')) return;
     toast(`⏳ Memproses ${allSiswaSelesai.length} siswa...`, 'info');
-    let berhasil = 0, gagal = 0;
-    const errors = [];
+    let berhasil = 0, gagal = 0; const errors = [];
     for (const s of allSiswaSelesai) {
         try {
             const nilaiSnap = await window.Firebase.getDocs(window.Firebase.query(window.Firebase.collection(window.db, 'nilai_akhir'), window.Firebase.where('username', '==', s.username), window.Firebase.where('mapel', '==', s.mapel), window.Firebase.where('jenisUjian', '==', s.jenisUjian)));
-            const b1 = window.Firebase.writeBatch(window.db);
-            nilaiSnap.forEach(d => b1.delete(d.ref));
-            await b1.commit();
+            const b1 = window.Firebase.writeBatch(window.db); nilaiSnap.forEach(d => b1.delete(d.ref)); await b1.commit();
             const sesiSnap = await window.Firebase.getDocs(window.Firebase.query(window.Firebase.collection(window.db, 'sesi_ujian'), window.Firebase.where('username', '==', s.username), window.Firebase.where('mapel', '==', s.mapel)));
             const b2 = window.Firebase.writeBatch(window.db);
-            sesiSnap.forEach(d => {
-                const data = d.data();
-                if (data.status === 'Selesai' || data.status === 'Aktif') b2.update(d.ref, { status: 'Dibatalkan', waktuBatal: new Date().toISOString() });
-            });
+            sesiSnap.forEach(d => { const data = d.data(); if (data.status === 'Selesai' || data.status === 'Aktif') b2.update(d.ref, { status: 'Dibatalkan', waktuBatal: new Date().toISOString() }); });
             await b2.commit();
             await window.Firebase.addDoc(window.Firebase.collection(window.db, 'cache_reset'), { username: s.username, mapel: s.mapel, jenis: s.jenisUjian, reset: 'YA', timestamp: new Date().toISOString(), resetBy: 'admin-bulk' });
             berhasil++;
         } catch(e) { errors.push(`${s.nama} (${s.mapel}): ${e.message}`); gagal++; }
     }
-    let msg = `✅ ${berhasil} berhasil`;
-    if (gagal > 0) msg += ` · ❌ ${gagal} gagal`;
-    if (gagal > 0) { toast(msg, 'error'); alert('❌ Error:\n\n' + errors.slice(0, 10).join('\n')); } else { toast(msg); }
-    await renderSiswaSelesai();
-    await renderDaftarReset();
-    await loadDashboard();
+    let msg = `✅ ${berhasil} berhasil`; if (gagal > 0) msg += ` · ❌ ${gagal} gagal`;
+    if (gagal > 0) { toast(msg, 'error'); alert('❌ Error:\n\n' + errors.slice(0, 10).join('\n')); } else toast(msg);
+    await renderSiswaSelesai(); await renderDaftarReset(); await loadDashboard();
 }
-
 async function renderDaftarReset() {
     const container = document.getElementById('listReset');
     if (!container) return;
@@ -882,20 +818,16 @@ async function renderDaftarReset() {
     if (!allReset.length) { container.innerHTML = '<div class="loading">Tidak ada reset aktif.</div>'; return; }
     let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">Total: <strong>${allReset.length}</strong> reset aktif</p>`;
     html += '<table><thead><tr><th>Username</th><th>Mapel</th><th>Jenis</th><th>Reset</th><th>Aksi</th></tr></thead><tbody>';
-    allReset.forEach(r => {
-        html += `<tr><td><code>${r.username||''}</code></td><td>${r.mapel||''}</td><td>${r.jenis||''}</td><td><span class="badge ${r.reset==='YA'?'badge-green':'badge-red'}">${r.reset||''}</span></td><td><button class="btn btn-sm btn-danger" onclick="deleteReset('${r._id}')"><i class="fas fa-trash"></i> Hapus</button></td></tr>`;
-    });
+    allReset.forEach(r => { html += `<tr><td><code>${r.username||''}</code></td><td>${r.mapel||''}</td><td>${r.jenis||''}</td><td><span class="badge ${r.reset==='YA'?'badge-green':'badge-red'}">${r.reset||''}</span></td><td><button class="btn btn-sm btn-danger" onclick="deleteReset('${r._id}')"><i class="fas fa-trash"></i> Hapus</button></td></tr>`; });
     html += '</tbody></table>';
     container.innerHTML = html;
 }
-
 async function bersihkanSesiLama() {
     if (!confirm('🧹 Bersihkan sesi lama?\n\nSesi yang >3 jam atau beda hari akan jadi "Kedaluwarsa".')) return;
     try {
         const sesiSnap = await window.Firebase.getDocs(window.Firebase.query(window.Firebase.collection(window.db, 'sesi_ujian'), window.Firebase.where('status', '==', 'Aktif')));
         let count = 0, stillActive = 0;
-        const now = new Date();
-        const hariIni = formatTanggalLocal(now);
+        const now = new Date(); const hariIni = formatTanggalLocal(now);
         for (const docSnap of sesiSnap.docs) {
             const sesi = docSnap.data();
             const waktuMulai = sesi.waktuMulai ? new Date(sesi.waktuMulai) : null;
@@ -905,41 +837,26 @@ async function bersihkanSesiLama() {
                 if (diffHours > 3) isExpired = true;
                 if (formatTanggalLocal(waktuMulai) !== hariIni) isExpired = true;
             } else isExpired = true;
-            if (isExpired) {
-                await window.Firebase.updateDoc(docSnap.ref, { status: 'Kedaluwarsa', waktuKedaluwarsa: new Date().toISOString() });
-                count++;
-            } else stillActive++;
+            if (isExpired) { await window.Firebase.updateDoc(docSnap.ref, { status: 'Kedaluwarsa', waktuKedaluwarsa: new Date().toISOString() }); count++; }
+            else stillActive++;
         }
         toast(`🧹 ${count} sesi lama dibersihkan, ${stillActive} masih aktif`);
         renderSiswaAktif();
     } catch(e) { toast('❌ Error: ' + e.message, 'error'); }
 }
-
 async function resetSiswaLangsung(username, mapel, jenis) {
     if (!confirm(`🔄 Reset ujian untuk:\n\nUsername: ${username}\nMapel: ${mapel}\nJenis: ${jenis}\n\nLanjutkan?`)) return;
     try {
         const nilaiSnap = await window.Firebase.getDocs(window.Firebase.query(window.Firebase.collection(window.db, 'nilai_akhir'), window.Firebase.where('username', '==', username), window.Firebase.where('mapel', '==', mapel), window.Firebase.where('jenisUjian', '==', jenis)));
-        const batch1 = window.Firebase.writeBatch(window.db);
-        nilaiSnap.forEach(d => batch1.delete(d.ref));
-        await batch1.commit();
+        const batch1 = window.Firebase.writeBatch(window.db); nilaiSnap.forEach(d => batch1.delete(d.ref)); await batch1.commit();
         const sesiSnap = await window.Firebase.getDocs(window.Firebase.query(window.Firebase.collection(window.db, 'sesi_ujian'), window.Firebase.where('username', '==', username), window.Firebase.where('mapel', '==', mapel), window.Firebase.where('status', '==', 'Aktif')));
-        const batch2 = window.Firebase.writeBatch(window.db);
-        sesiSnap.forEach(d => batch2.update(d.ref, { status: 'Dibatalkan', waktuBatal: new Date().toISOString() }));
-        await batch2.commit();
+        const batch2 = window.Firebase.writeBatch(window.db); sesiSnap.forEach(d => batch2.update(d.ref, { status: 'Dibatalkan', waktuBatal: new Date().toISOString() })); await batch2.commit();
         await window.Firebase.addDoc(window.Firebase.collection(window.db, 'cache_reset'), { username, mapel, jenis, reset: 'YA', timestamp: new Date().toISOString(), resetBy: 'admin' });
         toast(`✅ ${username} berhasil direset!`);
-        await renderSiswaAktif();
-        await renderSiswaSelesai();
-        await renderDaftarReset();
+        await renderSiswaAktif(); await renderSiswaSelesai(); await renderDaftarReset();
     } catch(e) { toast('❌ Error: ' + e.message, 'error'); }
 }
-
-async function deleteReset(id) {
-    if (!confirm('Hapus reset ini?')) return;
-    try { await window.Firebase.deleteDoc(window.Firebase.doc(window.db, 'cache_reset', id)); toast('🗑️ Reset dihapus'); renderDaftarReset(); }
-    catch(e) { toast('❌ ' + e.message, 'error'); }
-}
-
+async function deleteReset(id) { if (!confirm('Hapus reset ini?')) return; try { await window.Firebase.deleteDoc(window.Firebase.doc(window.db, 'cache_reset', id)); toast('🗑️ Reset dihapus'); renderDaftarReset(); } catch(e) { toast('❌ ' + e.message, 'error'); } }
 async function deleteAllReset() {
     if (!allReset.length) { toast('Tidak ada reset', 'error'); return; }
     if (!confirm(`⚠️ HAPUS SEMUA RESET?\n\nTotal: ${allReset.length} reset akan dihapus.`)) return;
@@ -947,64 +864,57 @@ async function deleteAllReset() {
     try {
         const b = window.Firebase.writeBatch(window.db);
         allReset.forEach(r => b.delete(window.Firebase.doc(window.db, 'cache_reset', r._id)));
-        await b.commit();
-        toast('🗑️ Semua reset dihapus');
-        renderDaftarReset();
+        await b.commit(); toast('🗑️ Semua reset dihapus'); renderDaftarReset();
     } catch(e) { toast('❌ ' + e.message, 'error'); }
 }
 
 // ==================== HASIL ====================
 let allHasil = [];
-
 async function renderHasil() {
     const snap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'nilai_akhir'));
     allHasil = [];
     snap.forEach(d => allHasil.push({ _id: d.id, ...d.data() }));
-
     const kelasSet = new Set(allHasil.map(h => h.kelas).filter(Boolean));
     const selKelas = document.getElementById('filterKelas');
     if (selKelas && selKelas.options.length <= 1) {
-        [...kelasSet].sort().forEach(k => {
-            const o = document.createElement('option');
-            o.value = k; o.textContent = k;
-            selKelas.appendChild(o);
-        });
+        [...kelasSet].sort().forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = k; selKelas.appendChild(o); });
     }
     const mapelSet = new Set(allHasil.map(h => h.mapel).filter(Boolean));
     const selMapel = document.getElementById('filterMapel');
     if (selMapel && selMapel.options.length <= 1) {
-        [...mapelSet].sort().forEach(m => {
-            const o = document.createElement('option');
-            o.value = m; o.textContent = m;
-            selMapel.appendChild(o);
-        });
+        [...mapelSet].sort().forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = m; selMapel.appendChild(o); });
     }
-
     const search = (document.getElementById('searchHasil')?.value || '').toLowerCase();
     const mapelFilter = document.getElementById('filterMapel')?.value || '';
     const kelasFilter = document.getElementById('filterKelas')?.value || '';
-
     let filtered = allHasil;
     if (search) filtered = filtered.filter(h => (h.nama||'').toLowerCase().includes(search) || (h.kelas||'').toLowerCase().includes(search));
     if (mapelFilter) filtered = filtered.filter(h => h.mapel === mapelFilter);
     if (kelasFilter) filtered = filtered.filter(h => h.kelas === kelasFilter);
-
     if (!filtered.length) { document.getElementById('listHasil').innerHTML = '<div class="loading">Belum ada nilai.</div>'; return; }
-
     filtered.sort((a,b) => (a.kelas||'').localeCompare(b.kelas||'') || (a.nama||'').localeCompare(b.nama||''));
-
     const totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
     if (pageHasil > totalPages) pageHasil = 1;
     const start = (pageHasil - 1) * PAGE_SIZE;
     const paginated = filtered.slice(start, start + PAGE_SIZE);
-
     let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">Menampilkan <strong>${paginated.length}</strong> dari <strong>${filtered.length}</strong> nilai</p>`;
-    html += '<table><thead><tr><th>Nama</th><th>Kelas</th><th>Mapel</th><th>Jenis</th><th>Skor</th><th>Nilai</th><th>Waktu</th><th>Aksi</th></tr></thead><tbody>';
+    html += '<table><thead><tr><th>Nama</th><th>Kelas</th><th>Mapel</th><th>Jenis</th><th>Skor Mentah</th><th>Nilai Akhir</th><th>Katrol</th><th>Waktu</th><th>Aksi</th></tr></thead><tbody>';
     paginated.forEach(h => {
-        const p = parseInt(h.persentase) || 0;
-        const warna = p >= 75 ? 'badge-green' : p >= 60 ? 'badge-yellow' : 'badge-red';
-        const btnDetail = `<button class="btn btn-sm btn-primary" onclick="lihatDetailJawaban('${(h.username||'').replace(/'/g,"\\'")}','${(h.mapel||'').replace(/'/g,"\\'")}','${(h.jenisUjian||'').replace(/'/g,"\\'")}')" title="Lihat detail jawaban"><i class="fas fa-search"></i> Detail</button>`;
-        html += `<tr><td>${h.nama||''}</td><td>${h.kelas||''}</td><td>${h.mapel||''}</td><td>${h.jenisUjian||''}</td><td><strong>${h.totalSkor}/${h.totalBobot}</strong></td><td><span class="badge ${warna}">${h.persentase||''}</span></td><td>${h.timestamp ? new Date(h.timestamp).toLocaleString('id-ID') : ''}</td><td>${btnDetail}</td></tr>`;
+        const persenAsli = parseInt(h.persentase) || 0;
+        const nilaiAkhir = h.nilaiKatrol != null ? Number(h.nilaiKatrol) : persenAsli;
+        const isKatrol = h.nilaiKatrol != null;
+        const warna = nilaiAkhir >= 75 ? 'badge-green' : nilaiAkhir >= 60 ? 'badge-yellow' : 'badge-red';
+        const katrolCol = isKatrol ? `<span class="badge" style="background:#FCE7F3;color:#BE185D">↑ ${persenAsli} → ${nilaiAkhir}</span>` : `<span style="color:#94A3B8;font-size:11px">-</span>`;
+        const btnDetail = `<button class="btn btn-sm btn-primary" onclick="lihatDetailJawaban('${(h.username||'').replace(/'/g,"\\'")}','${(h.mapel||'').replace(/'/g,"\\'")}','${(h.jenisUjian||'').replace(/'/g,"\\'")}')" title="Detail"><i class="fas fa-search"></i></button>`;
+        const btnKatrol = `<button class="btn btn-sm" onclick="openKatrolModal('${h._id}')" style="background:#EC4899;color:white" title="Katrol nilai"><i class="fas fa-arrow-up"></i></button>`;
+        html += `<tr>
+            <td>${h.nama||''}</td><td>${h.kelas||''}</td><td>${h.mapel||''}</td><td>${h.jenisUjian||''}</td>
+            <td><strong>${h.totalSkor||0}/${h.totalBobot||0}</strong></td>
+            <td><span class="badge ${warna}" style="font-size:14px;padding:6px 12px">${nilaiAkhir}</span></td>
+            <td>${katrolCol}</td>
+            <td style="font-size:12px">${h.timestamp ? new Date(h.timestamp).toLocaleString('id-ID') : ''}</td>
+            <td>${btnDetail} ${btnKatrol}</td>
+        </tr>`;
     });
     html += '</tbody></table>';
     html += buildPaginationHTML(filtered.length, pageHasil, 'goPageHasil');
@@ -1020,10 +930,7 @@ async function lihatDetailJawaban(username, mapel, jenis) {
     document.getElementById('modalDetailRekap').classList.add('active');
     try {
         const sesiSnap = await window.Firebase.getDocs(window.Firebase.query(window.Firebase.collection(window.db, 'sesi_ujian'), window.Firebase.where('username', '==', username), window.Firebase.where('mapel', '==', mapel), window.Firebase.where('jenisUjian', '==', jenis)));
-        if (sesiSnap.empty) {
-            document.getElementById('detailRekapBody').innerHTML = '<p style="text-align:center;padding:20px;color:#64748B">Tidak ada sesi ujian ditemukan.</p>';
-            return;
-        }
+        if (sesiSnap.empty) { document.getElementById('detailRekapBody').innerHTML = '<p style="text-align:center;padding:20px;color:#64748B">Tidak ada sesi ujian ditemukan.</p>'; return; }
         const sesiList = sesiSnap.docs.map(d => ({ _id: d.id, ...d.data() }));
         sesiList.sort((a, b) => {
             const wa = a.waktuMulai?.toDate ? a.waktuMulai.toDate() : new Date(a.waktuMulai || 0);
@@ -1031,109 +938,73 @@ async function lihatDetailJawaban(username, mapel, jenis) {
             return wb - wa;
         });
         const sesi = sesiList[0];
-
         const jawabSnap = await window.Firebase.getDocs(window.Firebase.query(window.Firebase.collection(window.db, 'jawaban_siswa'), window.Firebase.where('idSesi', '==', sesi.idSesi)));
         const jawabanMap = {};
         jawabSnap.forEach(d => { const r = d.data(); if (r.idSoal) jawabanMap[r.idSoal] = r; });
-
         const soalSnap = await window.Firebase.getDocs(window.Firebase.query(window.Firebase.collection(window.db, 'cache_soal'), window.Firebase.where('jenjang', '==', sesi.jenjang || ''), window.Firebase.where('mapel', '==', mapel), window.Firebase.where('jenis', '==', jenis)));
         const soalList = [];
         soalSnap.forEach(d => { const s = d.data(); if (s.status === 'Aktif') soalList.push({ _id: d.id, ...s }); });
-
         const mulai = sesi.waktuMulai ? (sesi.waktuMulai.toDate ? sesi.waktuMulai.toDate() : new Date(sesi.waktuMulai)) : null;
         const submit = sesi.waktuSelesai ? (sesi.waktuSelesai.toDate ? sesi.waktuSelesai.toDate() : new Date(sesi.waktuSelesai)) : null;
         const durasi = (mulai && submit) ? submit.getTime() - mulai.getTime() : null;
         const jmlSoal = soalList.length;
         const jmlDijawab = soalList.filter(s => jawabanMap[s.id] && jawabanMap[s.id].jawaban != null && jawabanMap[s.id].jawaban !== '').length;
         const jmlKosong = jmlSoal - jmlDijawab;
-
         const anomali = [];
         if (!mulai) anomali.push('Waktu mulai tidak tercatat');
-        if (!submit) anomali.push('Waktu submit tidak tercatat (ujian mungkin belum selesai)');
-        if (durasi != null && durasi < 0) anomali.push('Durasi NEGATIF (submit < mulai — indikasi manipulasi jam)');
-        if (durasi != null && durasi > 24 * 3600 * 1000) anomali.push('Durasi > 24 jam (sesi mungkin tidak ditutup)');
-        if (jmlSoal > 0 && jmlDijawab < jmlSoal * 0.5) anomali.push(`Hanya ${jmlDijawab}/${jmlSoal} soal dijawab (< 50%)`);
-
+        if (!submit) anomali.push('Waktu submit tidak tercatat');
+        if (durasi != null && durasi < 0) anomali.push('Durasi NEGATIF');
+        if (durasi != null && durasi > 24 * 3600 * 1000) anomali.push('Durasi > 24 jam');
+        if (jmlSoal > 0 && jmlDijawab < jmlSoal * 0.5) anomali.push(`Hanya ${jmlDijawab}/${jmlSoal} soal dijawab (<50%)`);
         const fmtTgl = (d) => d ? d.toLocaleString('id-ID', { hour12: false }) : '-';
-        const fmtDur = (ms) => {
-            if (ms == null || ms < 0) return '-';
-            const s = Math.floor(ms / 1000);
-            return `${Math.floor(s/3600)}j ${Math.floor((s%3600)/60)}m ${s%60}d`;
-        };
-
-        let html = `
-        <div class="info-box" style="margin-bottom:16px">
-            <strong>📋 Info Sesi</strong>
+        const fmtDur = (ms) => { if (ms == null || ms < 0) return '-'; const s = Math.floor(ms / 1000); return `${Math.floor(s/3600)}j ${Math.floor((s%3600)/60)}m ${s%60}d`; };
+        let html = `<div class="info-box" style="margin-bottom:16px"><strong>📋 Info Sesi</strong>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px;font-size:13px">
-                <div><strong>Nama:</strong> ${sesi.nama || username}</div>
-                <div><strong>Kelas:</strong> ${sesi.kelas || '-'}</div>
-                <div><strong>NIS:</strong> ${sesi.nis || '-'}</div>
-                <div><strong>Jenjang:</strong> ${sesi.jenjang || '-'}</div>
-                <div><strong>Mulai:</strong> ${fmtTgl(mulai)}</div>
-                <div><strong>Submit:</strong> ${fmtTgl(submit)}</div>
-                <div><strong>Durasi:</strong> ${fmtDur(durasi)}</div>
-                <div><strong>Status Sesi:</strong> <span class="badge ${sesi.status==='Selesai'?'badge-green':sesi.status==='Aktif'?'badge-blue':'badge-red'}">${sesi.status || '-'}</span></div>
-                <div><strong>Total Soal:</strong> ${jmlSoal}</div>
-                <div><strong>Dijawab:</strong> ${jmlDijawab} · <strong>Kosong:</strong> ${jmlKosong}</div>
-            </div>
-        </div>`;
-
+                <div><strong>Nama:</strong> ${sesi.nama || username}</div><div><strong>Kelas:</strong> ${sesi.kelas || '-'}</div>
+                <div><strong>NIS:</strong> ${sesi.nis || '-'}</div><div><strong>Jenjang:</strong> ${sesi.jenjang || '-'}</div>
+                <div><strong>Mulai:</strong> ${fmtTgl(mulai)}</div><div><strong>Submit:</strong> ${fmtTgl(submit)}</div>
+                <div><strong>Durasi:</strong> ${fmtDur(durasi)}</div><div><strong>Status Sesi:</strong> <span class="badge ${sesi.status==='Selesai'?'badge-green':sesi.status==='Aktif'?'badge-blue':'badge-red'}">${sesi.status || '-'}</span></div>
+                <div><strong>Total Soal:</strong> ${jmlSoal}</div><div><strong>Dijawab:</strong> ${jmlDijawab} · <strong>Kosong:</strong> ${jmlKosong}</div>
+            </div></div>`;
         if (anomali.length) {
-            html += `<div class="info-box" style="background:#FEF3C7;border-left-color:#F59E0B;color:#92400E">
-                <strong>⚠️ Anomali Terdeteksi:</strong>
-                <ul style="margin:8px 0 0 20px">${anomali.map(a => `<li>${a}</li>`).join('')}</ul>
-            </div>`;
+            html += `<div class="info-box" style="background:#FEF3C7;border-left-color:#F59E0B;color:#92400E"><strong>⚠️ Anomali:</strong><ul style="margin:8px 0 0 20px">${anomali.map(a => `<li>${a}</li>`).join('')}</ul></div>`;
         } else {
-            html += `<div class="info-box" style="background:#DCFCE7;border-left-color:#22C55E;color:#166534">
-                <strong>✅ Tidak ada anomali terdeteksi.</strong>
-            </div>`;
+            html += `<div class="info-box" style="background:#DCFCE7;border-left-color:#22C55E;color:#166534"><strong>✅ Tidak ada anomali.</strong></div>`;
         }
-
         html += `<h4 style="margin:16px 0 8px;color:#1E3A8A">📝 Detail Jawaban per Soal</h4>`;
-        if (!soalList.length) {
-            html += `<p style="color:#64748B">Tidak ada soal aktif untuk ujian ini.</p>`;
-        } else {
+        if (!soalList.length) html += `<p style="color:#64748B">Tidak ada soal aktif untuk ujian ini.</p>`;
+        else {
             html += '<table><thead><tr><th>No</th><th>Soal</th><th>Tipe</th><th>Jawaban Siswa</th><th>Kunci</th><th>Skor</th><th>Waktu Jawab</th></tr></thead><tbody>';
             soalList.forEach((s, i) => {
                 const jw = jawabanMap[s.id];
                 const adaJawaban = jw && jw.jawaban != null && jw.jawaban !== '';
                 const jwText = adaJawaban ? String(jw.jawaban).substring(0, 100) : '<em style="color:#94A3B8">(kosong)</em>';
                 const waktuJawab = jw && jw.timestamp ? new Date(jw.timestamp).toLocaleString('id-ID', { hour12: false }) : '-';
-                const skor = jw && jw.jawaban != null && jw.jawaban !== ''
-  ? hitungSkorParsial(s, jw.jawaban, Number(s.bobot) || 1)
-  : '-';
+                const skor = adaJawaban ? hitungSkorParsial(s, jw.jawaban, Number(s.bobot) || 1) : '-';
                 const tanya = String(s.pertanyaan || '').replace(/"/g, '&quot;');
                 html += `<tr style="${!adaJawaban ? 'background:#FEF2F2' : ''}">
-                    <td>${i + 1}</td>
-                    <td title="${tanya}">${String(s.pertanyaan || '').substring(0, 60)}${String(s.pertanyaan || '').length > 60 ? '…' : ''}</td>
-                    <td><span class="badge badge-yellow">${s.tipe || '-'}</span></td>
-                    <td>${jwText}</td>
-                    <td><code>${s.kunci || '-'}</code></td>
-                    <td>${skor}</td>
+                    <td>${i + 1}</td><td title="${tanya}">${String(s.pertanyaan || '').substring(0, 60)}${String(s.pertanyaan || '').length > 60 ? '…' : ''}</td>
+                    <td><span class="badge badge-yellow">${s.tipe || '-'}</span></td><td>${jwText}</td>
+                    <td><code>${s.kunci || '-'}</code></td><td>${skor}</td>
                     <td style="font-size:11px;color:#64748B">${waktuJawab}</td>
                 </tr>`;
             });
             html += '</tbody></table>';
         }
         document.getElementById('detailRekapBody').innerHTML = html;
-    } catch (e) {
-        console.error(e);
-        document.getElementById('detailRekapBody').innerHTML = `<p style="color:#EF4444;padding:20px">Gagal memuat: ${e.message}</p>`;
-    }
+    } catch (e) { console.error(e); document.getElementById('detailRekapBody').innerHTML = `<p style="color:#EF4444;padding:20px">Gagal memuat: ${e.message}</p>`; }
 }
 function tutupDetailRekap() { document.getElementById('modalDetailRekap').classList.remove('active'); }
 
 // ═══════════════════════════════════════════════════════════
-// HITUNG ULANG NILAI — koreksi nilai_akhir yang salah
+// HITUNG ULANG NILAI
 // ═══════════════════════════════════════════════════════════
 function cekJawabanBenar(soal, jawabanSiswa) {
     if (jawabanSiswa == null || jawabanSiswa === '') return false;
     const j = String(jawabanSiswa).trim();
     const kunci = String(soal.kunci || '').trim();
     const tipe = String(soal.tipe || '').trim();
-
     if (tipe === 'PG' || tipe === 'B/S') return j === kunci;
-
     if (tipe === 'PGK') {
         try {
             const ja = JSON.parse(j), ka = JSON.parse(kunci);
@@ -1143,7 +1014,6 @@ function cekJawabanBenar(soal, jawabanSiswa) {
             return a.length === b.length && a.every((v, i) => v === b[i]);
         } catch (e) { return false; }
     }
-
     if (tipe === 'Jodoh') {
         try {
             const jo = JSON.parse(j), ko = JSON.parse(kunci);
@@ -1152,7 +1022,6 @@ function cekJawabanBenar(soal, jawabanSiswa) {
             return keys.every(k => jo[k] === ko[k]);
         } catch (e) { return false; }
     }
-
     if (tipe === 'Isian') {
         const jn = j.toLowerCase().replace(/\s+/g, ' ').trim();
         const kn = kunci.toLowerCase().replace(/\s+/g, ' ').trim();
@@ -1162,13 +1031,11 @@ function cekJawabanBenar(soal, jawabanSiswa) {
     }
     return false;
 }
-
 function hitungSkorParsial(soal, jawabanSiswa, bobot) {
     if (jawabanSiswa == null || jawabanSiswa === '') return 0;
     const j = String(jawabanSiswa).trim();
     const kunci = String(soal.kunci || '').trim();
     const tipe = String(soal.tipe || '').trim();
-
     if (tipe === 'Jodoh') {
         try {
             const jo = JSON.parse(j), ko = JSON.parse(kunci);
@@ -1179,7 +1046,6 @@ function hitungSkorParsial(soal, jawabanSiswa, bobot) {
             return (benar / keys.length) * bobot;
         } catch (e) { return 0; }
     }
-
     if (tipe === 'B/S') {
         try {
             if (j.startsWith('[')) {
@@ -1191,20 +1057,15 @@ function hitungSkorParsial(soal, jawabanSiswa, bobot) {
         } catch (e) {}
         return j === kunci ? bobot : 0;
     }
-
     return cekJawabanBenar(soal, jawabanSiswa) ? bobot : 0;
 }
-
 async function hitungUlangSemuaNilai() {
     if (!confirm('🔄 HITUNG ULANG SEMUA NILAI?\n\nSistem akan:\n• Baca semua nilai_akhir\n• Hitung ulang dari jawaban_siswa + cache_soal\n• Update nilai_akhir yang tidak cocok\n\nProses ini TIDAK menghapus jawaban siswa. Lanjutkan?')) return;
-
     toast('⏳ Memuat data...', 'info');
     try {
         const soalSnap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'cache_soal'));
         const soalMap = {};
         soalSnap.forEach(d => { const s = d.data(); if (s.id) soalMap[s.id] = s; });
-        console.log(`📚 ${Object.keys(soalMap).length} soal dimuat`);
-
         const jawabSnap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'jawaban_siswa'));
         const jawabPerSesi = {};
         jawabSnap.forEach(d => {
@@ -1213,28 +1074,17 @@ async function hitungUlangSemuaNilai() {
             if (!jawabPerSesi[r.idSesi]) jawabPerSesi[r.idSesi] = {};
             jawabPerSesi[r.idSesi][r.idSoal] = r.jawaban;
         });
-
         const nilaiSnap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'nilai_akhir'));
         if (nilaiSnap.empty) { toast('Tidak ada nilai untuk dihitung ulang', 'info'); return; }
-
         const updates = [];
         let totalDiperiksa = 0;
-
         nilaiSnap.forEach(d => {
             const n = d.data();
             if (!n.idSesi) return;
             totalDiperiksa++;
-
             const jawaban = jawabPerSesi[n.idSesi] || {};
             let totalSkor = 0, totalBobot = 0, jumlahBenar = 0;
-
-            const soalUjian = Object.values(soalMap).filter(s =>
-                s.mapel === n.mapel &&
-                s.jenis === n.jenisUjian &&
-                (s.status === 'Aktif' || s.status === undefined) &&
-                (s.jenjang === n.jenjang || !n.jenjang)
-            );
-
+            const soalUjian = Object.values(soalMap).filter(s => s.mapel === n.mapel && s.jenis === n.jenisUjian && (s.status === 'Aktif' || s.status === undefined) && (s.jenjang === n.jenjang || !n.jenjang));
             soalUjian.forEach(s => {
                 const bobot = Number(s.bobot) || 1;
                 totalBobot += bobot;
@@ -1244,62 +1094,31 @@ async function hitungUlangSemuaNilai() {
                 totalSkor += skor;
                 if (cekJawabanBenar(s, jw)) jumlahBenar++;
             });
-
             if (totalSkor > totalBobot) totalSkor = totalBobot;
             const persen = totalBobot > 0 ? Math.round((totalSkor / totalBobot) * 100) : 0;
-
             const skorLama = Number(n.totalSkor) || 0;
             const persenLama = parseInt(n.persentase) || 0;
-
             if (Math.abs(skorLama - totalSkor) > 0.01 || Math.abs(persenLama - persen) > 0.5) {
-                updates.push({
-                    ref: d.ref, nama: n.nama || n.username, mapel: n.mapel, jenisUjian: n.jenisUjian,
-                    skorLama, skorBaru: totalSkor, persenLama, persenBaru: persen,
-                    totalBobot, jumlahBenar, jumlahSoal: soalUjian.length
-                });
+                updates.push({ ref: d.ref, nama: n.nama || n.username, mapel: n.mapel, jenisUjian: n.jenisUjian, skorLama, skorBaru: totalSkor, persenLama, persenBaru: persen, totalBobot, jumlahBenar, jumlahSoal: soalUjian.length });
             }
         });
-
-        if (!updates.length) {
-            toast(`✅ Semua nilai sudah benar (${totalDiperiksa} record diperiksa)`);
-            return;
-        }
-
+        if (!updates.length) { toast(`✅ Semua nilai sudah benar (${totalDiperiksa} record diperiksa)`); return; }
         const previewHtml = `
-            <div class="info-box" style="background:#FEF3C7;border-left-color:#F59E0B;color:#92400E">
-                <strong>⚠️ Ditemukan ${updates.length} nilai yang TIDAK COCOK</strong> dari ${totalDiperiksa} record.
-                <br>Ini menandakan adanya bug perhitungan sebelumnya.
-            </div>
-            <p style="font-size:13px;margin-bottom:12px;color:#475569">Klik <strong>Perbaiki Semua</strong> untuk update nilai_akhir sesuai perhitungan benar.</p>
+            <div class="info-box" style="background:#FEF3C7;border-left-color:#F59E0B;color:#92400E"><strong>⚠️ Ditemukan ${updates.length} nilai TIDAK COCOK</strong> dari ${totalDiperiksa} record.</div>
+            <p style="font-size:13px;margin-bottom:12px;color:#475569">Klik <strong>Perbaiki Semua</strong> untuk update nilai_akhir.</p>
             <div style="max-height:300px;overflow:auto;border:1px solid #E2E8F0;border-radius:8px">
-                <table>
-                    <thead><tr><th>Nama</th><th>Mapel</th><th>Skor Lama</th><th>Skor Baru</th><th>Benar</th></tr></thead>
-                    <tbody>
-                        ${updates.map(u => `
-                            <tr>
-                                <td><strong>${u.nama}</strong></td>
-                                <td>${u.mapel}</td>
-                                <td><span class="badge badge-red">${u.skorLama}/${u.totalBobot}</span></td>
-                                <td><span class="badge badge-green">${u.skorBaru}/${u.totalBobot}</span></td>
-                                <td>${u.jumlahBenar}/${u.jumlahSoal}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
+                <table><thead><tr><th>Nama</th><th>Mapel</th><th>Skor Lama</th><th>Skor Baru</th><th>Benar</th></tr></thead><tbody>
+                    ${updates.map(u => `<tr><td><strong>${u.nama}</strong></td><td>${u.mapel}</td><td><span class="badge badge-red">${u.skorLama}/${u.totalBobot}</span></td><td><span class="badge badge-green">${u.skorBaru}/${u.totalBobot}</span></td><td>${u.jumlahBenar}/${u.jumlahSoal}</td></tr>`).join('')}
+                </tbody></table>
             </div>
             <div style="margin-top:16px;display:flex;gap:10px">
                 <button class="btn btn-secondary" onclick="closeModal()">Batal</button>
                 <button class="btn btn-success" onclick="eksekusiHitungUlang()">✅ Perbaiki Semua</button>
-            </div>
-        `;
+            </div>`;
         window._pendingNilaiUpdates = updates;
         openModal('🔄 Preview Perbaikan Nilai', previewHtml);
-    } catch (e) {
-        console.error(e);
-        toast('❌ Error: ' + e.message, 'error');
-    }
+    } catch (e) { console.error(e); toast('❌ Error: ' + e.message, 'error'); }
 }
-
 async function eksekusiHitungUlang() {
     const updates = window._pendingNilaiUpdates || [];
     if (!updates.length) { closeModal(); return; }
@@ -1308,50 +1127,32 @@ async function eksekusiHitungUlang() {
     let berhasil = 0, gagal = 0;
     for (const u of updates) {
         try {
-            await window.Firebase.updateDoc(u.ref, {
-                totalSkor: u.skorBaru,
-                totalBobot: u.totalBobot,
-                persentase: u.persenBaru + '%',
-                jumlahBenar: u.jumlahBenar,
-                jumlahSoal: u.jumlahSoal,
-                correctedAt: new Date().toISOString(),
-                correctedFrom: u.skorLama
-            });
+            await window.Firebase.updateDoc(u.ref, { totalSkor: u.skorBaru, totalBobot: u.totalBobot, persentase: u.persenBaru + '%', jumlahBenar: u.jumlahBenar, jumlahSoal: u.jumlahSoal, correctedAt: new Date().toISOString(), correctedFrom: u.skorLama });
             berhasil++;
         } catch (e) { console.error('Gagal update', u.nama, e); gagal++; }
     }
-    let msg = `✅ ${berhasil} nilai diperbaiki`;
-    if (gagal > 0) msg += ` · ❌ ${gagal} gagal`;
+    let msg = `✅ ${berhasil} nilai diperbaiki`; if (gagal > 0) msg += ` · ❌ ${gagal} gagal`;
     toast(msg, gagal > 0 ? 'error' : 'success');
     window._pendingNilaiUpdates = null;
-    renderHasil();
-    loadDashboard();
+    renderHasil(); loadDashboard();
 }
-
 function exportHasil() {
     if (!allHasil.length) { toast('Tidak ada data', 'error'); return; }
     const SEP = ';';
-    const headers = ['No', 'NIS', 'Nama', 'Kelas', 'Jenjang', 'Mapel', 'Jenis Ujian', 'Total Skor', 'Total Bobot', 'Persentase', 'Waktu'];
+    const headers = ['No', 'NIS', 'Nama', 'Kelas', 'Jenjang', 'Mapel', 'Jenis Ujian', 'Total Skor', 'Total Bobot', 'Nilai Akhir', 'Waktu'];
     const rows = allHasil.map((h, i) => {
         const waktu = h.timestamp ? new Date(h.timestamp).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
-        return [i + 1, h.nis || '', h.nama || '', h.kelas || '', h.jenjang || '', h.mapel || '', h.jenisUjian || '', h.totalSkor || 0, h.totalBobot || 0, parseInt(h.persentase) || 0, waktu];
+        const nilaiAkhir = h.nilaiKatrol != null ? Number(h.nilaiKatrol) : (parseInt(h.persentase) || 0);
+        return [i + 1, h.nis || '', h.nama || '', h.kelas || '', h.jenjang || '', h.mapel || '', h.jenisUjian || '', h.totalSkor || 0, h.totalBobot || 0, nilaiAkhir, waktu];
     });
-    function escapeCSV(val) {
-        if (val === null || val === undefined) return '';
-        const str = String(val);
-        if (str.includes(SEP) || str.includes('"') || str.includes('\n')) return '"' + str.replace(/"/g, '""') + '"';
-        return str;
-    }
+    function escapeCSV(val) { if (val === null || val === undefined) return ''; const str = String(val); if (str.includes(SEP) || str.includes('"') || str.includes('\n')) return '"' + str.replace(/"/g, '""') + '"'; return str; }
     let csv = headers.map(escapeCSV).join(SEP) + '\r\n';
     rows.forEach(row => { csv += row.map(escapeCSV).join(SEP) + '\r\n'; });
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
+    const link = document.createElement('a'); link.href = URL.createObjectURL(blob);
     link.download = 'hasil_ujian_' + new Date().toISOString().split('T')[0] + '.csv';
-    link.click();
-    toast('✅ CSV berhasil di-export!');
+    link.click(); toast('✅ CSV berhasil di-export!');
 }
-
 function exportHasilXLS() {
     if (!allHasil.length) { toast('Tidak ada data', 'error'); return; }
     const sorted = [...allHasil].sort((a,b) => (a.kelas||'').localeCompare(b.kelas||'') || (a.nama||'').localeCompare(b.nama||''));
@@ -1370,48 +1171,42 @@ function exportHasilXLS() {
     <p style="font-family: Arial; font-size: 12px;">Tanggal Export: <strong>${new Date().toLocaleString('id-ID')}</strong><br>Total Data: <strong>${sorted.length}</strong> nilai</p>
     <table><thead><tr><th>No</th><th>NIS</th><th>Nama</th><th>Kelas</th><th>Jenjang</th><th>Mapel</th><th>Jenis Ujian</th><th>Skor</th><th>Total</th><th>Nilai</th><th>Waktu</th></tr></thead><tbody>`;
     sorted.forEach((h, i) => {
-        const p = parseInt(h.persentase) || 0;
+        const p = h.nilaiKatrol != null ? Number(h.nilaiKatrol) : (parseInt(h.persentase) || 0);
         const warna = p >= 75 ? 'green' : p >= 60 ? 'yellow' : 'red';
         const waktu = h.timestamp ? new Date(h.timestamp).toLocaleString('id-ID') : '';
-        html += `<tr><td class="center">${i+1}</td><td>${h.nis||''}</td><td>${h.nama||''}</td><td class="center">${h.kelas||''}</td><td class="center">${h.jenjang||''}</td><td>${h.mapel||''}</td><td>${h.jenisUjian||''}</td><td class="center">${h.totalSkor||0}</td><td class="center">${h.totalBobot||0}</td><td class="${warna}">${p}%</td><td>${waktu}</td></tr>`;
+        html += `<tr><td class="center">${i+1}</td><td>${h.nis||''}</td><td>${h.nama||''}</td><td class="center">${h.kelas||''}</td><td class="center">${h.jenjang||''}</td><td>${h.mapel||''}</td><td>${h.jenisUjian||''}</td><td class="center">${h.totalSkor||0}</td><td class="center">${h.totalBobot||0}</td><td class="${warna}">${p}</td><td>${waktu}</td></tr>`;
     });
     html += `</tbody></table></body></html>`;
     const blob = new Blob(['\uFEFF' + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
+    const link = document.createElement('a'); link.href = URL.createObjectURL(blob);
     link.download = 'hasil_ujian_' + new Date().toISOString().split('T')[0] + '.xls';
-    link.click();
-    toast('✅ Excel berhasil di-export!');
+    link.click(); toast('✅ Excel berhasil di-export!');
 }
-
 async function deleteAllNilai() {
     if (!confirm('⚠️ HAPUS SEMUA NILAI?')) return;
     if (!confirm('Yakin? ' + allHasil.length + ' nilai akan dihapus!')) return;
     const b = window.Firebase.writeBatch(window.db);
     allHasil.forEach(h => b.delete(window.Firebase.doc(window.db, 'nilai_akhir', h._id)));
-    await b.commit();
-    toast('🗑️ Semua nilai dihapus'); renderHasil(); loadDashboard();
+    await b.commit(); toast('🗑️ Semua nilai dihapus'); renderHasil(); loadDashboard();
 }
 
-// ==================== PENGATURAN PELANGGARAN ====================
+// ==================== PENGATURAN ====================
 const DEFAULT_PELANGGARAN = {
     FULLSCREEN_EXIT:  { enabled: true, freeze: 30, max: 5,  label: 'Keluar Fullscreen', icon: 'fa-expand' },
     TAB_SWITCH:       { enabled: true, freeze: 30, max: 5,  label: 'Pindah Tab', icon: 'fa-window-restore' },
     RIGHT_CLICK:      { enabled: true, freeze: 30, max: 5,  label: 'Klik Kanan', icon: 'fa-mouse-pointer' },
     PRINT_SCREEN:     { enabled: true, freeze: 30, max: 5,  label: 'Screenshot Keyboard', icon: 'fa-camera' },
     KEYBOARD:         { enabled: true, freeze: 30, max: 5,  label: 'Shortcut Keyboard', icon: 'fa-keyboard' },
-    WINDOW_BLUR:      { enabled: true, freeze: 30, max: 3,  label: 'Keluar Jendela (Aplikasi Lain)', icon: 'fa-window-close' },
+    WINDOW_BLUR:      { enabled: true, freeze: 30, max: 3,  label: 'Keluar Jendela', icon: 'fa-window-close' },
     MOUSE_LEAVE:      { enabled: true, freeze: 0,  max: 99, label: 'Kursor Keluar (Warning)', icon: 'fa-arrow-up' },
     MULTI_TOUCH:      { enabled: true, freeze: 0,  max: 99, label: 'Multi-Touch >3 Jari', icon: 'fa-hand-pointer' },
     RAPID_TOUCH:      { enabled: true, freeze: 0,  max: 99, label: 'Sentuhan Cepat', icon: 'fa-fingerprint' },
     RESIZE_DRASTIC:   { enabled: true, freeze: 0,  max: 99, label: 'Resize Drastis', icon: 'fa-arrows-alt' },
     SPLIT_SCREEN:     { enabled: true, freeze: 0,  max: 99, label: 'Split Screen', icon: 'fa-columns' },
     DEVTOOLS_OPEN:    { enabled: true, freeze: 45, max: 5,  label: 'DevTools Terbuka', icon: 'fa-code' },
-    SCREENSHOT_DETECT:{ enabled: true, freeze: 0,  max: 99, label: 'Deteksi Screenshot (Mobile)', icon: 'fa-mobile-alt' }
+    SCREENSHOT_DETECT:{ enabled: true, freeze: 0,  max: 99, label: 'Deteksi Screenshot', icon: 'fa-mobile-alt' }
 };
-
 let pengaturanPelanggaran = JSON.parse(JSON.stringify(DEFAULT_PELANGGARAN));
-
 async function loadPengaturan() {
     try {
         const snap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'pengaturan'));
@@ -1426,7 +1221,6 @@ async function loadPengaturan() {
         renderPengaturanPelanggaran();
     } catch(e) { console.error(e); renderPengaturanPelanggaran(); }
 }
-
 function renderPengaturanPelanggaran() {
     let html = '';
     for (let key in pengaturanPelanggaran) {
@@ -1434,22 +1228,20 @@ function renderPengaturanPelanggaran() {
         html += `<div class="pelanggaran-item">
             <div class="pelanggaran-header">
                 <i class="fas ${p.icon}" style="color:#1E3A8A;width:20px;text-align:center"></i>
-                <strong>${p.label}</strong>
-                <code>${key}</code>
+                <strong>${p.label}</strong><code>${key}</code>
                 <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
                     <input type="checkbox" id="enable_${key}" ${p.enabled?'checked':''} onchange="togglePelanggaran('${key}')" style="width:auto;cursor:pointer">
                     <span style="color:${p.enabled?'#16A34A':'#94A3B8'};font-weight:600" id="label_${key}">${p.enabled?'ON':'OFF'}</span>
                 </label>
             </div>
             <div class="pelanggaran-grid">
-                <div><label style="font-size:11px;color:#64748B;display:block;margin-bottom:4px">Freeze Duration (detik, 0=warning)</label><input type="number" id="freeze_${key}" value="${p.freeze}" min="0" onchange="updatePelanggaran('${key}')"></div>
+                <div><label style="font-size:11px;color:#64748B;display:block;margin-bottom:4px">Freeze Duration (detik)</label><input type="number" id="freeze_${key}" value="${p.freeze}" min="0" onchange="updatePelanggaran('${key}')"></div>
                 <div><label style="font-size:11px;color:#64748B;display:block;margin-bottom:4px">Max sebelum dibatalkan</label><input type="number" id="max_${key}" value="${p.max}" min="1" onchange="updatePelanggaran('${key}')"></div>
             </div>
         </div>`;
     }
     document.getElementById('listPengaturanPelanggaran').innerHTML = html;
 }
-
 function togglePelanggaran(key) {
     const checkbox = document.getElementById(`enable_${key}`);
     const label = document.getElementById(`label_${key}`);
@@ -1457,38 +1249,279 @@ function togglePelanggaran(key) {
     label.textContent = checkbox.checked ? 'ON' : 'OFF';
     label.style.color = checkbox.checked ? '#16A34A' : '#94A3B8';
 }
-
 function updatePelanggaran(key) {
     pengaturanPelanggaran[key].freeze = parseInt(document.getElementById(`freeze_${key}`).value) || 0;
     pengaturanPelanggaran[key].max = parseInt(document.getElementById(`max_${key}`).value) || 5;
 }
-
 async function savePengaturan() {
     const globalFreeze = parseInt(document.getElementById('setGlobalFreeze').value) || 30;
     const globalMax = parseInt(document.getElementById('setGlobalMax').value) || 5;
     for (let key in pengaturanPelanggaran) {
-        const f = document.getElementById(`freeze_${key}`);
-        const m = document.getElementById(`max_${key}`);
-        const e = document.getElementById(`enable_${key}`);
+        const f = document.getElementById(`freeze_${key}`), m = document.getElementById(`max_${key}`), e = document.getElementById(`enable_${key}`);
         if (f) pengaturanPelanggaran[key].freeze = parseInt(f.value) || 0;
         if (m) pengaturanPelanggaran[key].max = parseInt(m.value) || 5;
         if (e) pengaturanPelanggaran[key].enabled = e.checked;
     }
     try {
-        await window.Firebase.setDoc(window.Firebase.doc(window.db, 'pengaturan', 'pelanggaran'), {
-            globalFreeze, globalMax, items: pengaturanPelanggaran, updatedAt: new Date().toISOString()
-        });
+        await window.Firebase.setDoc(window.Firebase.doc(window.db, 'pengaturan', 'pelanggaran'), { globalFreeze, globalMax, items: pengaturanPelanggaran, updatedAt: new Date().toISOString() });
         toast('✅ Pengaturan disimpan!');
     } catch(e) { toast('❌ ' + e.message, 'error'); }
 }
-
 async function resetPengaturan() {
     if (!confirm('🔄 Reset ke default?')) return;
     pengaturanPelanggaran = JSON.parse(JSON.stringify(DEFAULT_PELANGGARAN));
     document.getElementById('setGlobalFreeze').value = 30;
     document.getElementById('setGlobalMax').value = 5;
-    renderPengaturanPelanggaran();
-    toast('🔄 Direset');
+    renderPengaturanPelanggaran(); toast('🔄 Direset');
+}
+
+// ═══════════════════════════════════════════════════════════
+// KATROL NILAI
+// ═══════════════════════════════════════════════════════════
+let _pendingKatrol = null;
+function hitungNilaiKatrol(persenAwal, mode, value, maxNilai) {
+    let hasil = persenAwal;
+    const v = Number(value) || 0;
+    const max = Math.min(Number(maxNilai) || 100, 100);
+    if (mode === 'add') hasil = persenAwal + v;
+    else if (mode === 'minimum') hasil = Math.max(persenAwal, v);
+    else if (mode === 'multiply') hasil = persenAwal * v;
+    else if (mode === 'sqrt') hasil = Math.sqrt(persenAwal) * 10;
+    else if (mode === 'set') hasil = v;
+    return Math.round(Math.max(0, Math.min(hasil, max)) * 10) / 10;
+}
+function openKatrolModal(idRecord = null) {
+    let infoSiswa = '';
+    if (idRecord) {
+        const rec = allHasil.find(x => x._id === idRecord);
+        if (rec) {
+            infoSiswa = `<div class="info-box"><strong>${rec.nama}</strong> · ${rec.kelas} · ${rec.mapel} · ${rec.jenisUjian}<br>Nilai asli: <strong>${parseInt(rec.persentase)||0}</strong>${rec.nilaiKatrol != null ? ` · Nilai katrol sekarang: <strong>${rec.nilaiKatrol}</strong>` : ''}</div>`;
+        }
+    }
+    openModal(idRecord ? '🎯 Katrol Nilai (1 siswa)' : '🎯 Katrol Nilai Massal', `
+        ${infoSiswa}
+        <div class="info-box" style="background:#FEF3C7;border-left-color:#F59E0B;color:#92400E">
+            <strong>⚠️ Perhatian:</strong> Fitur ini mengubah nilai siswa. Nilai asli (persentase) tetap tersimpan.<br>
+            <small>💡 Hitung Ulang Nilai <b>tidak</b> menghapus katrol (field terpisah).</small>
+        </div>
+        ${!idRecord ? `<div class="form-row">
+            <div class="form-group"><label>Filter Kelas (kosong = semua)</label><input id="katrolKelas" placeholder="cth: 9A"></div>
+            <div class="form-group"><label>Filter Mapel (kosong = semua)</label><input id="katrolMapel" placeholder="cth: Matematika"></div>
+        </div>` : ''}
+        <div class="form-group"><label>Metode</label>
+            <select id="katrolMode">
+                <option value="add">➕ Tambah Poin (+X)</option>
+                <option value="minimum">⬆️ Naikkan ke Minimum (X)</option>
+                <option value="multiply">✖️ Kalikan (×X)</option>
+                <option value="sqrt">√ Transformasi Akar</option>
+                <option value="set">🎯 Set Nilai Tetap (X)</option>
+            </select>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Nilai X</label><input type="number" id="katrolValue" value="5" step="0.5" min="0"></div>
+            <div class="form-group"><label>Nilai Maksimal (cap)</label><input type="number" id="katrolMax" value="100" min="1" max="100"></div>
+        </div>
+        <div class="form-group">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" id="katrolReset" style="width:auto">
+                <span>🔄 Reset katrol (kembalikan ke nilai asli)</span>
+            </label>
+        </div>
+        <div style="display:flex;gap:10px">
+            <button class="btn btn-primary" onclick="previewKatrol('${idRecord||''}')"><i class="fas fa-eye"></i> Preview</button>
+            <button class="btn btn-secondary" onclick="closeModal()">Batal</button>
+        </div>
+    `);
+}
+async function previewKatrol(idRecord) {
+    const mode = document.getElementById('katrolMode').value;
+    const value = parseFloat(document.getElementById('katrolValue').value) || 0;
+    const maxNilai = parseFloat(document.getElementById('katrolMax').value) || 100;
+    const resetMode = document.getElementById('katrolReset')?.checked || false;
+    let targets = [];
+    if (idRecord) {
+        const rec = allHasil.find(x => x._id === idRecord);
+        if (rec) targets.push(rec);
+    } else {
+        const kf = (document.getElementById('katrolKelas')?.value || '').toLowerCase().trim();
+        const mf = (document.getElementById('katrolMapel')?.value || '').toLowerCase().trim();
+        targets = allHasil.filter(h => {
+            if (kf && (h.kelas||'').toLowerCase() !== kf) return false;
+            if (mf && (h.mapel||'').toLowerCase() !== mf) return false;
+            return true;
+        });
+    }
+    if (!targets.length) { toast('Tidak ada data yang cocok', 'error'); return; }
+    const preview = targets.map(t => {
+        const persenAsli = parseInt(t.persentase) || 0;
+        const nilaiSekarang = t.nilaiKatrol != null ? Number(t.nilaiKatrol) : persenAsli;
+        const nilaiBaru = resetMode ? persenAsli : hitungNilaiKatrol(persenAsli, mode, value, maxNilai);
+        return { t, persenAsli, nilaiSekarang, nilaiBaru };
+    });
+    const berubah = preview.filter(p => Math.abs(p.nilaiSekarang - p.nilaiBaru) > 0.01);
+    _pendingKatrol = { preview, mode, value, maxNilai, resetMode };
+    let html = `
+        <div class="info-box" style="background:${resetMode ? '#FEE2E2' : '#FEF3C7'};border-left-color:${resetMode ? '#EF4444' : '#F59E0B'};color:${resetMode ? '#991B1B' : '#92400E'}">
+            ${resetMode ? `🔄 <strong>Mode RESET:</strong> katrol akan dihapus dari <strong>${preview.length}</strong> record.` 
+                        : `📊 <strong>${preview.length}</strong> record · <strong>${berubah.length}</strong> akan berubah.`}
+        </div>
+        <div style="max-height:400px;overflow:auto;border:1px solid #E2E8F0;border-radius:8px">
+            <table><thead><tr><th>Nama</th><th>Kelas</th><th>Mapel</th><th>Asli</th><th>Sekarang</th><th>Baru</th><th>Δ</th></tr></thead><tbody>
+                ${preview.slice(0,100).map(p => {
+                    const delta = p.nilaiBaru - p.nilaiSekarang;
+                    const dStr = delta > 0 ? `+${delta.toFixed(1)}` : delta < 0 ? delta.toFixed(1) : '0';
+                    const w = delta > 0 ? 'badge-green' : delta < 0 ? 'badge-red' : 'badge-yellow';
+                    return `<tr><td><strong>${p.t.nama}</strong></td><td>${p.t.kelas}</td><td>${p.t.mapel}</td><td>${p.persenAsli}</td><td>${p.nilaiSekarang}</td><td><strong style="color:#1E3A8A">${p.nilaiBaru}</strong></td><td><span class="badge ${w}">${dStr}</span></td></tr>`;
+                }).join('')}
+            </tbody></table>
+            ${preview.length > 100 ? `<p style="padding:10px;color:#64748B;font-size:12px;text-align:center">… dan ${preview.length - 100} lainnya</p>` : ''}
+        </div>
+        <div style="margin-top:16px;display:flex;gap:10px">
+            <button class="btn btn-secondary" onclick="closeModal()">Batal</button>
+            <button class="btn ${resetMode ? 'btn-danger' : 'btn-success'}" onclick="executeKatrol()">✅ ${resetMode ? 'Reset' : 'Terapkan'} ke ${berubah.length} Record</button>
+        </div>`;
+    openModal('🎯 Preview Katrol Nilai', html);
+}
+async function executeKatrol() {
+    if (!_pendingKatrol) return;
+    const { preview, mode, value, maxNilai, resetMode } = _pendingKatrol;
+    const toUpdate = preview.filter(p => Math.abs(p.nilaiSekarang - p.nilaiBaru) > 0.01);
+    closeModal();
+    if (!toUpdate.length) { toast('Tidak ada perubahan', 'info'); _pendingKatrol = null; return; }
+    toast(`⏳ Menerapkan ke ${toUpdate.length} record...`, 'info');
+    let berhasil = 0, gagal = 0;
+    const errors = [];
+    const now = new Date().toISOString();
+    for (let i = 0; i < toUpdate.length; i += 400) {
+        const chunk = toUpdate.slice(i, i + 400);
+        const batch = window.Firebase.writeBatch(window.db);
+        for (const p of chunk) {
+            try {
+                const ref = window.Firebase.doc(window.db, 'nilai_akhir', p.t._id);
+                if (resetMode) batch.update(ref, { nilaiKatrol: null, katrolInfo: null });
+                else batch.update(ref, { nilaiKatrol: p.nilaiBaru, katrolInfo: { at: now, mode, value, maxNilai, fromPersen: p.persenAsli, fromNilai: p.nilaiSekarang, toNilai: p.nilaiBaru } });
+                berhasil++;
+            } catch(e) { errors.push(`${p.t.nama}: ${e.message}`); gagal++; }
+        }
+        try { await batch.commit(); }
+        catch(e) { berhasil -= chunk.length; gagal += chunk.length; errors.push(`Batch: ${e.message}`); }
+    }
+    let msg = resetMode ? `✅ Reset katrol: ${berhasil} record` : `✅ Katrol diterapkan: ${berhasil} record`;
+    if (gagal > 0) msg += ` · ❌ ${gagal} gagal`;
+    toast(msg, gagal > 0 ? 'error' : 'success');
+    _pendingKatrol = null;
+    pageHasil = 1;
+    renderHasil();
+    loadDashboard();
+}
+
+// ═══════════════════════════════════════════════════════════
+// LIVE MONITOR — 3 KOLOM (Jenjang 7 | 8 | 9)
+// ═══════════════════════════════════════════════════════════
+let _liveTimer = null, _liveAutoPaused = false;
+async function renderLiveMonitor() {
+    const container = document.getElementById('listLive');
+    if (!container) return;
+    try {
+        const now = new Date();
+        const hariIni = formatTanggalLocal(now);
+        const sesiSnap = await window.Firebase.getDocs(window.Firebase.query(window.Firebase.collection(window.db, 'sesi_ujian'), window.Firebase.where('status', '==', 'Aktif')));
+        const sesiAktif = [];
+        sesiSnap.forEach(d => {
+            const s = d.data();
+            const wm = s.waktuMulai ? new Date(s.waktuMulai) : null;
+            if (!wm) return;
+            if (formatTanggalLocal(wm) === hariIni && (now - wm) / 3600000 <= 3) sesiAktif.push({ _id: d.id, ...s });
+        });
+        if (!sesiAktif.length) { container.innerHTML = '<div class="loading">🟢 Tidak ada ujian aktif saat ini.</div>'; return; }
+        const soalSnap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'cache_soal'));
+        const soalByKey = {};
+        soalSnap.forEach(d => {
+            const s = d.data();
+            if (s.status !== 'Aktif') return;
+            const key = `${s.jenjang}|${s.mapel}|${s.jenis}`;
+            if (!soalByKey[key]) soalByKey[key] = [];
+            soalByKey[key].push(s);
+        });
+        const liveData = [];
+        for (const sesi of sesiAktif) {
+            const soalList = soalByKey[`${sesi.jenjang}|${sesi.mapel}|${sesi.jenisUjian}`] || [];
+            const jawabSnap = await window.Firebase.getDocs(window.Firebase.query(window.Firebase.collection(window.db, 'jawaban_siswa'), window.Firebase.where('idSesi', '==', sesi.idSesi || '')));
+            const jawabMap = {};
+            jawabSnap.forEach(d => { const j = d.data(); if (j.idSoal) jawabMap[j.idSoal] = j.jawaban; });
+            let benar = 0, salah = 0, kosong = 0, skor = 0, totalBobot = 0;
+            soalList.forEach(s => {
+                const bobot = Number(s.bobot) || 1; totalBobot += bobot;
+                const j = jawabMap[s.id];
+                if (j == null || j === '') { kosong++; return; }
+                skor += hitungSkorParsial(s, j, bobot);
+                if (cekJawabanBenar(s, j)) benar++; else salah++;
+            });
+            const persen = totalBobot > 0 ? Math.round((skor / totalBobot) * 100) : 0;
+            const elapsed = Math.floor((now - new Date(sesi.waktuMulai)) / 1000);
+            liveData.push({
+                nama: sesi.nama || sesi.username || '-',
+                kelas: sesi.kelas || '-',
+                jenjang: String(sesi.jenjang || '').trim(),
+                mapel: sesi.mapel || '-', jenis: sesi.jenisUjian || '-',
+                totalSoal: soalList.length, dijawab: benar + salah,
+                benar, salah, kosong,
+                skor: Math.round(skor * 10) / 10, totalBobot, persen, elapsed
+            });
+        }
+        const search = (document.getElementById('searchLive')?.value || '').toLowerCase();
+        let filtered = liveData;
+        if (search) filtered = filtered.filter(d => d.nama.toLowerCase().includes(search) || d.kelas.toLowerCase().includes(search) || d.mapel.toLowerCase().includes(search));
+        const groups = { '7': [], '8': [], '9': [], 'Lainnya': [] };
+        filtered.forEach(d => { if (groups[d.jenjang]) groups[d.jenjang].push(d); else groups['Lainnya'].push(d); });
+        Object.keys(groups).forEach(k => groups[k].sort((a,b) => b.persen - a.persen || b.skor - a.skor));
+        let html = `<p style="color:#64748B;font-size:13px;margin-bottom:16px">🔴 <strong>${filtered.length}</strong> siswa sedang ujian · Update: <strong>${now.toLocaleTimeString('id-ID')}</strong></p>`;
+        html += '<div class="live-grid">';
+        ['7','8','9'].forEach(jenjang => {
+            const list = groups[jenjang];
+            const aktif = list.length;
+            const rata = list.length > 0 ? Math.round(list.reduce((s,d) => s + d.persen, 0) / list.length) : 0;
+            const warnaHead = jenjang === '7' ? '#3B82F6' : jenjang === '8' ? '#22C55E' : '#F59E0B';
+            html += `<div class="live-card">
+                <div class="live-card-head" style="background:${warnaHead}">
+                    <div><div style="font-size:11px;opacity:0.9">KELAS</div><div style="font-size:24px;font-weight:700;line-height:1">${jenjang}</div></div>
+                    <div style="text-align:right;font-size:12px"><div><strong>${aktif}</strong> aktif</div><div style="opacity:0.9">Rata: <strong>${rata}%</strong></div></div>
+                </div>
+                <div class="live-card-body">`;
+            if (!list.length) {
+                html += `<div style="text-align:center;padding:30px 20px;color:#94A3B8;font-size:12px">Tidak ada siswa ujian</div>`;
+            } else {
+                html += '<table class="live-table"><thead><tr><th>#</th><th>Nama</th><th>Nilai</th><th>Progress</th></tr></thead><tbody>';
+                list.forEach((d, i) => {
+                    const warna = d.persen >= 75 ? 'badge-green' : d.persen >= 60 ? 'badge-yellow' : 'badge-red';
+                    const pct = d.totalSoal > 0 ? Math.round((d.dijawab / d.totalSoal) * 100) : 0;
+                    const jam = Math.floor(d.elapsed/3600), mnt = Math.floor((d.elapsed%3600)/60);
+                    html += `<tr>
+                        <td style="font-size:11px;color:#64748B">${i+1}</td>
+                        <td><div style="font-weight:600;font-size:12px">${d.nama}</div><div style="font-size:10px;color:#64748B">${d.kelas} · ${d.mapel}</div><div style="font-size:10px;color:#94A3B8">${jam}j ${mnt}m · ✅${d.benar} ❌${d.salah} ⬜${d.kosong}</div></td>
+                        <td><span class="badge ${warna}" style="font-size:11px">${d.persen}%</span><div style="font-size:9px;color:#94A3B8;margin-top:2px">${d.skor}/${d.totalBobot}</div></td>
+                        <td><div style="background:#E2E8F0;border-radius:6px;height:6px;width:50px;overflow:hidden"><div style="background:#3B82F6;height:100%;width:${pct}%"></div></div><div style="font-size:9px;color:#94A3B8;margin-top:2px">${d.dijawab}/${d.totalSoal}</div></td>
+                    </tr>`;
+                });
+                html += '</tbody></table>';
+            }
+            html += `</div></div>`;
+        });
+        if (groups['Lainnya'].length) {
+            html += `<div class="live-card"><div class="live-card-head" style="background:#64748B"><div><div style="font-size:11px;opacity:0.9">JENJANG</div><div style="font-size:24px;font-weight:700;line-height:1">?</div></div><div style="text-align:right;font-size:12px"><div><strong>${groups['Lainnya'].length}</strong> aktif</div></div></div><div class="live-card-body"><div style="text-align:center;padding:20px;color:#94A3B8;font-size:12px">${groups['Lainnya'].length} siswa tanpa jenjang valid</div></div></div>`;
+        }
+        html += '</div>';
+        container.innerHTML = html;
+        const infoEl = document.getElementById('liveRefreshInfo');
+        if (infoEl) infoEl.textContent = `Auto: ${_liveAutoPaused ? '⏸️ PAUSED' : '▶️ 15s'}`;
+    } catch(e) { console.error(e); container.innerHTML = `<div class="loading" style="color:#EF4444">Error: ${e.message}</div>`; }
+}
+function startLiveRefresh() { stopLiveRefresh(); if (_liveAutoPaused) return; _liveTimer = setInterval(() => { if (document.getElementById('tab-live')?.classList.contains('active')) renderLiveMonitor(); }, 15000); }
+function stopLiveRefresh() { if (_liveTimer) { clearInterval(_liveTimer); _liveTimer = null; } }
+function toggleLiveAutoRefresh(btn) {
+    _liveAutoPaused = !_liveAutoPaused;
+    if (_liveAutoPaused) { stopLiveRefresh(); btn.innerHTML = '<i class="fas fa-play"></i> Resume Auto'; btn.classList.remove('btn-warning'); btn.classList.add('btn-success'); }
+    else { startLiveRefresh(); btn.innerHTML = '<i class="fas fa-pause"></i> Pause Auto'; btn.classList.remove('btn-success'); btn.classList.add('btn-warning'); }
 }
 
 // ==================== EXPORTS ====================
@@ -1503,7 +1536,9 @@ Object.assign(window, {
     savePengaturan, closeModal, loadPengaturan, togglePelanggaran, updatePelanggaran, resetPengaturan,
     goPageSiswa, goPageSoal, goPageHasil,
     lihatDetailJawaban, tutupDetailRekap,
-    hitungUlangSemuaNilai, eksekusiHitungUlang
+    hitungUlangSemuaNilai, eksekusiHitungUlang,
+    openKatrolModal, previewKatrol, executeKatrol,
+    renderLiveMonitor, startLiveRefresh, stopLiveRefresh, toggleLiveAutoRefresh
 });
 
 window.addEventListener('load', () => {
