@@ -107,7 +107,7 @@ table tr:hover{background:#F8FAFC}
     <a onclick="switchTab('soal')" data-tab="soal"><i class="fas fa-book"></i> <span>Bank Soal</span></a>
     <a onclick="switchTab('reset')" data-tab="reset"><i class="fas fa-redo"></i> <span>Reset Ujian</span></a>
     <a onclick="switchTab('hasil')" data-tab="hasil"><i class="fas fa-trophy"></i> <span>Hasil Ujian</span></a>
-    <a onclick="switchTab('live')" data-tab="live"><i class="fas fa-bolt"></i> <span>Live Monitor</span></a>
+    <a onclick="switchTab('rangking')" data-tab="rangking"><i class="fas fa-medal"></i> <span>Rangking</span></a>
     <a onclick="switchTab('pengaturan')" data-tab="pengaturan"><i class="fas fa-shield-alt"></i> <span>Pengaturan</span></a>
 </div>
 
@@ -131,7 +131,7 @@ table tr:hover{background:#F8FAFC}
                 <strong>📅 JADWAL, TOKEN, RESET, PENGATURAN</strong> → Kelola langsung di panel ini.<br><br>
                 <strong>🧹 SYNC AMAN</strong> → Klik SYNC berkali-kali pun tidak akan dobel.<br><br>
                 <strong>🎯 KATROL NILAI</strong> → Buka tab <strong>Hasil Ujian</strong>, klik tombol <strong>Katrol Nilai</strong> (pink) untuk menaikkan nilai massal atau per-siswa.<br><br>
-                <strong>⚡ LIVE MONITOR</strong> → Pantau skor real-time siswa (dibagi 3 kolom: Kelas 7 | 8 | 9) dengan auto-refresh 15 detik.
+                <strong>🏅 RANGKING</strong> → Siswa yang selesai ujian otomatis masuk rangking (dibagi 3 kolom: Kelas 7 | 8 | 9). Klik <strong>Refresh</strong> untuk memuat data terbaru.
             </div>
         </div>
     </div>
@@ -257,17 +257,17 @@ table tr:hover{background:#F8FAFC}
         </div>
     </div>
 
-    <div id="tab-live" class="tab-content">
+    <div id="tab-rangking" class="tab-content">
         <div class="card">
-            <h3><i class="fas fa-bolt"></i> Live Monitor Ujian (Real-time)</h3>
-            <div class="info-box">🔴 Skor live 3 kolom: <strong>Kelas 7 | 8 | 9</strong>. Auto-refresh tiap 15 detik. Hanya menampilkan siswa yang sedang ujian hari ini (maks 3 jam terakhir).</div>
+            <h3><i class="fas fa-medal"></i> Rangking Hasil Ujian</h3>
+            <div class="info-box">🏅 Rangking 3 kolom: <strong>Kelas 7 | 8 | 9</strong>. Hanya siswa yang sudah selesai ujian. Urutan: nilai tertinggi, jika sama maka yang selesai lebih dulu. Klik <strong>Refresh</strong> untuk data terbaru.</div>
             <div class="toolbar">
-                <input type="text" id="searchLive" placeholder="🔍 Cari nama/kelas/mapel..." oninput="renderLiveMonitor()">
-                <button class="btn btn-primary" onclick="renderLiveMonitor()"><i class="fas fa-sync"></i> Refresh</button>
-                <button class="btn btn-warning" id="liveToggleBtn" onclick="toggleLiveAutoRefresh(this)"><i class="fas fa-pause"></i> Pause Auto</button>
-                <span id="liveRefreshInfo" style="font-size:12px;color:#64748B"></span>
+                <input type="text" id="searchRangking" placeholder="🔍 Cari nama/kelas..." oninput="tampilkanRangking()">
+                <select id="filterMapelRangking" onchange="tampilkanRangking()"></select>
+                <select id="filterJenisRangking" onchange="tampilkanRangking()"></select>
+                <button class="btn btn-primary" onclick="renderRangking()"><i class="fas fa-sync"></i> Refresh</button>
             </div>
-            <div id="listLive" class="loading">Memuat...</div>
+            <div id="listRangking" class="loading">Memuat...</div>
         </div>
     </div>
 
@@ -385,9 +385,8 @@ function switchTab(tab) {
     document.querySelectorAll('.sidebar a').forEach(el => el.classList.remove('active'));
     document.getElementById(`tab-${tab}`).classList.add('active');
     document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
-    const titles = { dashboard: 'Dashboard', siswa: 'Kelola Siswa', jadwal: 'Jadwal Ujian', token: 'Token Ujian', soal: 'Bank Soal', reset: 'Reset Ujian', hasil: 'Hasil Ujian', live: 'Live Monitor', pengaturan: 'Pengaturan Anti-Curang' };
+    const titles = { dashboard: 'Dashboard', siswa: 'Kelola Siswa', jadwal: 'Jadwal Ujian', token: 'Token Ujian', soal: 'Bank Soal', reset: 'Reset Ujian', hasil: 'Hasil Ujian', rangking: 'Rangking', pengaturan: 'Pengaturan Anti-Curang' };
     document.getElementById('pageTitle').textContent = titles[tab];
-    if (tab !== 'live') stopLiveRefresh();
     if (tab === 'dashboard') loadDashboard();
     if (tab === 'siswa') { pageSiswa = 1; renderSiswa(); }
     if (tab === 'jadwal') renderJadwal();
@@ -395,7 +394,7 @@ function switchTab(tab) {
     if (tab === 'soal') { pageSoal = 1; renderSoal(); }
     if (tab === 'reset') { renderSiswaAktif(); renderSiswaSelesai(); renderDaftarReset(); }
     if (tab === 'hasil') { pageHasil = 1; renderHasil(); }
-    if (tab === 'live') { renderLiveMonitor(); startLiveRefresh(); }
+    if (tab === 'rangking') renderRangking();
     if (tab === 'pengaturan') loadPengaturan();
 }
 
@@ -1416,112 +1415,95 @@ async function executeKatrol() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// LIVE MONITOR — 3 KOLOM (Jenjang 7 | 8 | 9)
+// RANGKING — 3 KOLOM (Jenjang 7 | 8 | 9)
+// Hanya membaca nilai_akhir, tanpa auto-refresh
 // ═══════════════════════════════════════════════════════════
-let _liveTimer = null, _liveAutoPaused = false;
-async function renderLiveMonitor() {
-    const container = document.getElementById('listLive');
+let allRangking = [], _waktuRangking = null;
+function nilaiRangking(h) { return h.nilaiKatrol != null ? Number(h.nilaiKatrol) : (parseInt(h.persentase) || 0); }
+function waktuRangking(h) {
+    const t = h.timestamp?.toDate ? h.timestamp.toDate() : new Date(h.timestamp || 0);
+    return t.getTime() || 0;
+}
+function isiPilihanRangking(id, daftar, bawaan) {
+    const sel = document.getElementById(id);
+    const lama = sel.value;
+    sel.innerHTML = '';
+    daftar.forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; sel.appendChild(o); });
+    sel.value = daftar.includes(lama) ? lama : bawaan;
+}
+async function renderRangking() {
+    const container = document.getElementById('listRangking');
     if (!container) return;
+    container.innerHTML = '<div class="loading">Memuat...</div>';
     try {
-        const now = new Date();
-        const hariIni = formatTanggalLocal(now);
-        const sesiSnap = await window.Firebase.getDocs(window.Firebase.query(window.Firebase.collection(window.db, 'sesi_ujian'), window.Firebase.where('status', '==', 'Aktif')));
-        const sesiAktif = [];
-        sesiSnap.forEach(d => {
-            const s = d.data();
-            const wm = s.waktuMulai ? new Date(s.waktuMulai) : null;
-            if (!wm) return;
-            if (formatTanggalLocal(wm) === hariIni && (now - wm) / 3600000 <= 3) sesiAktif.push({ _id: d.id, ...s });
-        });
-        if (!sesiAktif.length) { container.innerHTML = '<div class="loading">🟢 Tidak ada ujian aktif saat ini.</div>'; return; }
-        const soalSnap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'cache_soal'));
-        const soalByKey = {};
-        soalSnap.forEach(d => {
-            const s = d.data();
-            if (s.status !== 'Aktif') return;
-            const key = `${s.jenjang}|${s.mapel}|${s.jenis}`;
-            if (!soalByKey[key]) soalByKey[key] = [];
-            soalByKey[key].push(s);
-        });
-        const liveData = [];
-        for (const sesi of sesiAktif) {
-            const soalList = soalByKey[`${sesi.jenjang}|${sesi.mapel}|${sesi.jenisUjian}`] || [];
-            const jawabSnap = await window.Firebase.getDocs(window.Firebase.query(window.Firebase.collection(window.db, 'jawaban_siswa'), window.Firebase.where('idSesi', '==', sesi.idSesi || '')));
-            const jawabMap = {};
-            jawabSnap.forEach(d => { const j = d.data(); if (j.idSoal) jawabMap[j.idSoal] = j.jawaban; });
-            let benar = 0, salah = 0, kosong = 0, skor = 0, totalBobot = 0;
-            soalList.forEach(s => {
-                const bobot = Number(s.bobot) || 1; totalBobot += bobot;
-                const j = jawabMap[s.id];
-                if (j == null || j === '') { kosong++; return; }
-                skor += hitungSkorParsial(s, j, bobot);
-                if (cekJawabanBenar(s, j)) benar++; else salah++;
-            });
-            const persen = totalBobot > 0 ? Math.round((skor / totalBobot) * 100) : 0;
-            const elapsed = Math.floor((now - new Date(sesi.waktuMulai)) / 1000);
-            liveData.push({
-                nama: sesi.nama || sesi.username || '-',
-                kelas: sesi.kelas || '-',
-                jenjang: String(sesi.jenjang || '').trim(),
-                mapel: sesi.mapel || '-', jenis: sesi.jenisUjian || '-',
-                totalSoal: soalList.length, dijawab: benar + salah,
-                benar, salah, kosong,
-                skor: Math.round(skor * 10) / 10, totalBobot, persen, elapsed
-            });
-        }
-        const search = (document.getElementById('searchLive')?.value || '').toLowerCase();
-        let filtered = liveData;
-        if (search) filtered = filtered.filter(d => d.nama.toLowerCase().includes(search) || d.kelas.toLowerCase().includes(search) || d.mapel.toLowerCase().includes(search));
-        const groups = { '7': [], '8': [], '9': [], 'Lainnya': [] };
-        filtered.forEach(d => { if (groups[d.jenjang]) groups[d.jenjang].push(d); else groups['Lainnya'].push(d); });
-        Object.keys(groups).forEach(k => groups[k].sort((a,b) => b.persen - a.persen || b.skor - a.skor));
-        let html = `<p style="color:#64748B;font-size:13px;margin-bottom:16px">🔴 <strong>${filtered.length}</strong> siswa sedang ujian · Update: <strong>${now.toLocaleTimeString('id-ID')}</strong></p>`;
-        html += '<div class="live-grid">';
-        ['7','8','9'].forEach(jenjang => {
-            const list = groups[jenjang];
-            const aktif = list.length;
-            const rata = list.length > 0 ? Math.round(list.reduce((s,d) => s + d.persen, 0) / list.length) : 0;
-            const warnaHead = jenjang === '7' ? '#3B82F6' : jenjang === '8' ? '#22C55E' : '#F59E0B';
-            html += `<div class="live-card">
-                <div class="live-card-head" style="background:${warnaHead}">
-                    <div><div style="font-size:11px;opacity:0.9">KELAS</div><div style="font-size:24px;font-weight:700;line-height:1">${jenjang}</div></div>
-                    <div style="text-align:right;font-size:12px"><div><strong>${aktif}</strong> aktif</div><div style="opacity:0.9">Rata: <strong>${rata}%</strong></div></div>
-                </div>
-                <div class="live-card-body">`;
-            if (!list.length) {
-                html += `<div style="text-align:center;padding:30px 20px;color:#94A3B8;font-size:12px">Tidak ada siswa ujian</div>`;
-            } else {
-                html += '<table class="live-table"><thead><tr><th>#</th><th>Nama</th><th>Nilai</th><th>Progress</th></tr></thead><tbody>';
-                list.forEach((d, i) => {
-                    const warna = d.persen >= 75 ? 'badge-green' : d.persen >= 60 ? 'badge-yellow' : 'badge-red';
-                    const pct = d.totalSoal > 0 ? Math.round((d.dijawab / d.totalSoal) * 100) : 0;
-                    const jam = Math.floor(d.elapsed/3600), mnt = Math.floor((d.elapsed%3600)/60);
-                    html += `<tr>
-                        <td style="font-size:11px;color:#64748B">${i+1}</td>
-                        <td><div style="font-weight:600;font-size:12px">${d.nama}</div><div style="font-size:10px;color:#64748B">${d.kelas} · ${d.mapel}</div><div style="font-size:10px;color:#94A3B8">${jam}j ${mnt}m · ✅${d.benar} ❌${d.salah} ⬜${d.kosong}</div></td>
-                        <td><span class="badge ${warna}" style="font-size:11px">${d.persen}%</span><div style="font-size:9px;color:#94A3B8;margin-top:2px">${d.skor}/${d.totalBobot}</div></td>
-                        <td><div style="background:#E2E8F0;border-radius:6px;height:6px;width:50px;overflow:hidden"><div style="background:#3B82F6;height:100%;width:${pct}%"></div></div><div style="font-size:9px;color:#94A3B8;margin-top:2px">${d.dijawab}/${d.totalSoal}</div></td>
-                    </tr>`;
-                });
-                html += '</tbody></table>';
-            }
-            html += `</div></div>`;
-        });
-        if (groups['Lainnya'].length) {
-            html += `<div class="live-card"><div class="live-card-head" style="background:#64748B"><div><div style="font-size:11px;opacity:0.9">JENJANG</div><div style="font-size:24px;font-weight:700;line-height:1">?</div></div><div style="text-align:right;font-size:12px"><div><strong>${groups['Lainnya'].length}</strong> aktif</div></div></div><div class="live-card-body"><div style="text-align:center;padding:20px;color:#94A3B8;font-size:12px">${groups['Lainnya'].length} siswa tanpa jenjang valid</div></div></div>`;
-        }
-        html += '</div>';
-        container.innerHTML = html;
-        const infoEl = document.getElementById('liveRefreshInfo');
-        if (infoEl) infoEl.textContent = `Auto: ${_liveAutoPaused ? '⏸️ PAUSED' : '▶️ 15s'}`;
+        const snap = await window.Firebase.getDocs(window.Firebase.collection(window.db, 'nilai_akhir'));
+        allRangking = [];
+        snap.forEach(d => allRangking.push({ _id: d.id, ...d.data() }));
+        _waktuRangking = new Date();
+        // Pilihan awal = ujian yang paling terakhir diselesaikan
+        const terbaru = allRangking.reduce((a, b) => !a || waktuRangking(b) > waktuRangking(a) ? b : a, null) || {};
+        isiPilihanRangking('filterMapelRangking', [...new Set(allRangking.map(h => h.mapel).filter(Boolean))].sort(), terbaru.mapel);
+        isiPilihanRangking('filterJenisRangking', [...new Set(allRangking.map(h => h.jenisUjian).filter(Boolean))].sort(), terbaru.jenisUjian);
+        tampilkanRangking();
     } catch(e) { console.error(e); container.innerHTML = `<div class="loading" style="color:#EF4444">Error: ${e.message}</div>`; }
 }
-function startLiveRefresh() { stopLiveRefresh(); if (_liveAutoPaused) return; _liveTimer = setInterval(() => { if (document.getElementById('tab-live')?.classList.contains('active')) renderLiveMonitor(); }, 15000); }
-function stopLiveRefresh() { if (_liveTimer) { clearInterval(_liveTimer); _liveTimer = null; } }
-function toggleLiveAutoRefresh(btn) {
-    _liveAutoPaused = !_liveAutoPaused;
-    if (_liveAutoPaused) { stopLiveRefresh(); btn.innerHTML = '<i class="fas fa-play"></i> Resume Auto'; btn.classList.remove('btn-warning'); btn.classList.add('btn-success'); }
-    else { startLiveRefresh(); btn.innerHTML = '<i class="fas fa-pause"></i> Pause Auto'; btn.classList.remove('btn-success'); btn.classList.add('btn-warning'); }
+// Filter & pencarian memakai data yang sudah dimuat (tidak membaca server lagi)
+function tampilkanRangking() {
+    const container = document.getElementById('listRangking');
+    if (!container || !_waktuRangking) return;
+    const mapel = document.getElementById('filterMapelRangking').value;
+    const jenis = document.getElementById('filterJenisRangking').value;
+    const search = (document.getElementById('searchRangking').value || '').toLowerCase();
+    // Satu siswa satu baris: jika ada data ganda, ambil yang terbaru
+    const perSiswa = new Map();
+    allRangking.filter(h => h.mapel === mapel && h.jenisUjian === jenis).forEach(h => {
+        const key = h.username || h.nis || h._id;
+        const lama = perSiswa.get(key);
+        if (!lama || waktuRangking(h) > waktuRangking(lama)) perSiswa.set(key, h);
+    });
+    const data = [...perSiswa.values()];
+    if (!data.length) { container.innerHTML = '<div class="loading">Belum ada siswa yang selesai ujian untuk pilihan ini.</div>'; return; }
+    const groups = { '7': [], '8': [], '9': [], 'Lainnya': [] };
+    data.forEach(h => {
+        const jenjang = String(h.jenjang || '').trim();
+        (groups[jenjang] || groups['Lainnya']).push(h);
+    });
+    let html = `<p style="color:#64748B;font-size:13px;margin-bottom:16px">🏅 <strong>${data.length}</strong> siswa sudah selesai · Data dimuat: <strong>${_waktuRangking.toLocaleTimeString('id-ID')}</strong></p>`;
+    html += '<div class="live-grid">';
+    ['7','8','9'].forEach(jenjang => {
+        const list = groups[jenjang].sort((a,b) => nilaiRangking(b) - nilaiRangking(a) || waktuRangking(a) - waktuRangking(b));
+        const rata = list.length ? Math.round(list.reduce((s,h) => s + nilaiRangking(h), 0) / list.length) : 0;
+        const warnaHead = jenjang === '7' ? '#3B82F6' : jenjang === '8' ? '#22C55E' : '#F59E0B';
+        html += `<div class="live-card">
+            <div class="live-card-head" style="background:${warnaHead}">
+                <div><div style="font-size:11px;opacity:0.9">KELAS</div><div style="font-size:24px;font-weight:700;line-height:1">${jenjang}</div></div>
+                <div style="text-align:right;font-size:12px"><div><strong>${list.length}</strong> selesai</div><div style="opacity:0.9">Rata: <strong>${rata}</strong></div></div>
+            </div>
+            <div class="live-card-body">`;
+        // Nomor rangking ditetapkan sebelum pencarian agar tidak berubah
+        const tampil = list.map((h, i) => ({ h, rank: i + 1 })).filter(({ h }) => !search || (h.nama||'').toLowerCase().includes(search) || (h.kelas||'').toLowerCase().includes(search));
+        if (!tampil.length) {
+            html += `<div style="text-align:center;padding:30px 20px;color:#94A3B8;font-size:12px">${list.length ? 'Tidak ditemukan' : 'Belum ada yang selesai'}</div>`;
+        } else {
+            html += '<table class="live-table"><thead><tr><th>Rank</th><th>Nama</th><th>Nilai</th></tr></thead><tbody>';
+            tampil.forEach(({ h, rank }) => {
+                const nilai = nilaiRangking(h);
+                const warna = nilai >= 75 ? 'badge-green' : nilai >= 60 ? 'badge-yellow' : 'badge-red';
+                const medali = ['🥇','🥈','🥉'][rank - 1] || rank;
+                const waktu = waktuRangking(h) ? new Date(waktuRangking(h)).toLocaleString('id-ID') : '-';
+                html += `<tr>
+                    <td style="font-size:${rank <= 3 ? 18 : 11}px;color:#64748B">${medali}</td>
+                    <td><div style="font-weight:600;font-size:12px">${h.nama || h.username || '-'}</div><div style="font-size:10px;color:#64748B">${h.kelas || '-'}</div><div style="font-size:10px;color:#94A3B8">${waktu}</div></td>
+                    <td><span class="badge ${warna}" style="font-size:11px">${nilai}</span><div style="font-size:9px;color:#94A3B8;margin-top:2px">${h.totalSkor||0}/${h.totalBobot||0}</div></td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+        }
+        html += `</div></div>`;
+    });
+    html += '</div>';
+    if (groups['Lainnya'].length) html += `<p style="color:#94A3B8;font-size:12px;margin-top:12px">${groups['Lainnya'].length} siswa tanpa jenjang valid tidak ditampilkan.</p>`;
+    container.innerHTML = html;
 }
 
 // ==================== EXPORTS ====================
@@ -1538,7 +1520,7 @@ Object.assign(window, {
     lihatDetailJawaban, tutupDetailRekap,
     hitungUlangSemuaNilai, eksekusiHitungUlang,
     openKatrolModal, previewKatrol, executeKatrol,
-    renderLiveMonitor, startLiveRefresh, stopLiveRefresh, toggleLiveAutoRefresh
+    renderRangking, tampilkanRangking
 });
 
 window.addEventListener('load', () => {
