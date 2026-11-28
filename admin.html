@@ -572,7 +572,7 @@ function switchTab(tab) {
     if (tab === 'siswa') { pageSiswa = 1; renderSiswa(); }
     if (tab === 'jadwal') renderJadwal();
     if (tab === 'token') renderToken();
-    if (tab === 'soal') { pageSoal = 1; renderSoal(); }
+    if (tab === 'soal') { mapelSoal = null; renderSoal(); }
     if (tab === 'reset') { renderSiswaAktif(); renderSiswaSelesai(); renderDaftarReset(); }
     if (tab === 'hasil') { pageHasil = 1; renderHasil(); }
     if (tab === 'rangking') renderRangking();
@@ -679,16 +679,19 @@ async function renderJadwal() {
     html += '</tbody></table>';
     document.getElementById('listJadwal').innerHTML = html;
 }
-function openFormJadwal(id=null) {
+async function openFormJadwal(id=null) {
+    const snapSoal = await window.Firebase.getDocs(window.Firebase.query(window.Firebase.collection(window.db, 'cache_soal'), window.Firebase.where('status', '==', 'Aktif')));
+    const soalAktif = [];
+    snapSoal.forEach(d => soalAktif.push(d.data()));
     const today = new Date().toISOString().split('T')[0];
     const j = id ? allJadwal.find(x => x._id === id) : { jenjang:'9', mapel:'', jenis:'', tanggal:today, waktuMulai:'08:00', waktuSelesai:'10:00', minimalMenit:0, token:'', status:'Aktif', password:'' };
     openModal(id ? 'Edit Jadwal' : 'Tambah Jadwal', `
         <div class="form-row">
             <div class="form-group"><label>Jenjang</label><select id="j_jenjang"><option value="7" ${j.jenjang==='7'?'selected':''}>7</option><option value="8" ${j.jenjang==='8'?'selected':''}>8</option><option value="9" ${j.jenjang==='9'?'selected':''}>9</option></select></div>
-            <div class="form-group"><label>Mapel</label><input id="j_mapel" value="${j.mapel}"></div>
+            <div class="form-group"><label>Mapel</label><select id="j_mapel"></select></div>
         </div>
         <div class="form-row">
-            <div class="form-group"><label>Jenis Ujian</label><input id="j_jenis" value="${j.jenis}"></div>
+            <div class="form-group"><label>Jenis Ujian</label><select id="j_jenis"></select></div>
             <div class="form-group"><label>Tanggal</label><input type="date" id="j_tanggal" value="${j.tanggal}"></div>
         </div>
         <div class="form-row">
@@ -703,8 +706,42 @@ function openFormJadwal(id=null) {
             <div class="form-group"><label>Status</label><select id="j_status"><option value="Aktif" ${j.status==='Aktif'?'selected':''}>Aktif</option><option value="Nonaktif" ${j.status==='Nonaktif'?'selected':''}>Nonaktif</option></select></div>
             <div class="form-group"><label>Password (opsional)</label><input id="j_password" value="${j.password||''}"></div>
         </div>
+        <p id="j_info" style="font-size:12px;color:#64748B;margin-bottom:12px;"></p>
         <button class="btn btn-primary" onclick="saveJadwal('${id||''}')"><i class="fas fa-save"></i> Simpan</button>
     `);
+    pasangPilihanJadwal(soalAktif, j);
+}
+// Pilihan Mapel dan Jenis diambil dari soal aktif di bank soal
+function pasangPilihanJadwal(soal, awal) {
+    const jenjang = document.getElementById('j_jenjang'), mapel = document.getElementById('j_mapel'),
+        jenis = document.getElementById('j_jenis'), info = document.getElementById('j_info');
+    const unik = (arr) => [...new Set(arr.filter(Boolean))].sort((x, y) => x.localeCompare(y, 'id'));
+    const isi = (sel, daftar, pilih, label) => {
+        sel.innerHTML = '';
+        sel.add(new Option(`-- Pilih ${label} --`, ''));
+        daftar.forEach(v => sel.add(new Option(v, v)));
+        // Jadwal lama yang soalnya sudah tidak ada tetap bisa dibuka
+        if (pilih && !daftar.includes(pilih)) sel.add(new Option(`${pilih} (tidak ada di bank soal)`, pilih));
+        sel.value = pilih || '';
+    };
+    const sejenjang = () => soal.filter(x => String(x.jenjang) === jenjang.value);
+    const hitung = () => {
+        const n = sejenjang().filter(x => x.mapel === mapel.value && x.jenis === jenis.value).length;
+        info.textContent = mapel.value && jenis.value ? `📚 ${n} soal aktif untuk jadwal ini` : (sejenjang().length ? '' : 'Belum ada soal aktif untuk jenjang ini.');
+    };
+    const isiJenis = (pilih) => { isi(jenis, unik(sejenjang().filter(x => x.mapel === mapel.value).map(x => x.jenis)), pilih, 'Jenis'); hitung(); };
+    const isiMapel = (pilihMapel, pilihJenis) => { isi(mapel, unik(sejenjang().map(x => x.mapel)), pilihMapel, 'Mapel'); isiJenis(pilihJenis); };
+    jenjang.onchange = () => isiMapel('', '');
+    mapel.onchange = () => isiJenis('');
+    jenis.onchange = hitung;
+    isiMapel(awal.mapel, awal.jenis);
+}
+// Aplikasi siswa membutuhkan token aktif yang cocok dengan jadwal
+async function cekTokenJadwal(data) {
+    const snap = await window.Firebase.getDocs(window.Firebase.query(window.Firebase.collection(window.db, 'cache_token'), window.Firebase.where('token', '==', data.token), window.Firebase.where('status', '==', 'Aktif')));
+    const t = snap.empty ? null : snap.docs[0].data();
+    if (!t || t.jenjang !== data.jenjang || t.mapel !== data.mapel || t.jenis !== data.jenis)
+        alert(`⚠️ Jadwal tersimpan, tetapi token belum cocok.\n\nDi menu Token, buat token aktif:\nToken: ${data.token || '(isi dulu di jadwal)'}\nJenjang: ${data.jenjang}\nMapel: ${data.mapel}\nJenis: ${data.jenis}`);
 }
 async function saveJadwal(id) {
     const data = {
@@ -719,6 +756,7 @@ async function saveJadwal(id) {
     if (id) await window.Firebase.updateDoc(window.Firebase.doc(window.db, 'cache_jadwal', id), data);
     else await window.Firebase.addDoc(window.Firebase.collection(window.db, 'cache_jadwal'), data);
     toast('✅ Tersimpan!'); closeModal(); renderJadwal(); loadDashboard();
+    await cekTokenJadwal(data);
 }
 function editJadwal(id) { openFormJadwal(id); }
 async function deleteJadwal(id) { if (!confirm('Hapus?')) return; await window.Firebase.deleteDoc(window.Firebase.doc(window.db, 'cache_jadwal', id)); toast('🗑️ Dihapus'); renderJadwal(); loadDashboard(); }
@@ -766,6 +804,7 @@ async function deleteAllToken() { if (!confirm('Hapus SEMUA token?')) return; co
 
 // ==================== SOAL ====================
 let allSoal = [];
+let mapelSoal = null; // mapel yang sedang dibuka
 function normalisasiStatus(mentah) {
     const s = String(mentah || '').trim();
     if (/^aktif$/i.test(s)) return 'Aktif';
@@ -883,25 +922,51 @@ async function renderSoal() {
     if (jenjangFilter) filtered = filtered.filter(s => s.jenjang === jenjangFilter);
     const totalAktif = allSoal.filter(s => s.status === 'Aktif').length;
     const totalNonaktif = allSoal.filter(s => s.status === 'Nonaktif' || !s.status).length;
-    if (!filtered.length) { document.getElementById('listSoal').innerHTML = '<div class="loading">Belum ada soal.</div>'; return; }
-    const totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
-    if (pageSoal > totalPages) pageSoal = 1;
-    const start = (pageSoal - 1) * PAGE_SIZE;
-    const paginated = filtered.slice(start, start + PAGE_SIZE);
-    let html = `<p style="color:#64748B;font-size:13px;margin-bottom:12px">Menampilkan: <strong>${paginated.length}</strong> dari <strong>${filtered.length}</strong> · <span class="badge badge-green">${totalAktif} Aktif</span> <span class="badge badge-red">${totalNonaktif} Nonaktif</span> <span class="badge badge-blue">${allSoal.length} total</span></p>`;
-    html += '<table><thead><tr><th>ID</th><th>Jenjang</th><th>Mapel</th><th>Jenis</th><th>Tipe</th><th>Pertanyaan</th><th>Status</th></tr></thead><tbody>';
-    paginated.forEach(s => {
-        const isAktif = s.status === 'Aktif';
-        html += `<tr ${isAktif ? '' : 'style="opacity:0.55"'}>
-            <td><code>${s.id||''}</code></td><td><span class="badge badge-blue">${s.jenjang||''}</span></td>
-            <td>${s.mapel||''}</td><td>${s.jenis||''}</td><td><span class="badge badge-yellow">${s.tipe||''}</span></td>
-            <td>${(s.pertanyaan||'').substring(0,60)}...</td>
-            <td><span class="badge ${isAktif?'badge-green':'badge-red'}">${isAktif?'Aktif':'Nonaktif'}</span></td>
-        </tr>`;
-    });
-    html += '</tbody></table>';
-    html += buildPaginationHTML(filtered.length, pageSoal, 'goPageSoal');
-    document.getElementById('listSoal').innerHTML = html;
+    if (!filtered.length && mapelSoal === null) { document.getElementById('listSoal').innerHTML = '<div class="loading">Belum ada soal.</div>'; return; }
+    const wadah = document.getElementById('listSoal');
+    const grup = {};
+    filtered.forEach(x => { const m = String(x.mapel || '').trim() || '(Tanpa mapel)'; (grup[m] = grup[m] || []).push(x); });
+    const daftarMapel = Object.keys(grup).sort((x, y) => x.localeCompare(y, 'id'));
+    const urut = (x, y) => [x.jenjang, x.jenis, x.id].join('|').localeCompare([y.jenjang, y.jenis, y.id].join('|'), 'id', { numeric: true });
+    const info = (teks) => `<p style="color:#64748B;font-size:13px;margin-bottom:12px">${teks}</p>`;
+    let html = '';
+    if (mapelSoal === null) {
+        // Tampilan awal: hanya daftar mapel
+        html = info(`<strong>${daftarMapel.length}</strong> mapel · <span class="badge badge-green">${totalAktif} Aktif</span> <span class="badge badge-red">${totalNonaktif} Nonaktif</span> <span class="badge badge-blue">${allSoal.length} total</span>`);
+        daftarMapel.forEach((m, i) => {
+            const aktif = grup[m].filter(x => x.status === 'Aktif').length;
+            html += `<button type="button" data-i="${i}" style="display:flex;width:100%;align-items:center;gap:8px;flex-wrap:wrap;padding:16px;margin-bottom:10px;background:#fff;border:1px solid #E2E8F0;border-radius:12px;cursor:pointer;font:600 15px inherit;font-family:inherit;color:#1E3A8A;text-align:left;">
+                📘 ${amankan(m)} <span class="badge badge-blue">${grup[m].length} soal</span> <span class="badge badge-green">${aktif} aktif</span> <span style="margin-left:auto">›</span></button>`;
+        });
+    } else {
+        const isi = (grup[mapelSoal] || []).sort(urut);
+        html = `<button type="button" class="btn btn-secondary" data-kembali style="margin-bottom:12px">← Semua Mapel</button>
+            <h3 style="color:#1E3A8A;margin-bottom:8px">📘 ${amankan(mapelSoal)}</h3>` + info(`<strong>${isi.length}</strong> soal ditampilkan`);
+        if (!isi.length) html += '<div class="loading">Tidak ada soal yang cocok.</div>';
+        else {
+            html += '<div style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Jenjang</th><th>Jenis</th><th>Tipe</th><th>Pertanyaan</th><th>Status</th></tr></thead><tbody>';
+            isi.forEach(x => {
+                const isAktif = x.status === 'Aktif';
+                const tanya = String(x.pertanyaan || '');
+                html += `<tr ${isAktif ? '' : 'style="opacity:0.55"'}>
+                    <td><code>${amankan(x.id)}</code></td><td><span class="badge badge-blue">${amankan(x.jenjang)}</span></td>
+                    <td>${amankan(x.jenis)}</td><td><span class="badge badge-yellow">${amankan(x.tipe)}</span></td>
+                    <td>${amankan(tanya)}</td>
+                    <td><span class="badge ${isAktif ? 'badge-green' : 'badge-red'}">${isAktif ? 'Aktif' : 'Nonaktif'}</span></td>
+                </tr>`;
+            });
+            html += '</tbody></table></div>';
+        }
+    }
+    wadah.className = '';
+    wadah.style.textAlign = 'left';
+    wadah.innerHTML = html;
+    wadah.querySelectorAll('[data-i]').forEach(btn => btn.onclick = () => { mapelSoal = daftarMapel[btn.dataset.i]; renderSoal(); });
+    const kembali = wadah.querySelector('[data-kembali]');
+    if (kembali) kembali.onclick = () => { mapelSoal = null; renderSoal(); };
+}
+function amankan(t) {
+    return String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 // ==================== RESET ====================
