@@ -28,7 +28,6 @@ let currentUser = null,
   pendingWaktuSelesai = null,
   pendingSesiAktif = null,
   isLocked = false,
-  debounceTimer = null,
   freezeDuration = 30,
   maxPelanggaran = 5,
   pendingSiswa = null,
@@ -39,6 +38,9 @@ let currentUser = null,
   lastVisibilityChangeTime = 0;
 
 let loginGraceUntil = 0;
+
+// Isian & Jodoh: draf lokal (belum dikirim), jawaban yang sudah ada di server, status kirim
+let drafLokal = {}, terkirim = {}, sedangMenyimpan = {};
 
 window.currentMatchingSoal = null;
 window.currentMatchingJawaban = {};
@@ -828,6 +830,7 @@ async function continueExam() {
     }
   } catch (e) {}
   await loadJawabanDariFirebase();
+  muatDraf();
   try {
     const pos = parseInt(localStorage.getItem(`posisi_${idSesi}`) || "0");
     if (pos > 0 && pos < dataSoal.length) indexSoal = pos;
@@ -850,6 +853,7 @@ async function startExam() {
   waktuMulaiServer = new Date();
   idSesi = "SES-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9);
   window.skorPerSoal = {};
+  drafLokal = {}; terkirim = {};
   localStorage.removeItem(`skor_${idSesi}`);
   loginGraceUntil = Date.now() + 10000;
   if (window.db)
@@ -883,9 +887,13 @@ async function loadJawabanDariFirebase() {
       window.Firebase.query(window.Firebase.collection(window.db, "jawaban_siswa"), window.Firebase.where("idSesi", "==", idSesi)),
     );
     jawabanLokal = {};
+    terkirim = {};
     snap.forEach((d) => {
       const data = d.data();
-      if (data.idSoal && data.jawaban !== undefined) jawabanLokal[data.idSoal] = data.jawaban;
+      if (data.idSoal && data.jawaban !== undefined) {
+        jawabanLokal[data.idSoal] = data.jawaban;
+        terkirim[data.idSoal] = data.jawaban;
+      }
     });
     if (snap.size) renderNavigator();
   } catch (e) { console.warn("Gagal load jawaban:", e); }
@@ -1006,7 +1014,8 @@ function renderSoal(idx) {
     }
   } else if (s.tipe === "Jodoh") {
     let k = {}, o = {};
-    try { k = JSON.parse(s.kunci); o = jaw ? JSON.parse(jaw) : {}; } catch (e) { o = {}; }
+    const isi = drafLokal[s.id] ?? jaw;
+    try { k = JSON.parse(s.kunci); o = isi ? JSON.parse(isi) : {}; } catch (e) { o = {}; }
     const istilahMap = parseIstilahDariPertanyaan(s.pertanyaan);
     const istilahList = Object.keys(istilahMap).length > 0 ? Object.keys(istilahMap) : Object.keys(k);
     const opsi = s.pilihan.filter((p) => p && p.trim());
@@ -1016,7 +1025,7 @@ function renderSoal(idx) {
     istilahList.forEach((key, idx) => {
       const namaIstilah = istilahMap[key] || key;
       const selected = o[key] || "";
-      h += `<div style="background:white;padding:12px;border-radius:10px;margin-bottom:8px;border:2px solid #FDE68A;"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><span style="font-weight:700;color:#1E3A8A;">${idx + 1}.</span><span style="font-weight:600;color:#1E293B;font-size:13px;flex:1;">${namaIstilah}</span><select id="jodoh_${s.id}_${key}" onchange="autoSaveJodohDropdown('${s.id}')" style="padding:8px;border-radius:8px;border:2px solid #E2E8F0;font-size:13px;" ${isFrozen ? "disabled" : ""}><option value="">-- Pilih --</option>`;
+      h += `<div style="background:white;padding:12px;border-radius:10px;margin-bottom:8px;border:2px solid #FDE68A;"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><span style="font-weight:700;color:#1E3A8A;">${idx + 1}.</span><span style="font-weight:600;color:#1E293B;font-size:13px;flex:1;">${namaIstilah}</span><select id="jodoh_${s.id}_${key}" onchange="catatDrafJodoh('${s.id}')" style="padding:8px;border-radius:8px;border:2px solid #E2E8F0;font-size:13px;" ${isFrozen ? "disabled" : ""}><option value="">-- Pilih --</option>`;
       opsi.forEach((opt, i) => {
         const hu = String.fromCharCode(65 + i);
         const usedByOther = Object.entries(o).some(([k2, v]) => k2 !== key && v === hu);
@@ -1032,10 +1041,12 @@ function renderSoal(idx) {
     });
     h += `</div></div>`;
     h += `<button class="btn-simpan" onclick="simpanJodohDropdown('${s.id}')" ${isFrozen ? "disabled" : ""} style="margin-top:12px;"><i class="fas fa-save"></i> Simpan Jawaban</button>`;
+    h += statusDraf(s.id);
   } else if (s.tipe === "Isian") {
     const uniqueName = `isian_${s.id}_${Date.now()}`;
-    h += `<input type="text" id="isian" name="${uniqueName}" value="${jaw || ""}" placeholder="Ketik jawaban..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" style="width:100%;padding:14px;border-radius:16px;border:1px solid #E2E8F0;" ${isFrozen ? "disabled" : ""} oninput="debounceAutoSaveIsian('${s.id}')">`;
+    h += `<input type="text" id="isian" name="${uniqueName}" value="${escapeAtribut(drafLokal[s.id] ?? jaw ?? "")}" placeholder="Ketik jawaban..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" style="width:100%;padding:14px;border-radius:16px;border:1px solid #E2E8F0;" ${isFrozen ? "disabled" : ""} oninput="catatDrafIsian('${s.id}')">`;
     h += `<button class="btn-simpan" onclick="simpanIsian('${s.id}')"><i class="fas fa-save"></i> Simpan</button>`;
+    h += statusDraf(s.id);
   }
   document.getElementById("soalContainer").innerHTML = h;
   setTimeout(nonaktifkanAutocomplete, 50);
@@ -1043,7 +1054,8 @@ function renderSoal(idx) {
 
 // ==================== SIMPAN JAWABAN ====================
 async function simpanJawabanKeFirebase(idSoal, jawaban, skor) {
-  if (!window.db || !idSesi) return;
+  if (!window.db || !idSesi) return false;
+  let berhasil = false;
   try {
     const coll = window.Firebase.collection(window.db, "jawaban_siswa");
     const q = window.Firebase.query(coll, window.Firebase.where("idSesi", "==", idSesi), window.Firebase.where("idSoal", "==", idSoal));
@@ -1054,6 +1066,7 @@ async function simpanJawabanKeFirebase(idSoal, jawaban, skor) {
       jenjang: currentUser.jenjang, kelas: currentUser.kelas, mapel: currentUjian.mapel,
       jenisUjian: currentUjian.jenis, idSoal, jawaban, skor, timestamp: new Date().toISOString(),
     });
+    berhasil = true;
     const skorPerSoal = JSON.parse(localStorage.getItem(`skor_${idSesi}`) || "{}");
     const skorLama = skorPerSoal[idSoal] || 0;
     skorPerSoal[idSoal] = skor;
@@ -1064,7 +1077,8 @@ async function simpanJawabanKeFirebase(idSoal, jawaban, skor) {
       const old = sesiSnap.docs[0].data().totalSkorSementara || 0;
       await window.Firebase.updateDoc(sesiSnap.docs[0].ref, { totalSkorSementara: old - skorLama + skor });
     }
-  } catch (e) {}
+  } catch (e) { console.warn("Gagal simpan jawaban:", e); }
+  return berhasil;
 }
 
 function simpanKeLocalStorage() {
@@ -1128,23 +1142,74 @@ function autoSaveBS(id, n) {
   showToast("Tersimpan", "success", 800);
 }
 
-// ═══════════════════════════════════════════════════════════
-// FIXED: debounceAutoSaveIsian pakai hitungSkorIsian
-// ═══════════════════════════════════════════════════════════
-function debounceAutoSaveIsian(id) {
-  clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(() => {
-    const i = document.getElementById("isian");
-    if (!i?.value.trim()) return;
-    const val = i.value.trim();
-    jawabanLokal[id] = val;
-    renderNavigator();
-    simpanKeLocalStorage();
-    const soal = dataSoal.find((q) => q.id === id);
-    const s = hitungSkorIsian(soal, val);
-    simpanJawabanKeFirebase(id, val, s);
-    showToast("Tersimpan", "success", 800);
-  }, 1000);
+// ==================== ISIAN & JODOH: SIMPAN MANUAL ====================
+// Mengetik / memilih hanya disimpan di HP (localStorage), TIDAK menulis ke Firebase.
+function escapeAtribut(t) {
+  return String(t).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function statusDraf(id) {
+  return `<p id="statusDraf" style="margin:8px 0 0;font-size:13px;color:#d97706;">${drafLokal[id] !== undefined ? "⚠️ Belum disimpan. Tekan Simpan." : ""}</p>`;
+}
+function tulisDraf() {
+  if (!idSesi) return;
+  try { localStorage.setItem(`draf_${idSesi}`, JSON.stringify(drafLokal)); } catch (e) {}
+}
+function muatDraf() {
+  try { drafLokal = JSON.parse(localStorage.getItem(`draf_${idSesi}`) || "{}"); } catch (e) { drafLokal = {}; }
+}
+function catatDraf(id, val) {
+  // Kosong atau sama dengan yang sudah disimpan = tidak ada draf
+  if (val === "" || val === terkirim[id]) delete drafLokal[id];
+  else drafLokal[id] = val;
+  tulisDraf();
+  const el = document.getElementById("statusDraf");
+  if (el) el.textContent = drafLokal[id] !== undefined ? "⚠️ Belum disimpan. Tekan Simpan." : "";
+}
+function bacaJodoh(id, kunci) {
+  const o = {};
+  Object.keys(kunci).forEach((key) => {
+    const select = document.getElementById(`jodoh_${id}_${key}`);
+    if (select && select.value) o[key] = select.value;
+  });
+  return o;
+}
+function catatDrafIsian(id) {
+  const i = document.getElementById("isian");
+  if (i) catatDraf(id, i.value.trim());
+}
+function catatDrafJodoh(id) {
+  const soal = dataSoal.find((q) => q.id === id);
+  if (!soal) return;
+  let k = {};
+  try { k = JSON.parse(soal.kunci); } catch (e) { return; }
+  const o = bacaJodoh(id, k);
+  catatDraf(id, Object.keys(o).length ? JSON.stringify(o) : "");
+}
+function skorDraf(soal, val) {
+  if (soal.tipe !== "Jodoh") return hitungSkorIsian(soal, val);
+  try {
+    const o = JSON.parse(val), k = JSON.parse(soal.kunci);
+    const benar = Object.keys(k).filter((key) => o[key] === k[key]).length;
+    return (benar / Object.keys(k).length) * soal.bobot;
+  } catch (e) { return 0; }
+}
+// Dipanggil hanya dari tombol Simpan
+async function kirimManual(id, val, skor, pesanSukses) {
+  if (sedangMenyimpan[id]) { showToast("Sedang mengirim, tunggu...", "info", 1500); return; }
+  jawabanLokal[id] = val;
+  delete drafLokal[id];
+  tulisDraf();
+  simpanKeLocalStorage();
+  renderNavigator();
+  const el = document.getElementById("statusDraf");
+  if (el) el.textContent = "";
+  // Jawaban sama dengan yang sudah ada di server: tidak perlu write lagi
+  if (terkirim[id] === val) { showToast("Jawaban sudah tersimpan", "info", 1500); return; }
+  sedangMenyimpan[id] = true;
+  const ok = await simpanJawabanKeFirebase(id, val, skor);
+  sedangMenyimpan[id] = false;
+  if (ok) { terkirim[id] = val; showSuccess(pesanSukses); }
+  else { drafLokal[id] = val; tulisDraf(); showError("Gagal mengirim. Tekan Simpan lagi."); }
 }
 
 function simpanPG(id) { autoSavePG(id); }
@@ -1152,68 +1217,26 @@ function simpanPGK(id) { autoSavePGK(id); }
 function simpanBSSingle(id) { autoSaveBSSingle(id); }
 function simpanBS(id, n) { autoSaveBS(id, n); }
 
-function autoSaveJodohDropdown(id) {
-  const soal = dataSoal.find((q) => q.id === id);
-  if (!soal) return;
-  let k = {};
-  try { k = JSON.parse(soal.kunci); } catch (e) { return; }
-  const o = {};
-  let allFilled = true;
-  const totalKey = Object.keys(k).length;
-  Object.keys(k).forEach((key) => {
-    const select = document.getElementById(`jodoh_${id}_${key}`);
-    if (select && select.value) o[key] = select.value;
-    else allFilled = false;
-  });
-  if (allFilled) {
-    jawabanLokal[id] = JSON.stringify(o);
-    renderNavigator();
-    simpanKeLocalStorage();
-    let benar = 0;
-    for (let key in k) if (o[key] === k[key]) benar++;
-    simpanJawabanKeFirebase(id, JSON.stringify(o), (benar / totalKey) * soal.bobot);
-    showToast(`✅ Tersimpan otomatis! (${benar}/${totalKey} benar)`, "success", 1500);
-  } else {
-    showToast(`📝 ${Object.keys(o).length}/${totalKey} terjawab`, "info", 1000);
-  }
-}
-
 function simpanJodohDropdown(id) {
   const soal = dataSoal.find((q) => q.id === id);
   if (!soal) return;
   let k = {};
   try { k = JSON.parse(soal.kunci); } catch (e) { showError("Format kunci salah!"); return; }
-  const o = {};
+  const o = bacaJodoh(id, k);
   const totalKey = Object.keys(k).length;
-  Object.keys(k).forEach((key) => {
-    const select = document.getElementById(`jodoh_${id}_${key}`);
-    if (select && select.value) o[key] = select.value;
-  });
   const filledKey = Object.keys(o).length;
   if (filledKey < totalKey) { showError(`Baru ${filledKey} dari ${totalKey} yang dijawab!`); return; }
-  jawabanLokal[id] = JSON.stringify(o);
-  renderNavigator();
-  simpanKeLocalStorage();
   let benar = 0;
   for (let key in k) if (o[key] === k[key]) benar++;
-  simpanJawabanKeFirebase(id, JSON.stringify(o), (benar / totalKey) * soal.bobot);
-  showSuccess(`✅ Jawaban tersimpan! (${benar}/${totalKey} benar)`);
+  kirimManual(id, JSON.stringify(o), (benar / totalKey) * soal.bobot, `✅ Jawaban tersimpan! (${benar}/${totalKey} benar)`);
 }
 
-// ═══════════════════════════════════════════════════════════
-// FIXED: simpanIsian pakai hitungSkorIsian
-// ═══════════════════════════════════════════════════════════
 function simpanIsian(id) {
   const i = document.getElementById("isian");
   if (!i?.value.trim()) { showError("Isi jawaban!"); return; }
   const val = i.value.trim();
-  jawabanLokal[id] = val;
-  renderNavigator();
-  simpanKeLocalStorage();
   const soal = dataSoal.find((q) => q.id === id);
-  const s = hitungSkorIsian(soal, val);
-  simpanJawabanKeFirebase(id, val, s);
-  showSuccess("Tersimpan!");
+  kirimManual(id, val, hitungSkorIsian(soal, val), "Tersimpan!");
 }
 
 function prevSoal() {
@@ -1253,7 +1276,7 @@ function konfirmasiSelesai() {
   showModal({
     iconType: "warning",
     title: "Akhiri Ujian?",
-    message: `📝 ${dataSoal.length - b} dijawab\n⚠️ ${b} belum`,
+    message: `📝 ${dataSoal.length - b} dijawab\n⚠️ ${b} belum` + (Object.keys(drafLokal).length ? `\n💾 ${Object.keys(drafLokal).length} isian/jodoh belum disimpan (akan ikut dikirim)` : ""),
     showCheckbox: true,
     checkboxLabel: "Saya yakin",
     buttons: [
@@ -1268,6 +1291,11 @@ async function selesaiUjian() {
   clearInterval(timerInterval);
   if (freezeInterval) clearInterval(freezeInterval);
   ujianSelesai = true;
+
+  // Draf yang belum sempat disimpan tetap dihitung, lalu dikirim satu kali di bawah
+  const drafTersisa = Object.entries(drafLokal);
+  drafTersisa.forEach(([id, val]) => { jawabanLokal[id] = val; });
+  drafLokal = {};
 
   let totalSkor = 0, totalBobot = 0, jumlahBenar = 0;
 
@@ -1340,6 +1368,10 @@ async function selesaiUjian() {
       if (!snap.empty) await window.Firebase.updateDoc(snap.docs[0].ref, nilaiData);
       else await window.Firebase.addDoc(window.Firebase.collection(window.db, "nilai_akhir"), nilaiData);
     } catch (e) {}
+    for (const [id, val] of drafTersisa) {
+      const soal = dataSoal.find((q) => String(q.id) === id);
+      if (soal) await simpanJawabanKeFirebase(soal.id, val, skorDraf(soal, val));
+    }
     try {
       const q = window.Firebase.query(window.Firebase.collection(window.db, "sesi_ujian"), window.Firebase.where("idSesi", "==", idSesi));
       const snap = await window.Firebase.getDocs(q);
@@ -1351,6 +1383,7 @@ async function selesaiUjian() {
   localStorage.removeItem(`skor_${idSesi}`);
   localStorage.removeItem(`urutan_${idSesi}`);
   localStorage.removeItem(`posisi_${idSesi}`);
+  localStorage.removeItem(`draf_${idSesi}`);
 
   showModal({
     iconType: "success",
@@ -1373,7 +1406,7 @@ document.addEventListener("DOMContentLoaded", () => {
 Object.assign(window, {
   handleLogin, togglePassword, logoutToLogin, cancelConfirm, cancelResume, continueExam, startExam,
   pilihUjian, goToSoal, prevSoal, nextSoal, toggleNav, toggleRagu, konfirmasiSelesai,
-  autoSavePG, autoSavePGK, autoSaveBSSingle, autoSaveBS, autoSaveJodohDropdown, debounceAutoSaveIsian,
+  autoSavePG, autoSavePGK, autoSaveBSSingle, autoSaveBS, catatDrafJodoh, catatDrafIsian,
   simpanPG, simpanPGK, simpanBSSingle, simpanBS, simpanJodohDropdown, simpanIsian,
   openLightbox, closeLightbox, handleGambarError,
 });
